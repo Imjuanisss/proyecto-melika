@@ -1,0 +1,105 @@
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=Lato:wght@300;400;700&family=Source+Code+Pro:wght@400;500&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* Azules — usados en acentos, bordes, fondos sutiles */
+  --melika-primary-900: #0B1A36;
+  --melika-primary-800: #0F2554;
+  --melika-primary-700: #1A3A8F;
+  --melika-primary-600: #2351C4;
+  --melika-primary-500: #3B6EE8;
+  --melika-primary-300: #93B4F5;
+  --melika-primary-200: #BFCFEE;
+  --melika-primary-100: #D9E4F7;
+  --melika-primary-50:  #EEF3FC;
+  --melika-primary-25:  #F6F9FF;
+
+  /* Coral / Naranja — acento principal de acción */
+  --melika-accent:        #E8856A;
+  --melika-accent-dark:   #C96848;
+  --melika-accent-light:  #FAE8E2;
+  --melika-accent-medium: #F4A88A;
+
+  /* Fondos — blancos y muy claros */
+  --melika-bg:           #FFFFFF;
+  --melika-bg-soft:      #FAFAFA;
+  --melika-bg-secondary: #F5F7FB;
+
+  /* Semánticos */
+  --melika-success:     #1A7A52;
+  --melika-success-bg:  #E8F5EE;
+  --melika-warning:     #B45309;
+  --melika-warning-bg:  #FEF3C7;
+  --melika-error:       #B91C1C;
+  --melika-error-bg:    #FEE2E2;
+
+  /* Texto */
+  --melika-text-primary:   #0B1A36;
+  --melika-text-secondary: #4A5978;
+  --melika-text-muted:     #8A9BBE;
+  --melika-text-light:     #B0BFCF;
+
+  /* Tipografía */
+  --font-display: 'Sora', sans-serif;
+  --font-body:    'Lato', sans-serif;
+  --font-mono:    'Source Code Pro', monospace;
+
+  /* Espaciado 4pt */
+  --space-1:  0.25rem;
+  --space-2:  0.5rem;
+  --space-3:  0.75rem;
+  --space-4:  1rem;
+  --space-5:  1.25rem;
+  --space-6:  1.5rem;
+  --space-8:  2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-20: 5rem;
+  --space-24: 6rem;
+
+  /* Border radius */
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   16px;
+  --radius-xl:   24px;
+  --radius-2xl:  32px;
+  --radius-full: 9999px;
+
+  /* Sombras */
+  --shadow-xs: 0 1px 2px rgba(11,26,54,0.04);
+  --shadow-sm: 0 1px 4px rgba(11,26,54,0.06), 0 1px 2px rgba(11,26,54,0.04);
+  --shadow-md: 0 4px 16px rgba(11,26,54,0.08), 0 2px 4px rgba(11,26,54,0.04);
+  --shadow-lg: 0 12px 40px rgba(11,26,54,0.10), 0 4px 8px rgba(11,26,54,0.05);
+  --shadow-xl: 0 24px 64px rgba(11,26,54,0.12), 0 8px 16px rgba(11,26,54,0.06);
+  --shadow-accent: 0 6px 20px rgba(232,133,106,0.32);
+
+  /* Transiciones */
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --duration-fast: 150ms;
+  --duration-base: 250ms;
+  --duration-slow: 400ms;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--melika-bg);
+  color: var(--melika-text-primary);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  line-height: 1.15;
+  color: var(--melika-text-primary);
+}
+
+a { text-decoration: none; color: inherit; }
+img { display: block; max-width: 100%; }
+button { cursor: pointer; font-family: var(--font-display); border: none; background: none; }
+input, select, textarea { font-family: var(--font-body); }
