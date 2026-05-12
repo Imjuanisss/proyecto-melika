@@ -1,0 +1,146 @@
+/* Usado por Login.jsx y Registro.jsx */
+ 
+.auth-pagina {
+    min-height: calc(100vh - 64px);
+    display:    flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--melika-bg-secondary);
+    padding:    var(--space-6);
+    margin-top: 64px;
+}
+ 
+.auth-card {
+    background:    var(--melika-bg);
+    border:        1px solid var(--melika-primary-100);
+    border-radius: var(--radius-xl);
+    padding:       var(--space-10) var(--space-8);
+    width:         100%;
+    max-width:     440px;
+    box-shadow:    var(--shadow-md);
+}
+ 
+.auth-card__cabecera {
+    margin-bottom: var(--space-6);
+}
+ 
+.auth-card__titulo {
+    font-size:   26px;
+    font-weight: 700;
+    color:       var(--melika-text-primary);
+    margin-bottom: var(--space-1);
+}
+ 
+.auth-card__sub {
+    font-size: 14px;
+    color:     var(--melika-text-muted);
+}
+ 
+.auth-error {
+    background:    var(--melika-error-bg);
+    color:         var(--melika-error);
+    border:        1px solid #fca5a5;
+    border-radius: var(--radius-sm);
+    padding:       var(--space-3) var(--space-4);
+    font-size:     14px;
+    margin-bottom: var(--space-4);
+}
+ 
+.auth-form {
+    display:        flex;
+    flex-direction: column;
+    gap:            var(--space-4);
+}
+ 
+.auth-campo {
+    display:        flex;
+    flex-direction: column;
+    gap:            var(--space-1);
+}
+ 
+.auth-campo label {
+    font-size:   13px;
+    font-weight: 700;
+    color:       var(--melika-text-primary);
+}
+ 
+.auth-campo input,
+.auth-campo select,
+.auth-campo textarea {
+    border:        1.5px solid var(--melika-primary-100);
+    border-radius: var(--radius-sm);
+    padding:       var(--space-3) var(--space-4);
+    font-size:     15px;
+    font-family:   var(--font-body);
+    color:         var(--melika-text-primary);
+    outline:       none;
+    transition:    border-color 0.2s;
+    width:         100%;
+    background:    var(--melika-bg);
+}
+ 
+.auth-campo input:focus,
+.auth-campo select:focus {
+    border-color: var(--melika-primary-500);
+}
+ 
+.auth-btn {
+    background:    var(--melika-accent);
+    color:         #fff;
+    border:        none;
+    border-radius: var(--radius-sm);
+    padding:       var(--space-4);
+    font-size:     16px;
+    font-weight:   700;
+    font-family:   var(--font-display);
+    cursor:        pointer;
+    transition:    background 0.2s, transform 0.1s;
+    margin-top:    var(--space-2);
+}
+ 
+.auth-btn:hover:not(:disabled) {
+    background: var(--melika-accent-dark);
+}
+ 
+.auth-btn:disabled {
+    opacity: 0.6;
+    cursor:  not-allowed;
+}
+ 
+.auth-pie {
+    text-align:  center;
+    margin-top:  var(--space-5);
+    font-size:   14px;
+    color:       var(--melika-text-secondary);
+}
+ 
+.auth-pie a {
+    color:       var(--melika-primary-600);
+    font-weight: 700;
+}
+ 
+.auth-exito {
+    text-align:    center;
+    padding:       var(--space-6) 0;
+}
+ 
+.auth-exito__icono {
+    font-size:     56px;
+    display:       block;
+    margin-bottom: var(--space-4);
+}
+ 
+.auth-exito h2 {
+    font-size:     22px;
+    margin-bottom: var(--space-3);
+    color:         var(--melika-text-primary);
+}
+ 
+.auth-exito p {
+    color:         var(--melika-text-secondary);
+    margin-bottom: var(--space-6);
+}
+ 
+@media (max-width: 480px) {
+    .auth-card { padding: var(--space-8) var(--space-5); }
+}

@@ -1,18 +1,54 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import Navbar from './components/layout/Navbar';
-import Inicio from './pages/inicio/Inicio';
-//agreagr import de catalogo aqui
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth }  from './context/AuthContext';
+import Navbar      from './components/layout/Navbar';
+import Inicio      from './pages/inicio/Inicio';
+import Login       from './pages/login/Login';
+import Registro    from './pages/registro/Registro';
+import Dashboard   from './pages/dashboard/Dashboard';
 import Agendarcita from './pages/agendar/Agendarcita';
-
+import MisCitas    from './pages/miscitas/MisCitas';
+ 
+// Componente que protege rutas: si no hay sesión, redirige al login
+function RutaProtegida({ children }) {
+    const { usuario } = useAuth();
+    if (!usuario) return <Navigate to="/login" replace />;
+    return children;
+}
+ 
+function AppRoutes() {
+    return (
+        <>
+            <Navbar />
+            <Routes>
+                {/* Rutas públicas */}
+                <Route path="/"         element={<Inicio />} />
+                <Route path="/login"    element={<Login />} />
+                <Route path="/registro" element={<Registro />} />
+ 
+                {/* Rutas protegidas — requieren login */}
+                <Route path="/dashboard" element={
+                    <RutaProtegida><Dashboard /></RutaProtegida>
+                } />
+                <Route path="/agendar" element={
+                    <RutaProtegida><Agendarcita /></RutaProtegida>
+                } />
+                <Route path="/mis-citas" element={
+                    <RutaProtegida><MisCitas /></RutaProtegida>
+                } />
+ 
+                {/* Cualquier ruta desconocida lleva al inicio */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+        </>
+    );
+}
+ 
 export default function App() {
-  return (
-    <BrowserRouter>
-      <Navbar />
-      <Routes>
-        <Route path="/"         element={<Inicio />} />
-        //agregar ruta de catalogo aqui
-        <Route path="/agendar"  element={<Agendarcita />} />
-      </Routes>
-    </BrowserRouter>
-  );
+    return (
+        <AuthProvider>
+            <BrowserRouter>
+                <AppRoutes />
+            </BrowserRouter>
+        </AuthProvider>
+    );
 }

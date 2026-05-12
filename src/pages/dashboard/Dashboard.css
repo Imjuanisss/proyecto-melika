@@ -1,0 +1,184 @@
+.dashboard {
+    min-height: calc(100vh - 64px);
+    padding:    var(--space-10) 0 var(--space-16);
+    background: var(--melika-bg-secondary);
+    margin-top: 64px;
+}
+ 
+.dashboard__cabecera {
+    text-align:    center;
+    margin-bottom: var(--space-10);
+}
+ 
+.dashboard__titulo {
+    font-size:     32px;
+    margin-bottom: var(--space-2);
+    color:         var(--melika-text-primary);
+}
+ 
+.dashboard__titulo span { color: var(--melika-accent); }
+ 
+.dashboard__sub {
+    font-size: 16px;
+    color:     var(--melika-text-secondary);
+}
+ 
+.dashboard__seccion {
+    margin-bottom: var(--space-10);
+}
+ 
+.dashboard__seccion-titulo {
+    font-size:     18px;
+    font-weight:   700;
+    color:         var(--melika-text-primary);
+    margin-bottom: var(--space-4);
+}
+ 
+.dashboard__skeleton {
+    height:        120px;
+    background:    linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation:     pulso 1.5s infinite;
+    border-radius: var(--radius-lg);
+}
+ 
+@keyframes pulso {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+ 
+/* Próxima cita */
+.proxima-cita {
+    background:    var(--melika-bg);
+    border:        1px solid var(--melika-primary-100);
+    border-left:   4px solid var(--melika-accent);
+    border-radius: var(--radius-lg);
+    padding:       var(--space-6);
+    display:       flex;
+    justify-content: space-between;
+    align-items:   center;
+    gap:           var(--space-4);
+    box-shadow:    var(--shadow-sm);
+}
+ 
+.proxima-cita__especialidad {
+    font-size:     12px;
+    font-weight:   700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color:         var(--melika-accent);
+    display:       block;
+    margin-bottom: var(--space-1);
+}
+ 
+.proxima-cita__medico {
+    font-size:     17px;
+    font-weight:   700;
+    color:         var(--melika-text-primary);
+    margin-bottom: var(--space-1);
+}
+ 
+.proxima-cita__fecha {
+    font-size:     14px;
+    color:         var(--melika-text-secondary);
+    margin-bottom: var(--space-3);
+}
+ 
+.badge-pendiente   { background: var(--melika-warning-bg);  color: var(--melika-warning);  padding: 3px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+.badge-cancelada   { background: var(--melika-error-bg);    color: var(--melika-error);    padding: 3px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+.badge-completada  { background: var(--melika-success-bg);  color: var(--melika-success);  padding: 3px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+.badge-confirmada  { background: var(--melika-primary-50);  color: var(--melika-primary-600); padding: 3px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+ 
+.proxima-cita__ver {
+    font-family:  var(--font-display);
+    font-size:    14px;
+    font-weight:  700;
+    color:        var(--melika-primary-600);
+    background:   var(--melika-primary-50);
+    border:       1.5px solid var(--melika-primary-100);
+    border-radius: var(--radius-sm);
+    padding:      var(--space-3) var(--space-5);
+    cursor:       pointer;
+    transition:   all 0.2s;
+    white-space:  nowrap;
+}
+ 
+.proxima-cita__ver:hover {
+    background:   var(--melika-primary-100);
+    border-color: var(--melika-primary-200);
+}
+ 
+.dashboard__sin-citas {
+    background:    var(--melika-bg);
+    border:        1px dashed var(--melika-primary-200);
+    border-radius: var(--radius-lg);
+    padding:       var(--space-10);
+    text-align:    center;
+}
+ 
+.dashboard__sin-citas p {
+    color:         var(--melika-text-muted);
+    margin-bottom: var(--space-4);
+}
+ 
+.dashboard__cta {
+    background:    var(--melika-accent);
+    color:         #fff;
+    border:        none;
+    border-radius: var(--radius-sm);
+    padding:       var(--space-3) var(--space-8);
+    font-family:   var(--font-display);
+    font-size:     15px;
+    font-weight:   700;
+    cursor:        pointer;
+    transition:    background 0.2s;
+}
+ 
+.dashboard__cta:hover { background: var(--melika-accent-dark); }
+ 
+/* Accesos rápidos */
+.dashboard__accesos {
+    display:               grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap:                   var(--space-4);
+}
+ 
+.acceso-card {
+    background:    var(--melika-bg);
+    border:        1px solid var(--melika-primary-100);
+    border-top:    3px solid var(--melika-primary-300);
+    border-radius: var(--radius-lg);
+    padding:       var(--space-8) var(--space-6);
+    text-align:    center;
+    cursor:        pointer;
+    transition:    transform 0.15s, box-shadow 0.15s;
+}
+ 
+.acceso-card:hover {
+    transform:  translateY(-3px);
+    box-shadow: var(--shadow-md);
+}
+ 
+.acceso-card__icono {
+    font-size:     40px;
+    display:       block;
+    margin-bottom: var(--space-3);
+}
+ 
+.acceso-card__titulo {
+    font-size:     17px;
+    font-weight:   700;
+    color:         var(--melika-text-primary);
+    margin-bottom: var(--space-1);
+}
+ 
+.acceso-card__desc {
+    font-size: 14px;
+    color:     var(--melika-text-secondary);
+}
+ 
+@media (max-width: 600px) {
+    .proxima-cita { flex-direction: column; align-items: flex-start; }
+    .proxima-cita__ver { width: 100%; text-align: center; }
+}
+ 

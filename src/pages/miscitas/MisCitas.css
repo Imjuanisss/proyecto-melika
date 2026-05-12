@@ -1,0 +1,237 @@
+.miscitas-pagina {
+    min-height: calc(100vh - 64px);
+    padding:    var(--space-10) 0 var(--space-16);
+    background: var(--melika-bg-secondary);
+    margin-top: 64px;
+}
+ 
+.miscitas-titulo {
+    font-size:     28px;
+    font-weight:   700;
+    color:         var(--melika-text-primary);
+    margin-bottom: var(--space-6);
+}
+ 
+.miscitas-error {
+    background:    var(--melika-error-bg);
+    color:         var(--melika-error);
+    border:        1px solid #fca5a5;
+    border-radius: var(--radius-sm);
+    padding:       var(--space-3) var(--space-4);
+    font-size:     14px;
+    margin-bottom: var(--space-4);
+}
+ 
+.miscitas-vacio {
+    background:    var(--melika-bg);
+    border:        1px dashed var(--melika-primary-200);
+    border-radius: var(--radius-lg);
+    padding:       var(--space-16);
+    text-align:    center;
+}
+ 
+.miscitas-vacio p {
+    font-size:     16px;
+    color:         var(--melika-text-muted);
+    margin-bottom: var(--space-5);
+}
+ 
+.miscitas-lista {
+    display:        flex;
+    flex-direction: column;
+    gap:            var(--space-4);
+}
+ 
+/* Skeleton */
+.cita-skeleton {
+    height:        140px;
+    background:    linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation:     pulso 1.5s infinite;
+    border-radius: var(--radius-lg);
+}
+ 
+/* Tarjeta de cita */
+.cita-card {
+    background:    var(--melika-bg);
+    border:        1px solid var(--melika-primary-100);
+    border-radius: var(--radius-lg);
+    padding:       var(--space-5) var(--space-6);
+    display:       flex;
+    justify-content: space-between;
+    align-items:   flex-start;
+    gap:           var(--space-4);
+    box-shadow:    var(--shadow-xs);
+    transition:    box-shadow 0.15s;
+}
+ 
+.cita-card:hover { box-shadow: var(--shadow-sm); }
+ 
+.cita-card__cuerpo { flex: 1; }
+ 
+.cita-card__encabezado {
+    display:       flex;
+    align-items:   center;
+    gap:           var(--space-3);
+    margin-bottom: var(--space-2);
+}
+ 
+.cita-card__especialidad {
+    font-size:  16px;
+    font-weight: 700;
+    color:       var(--melika-text-primary);
+}
+ 
+.cita-card__medico {
+    font-size:     14px;
+    color:         var(--melika-text-secondary);
+    margin-bottom: var(--space-1);
+}
+ 
+.cita-card__fecha {
+    font-size:     14px;
+    color:         var(--melika-text-secondary);
+    margin-bottom: var(--space-1);
+}
+ 
+.cita-card__tipo {
+    font-size:     13px;
+    color:         var(--melika-text-muted);
+    margin-bottom: var(--space-1);
+}
+ 
+.cita-card__tarifa {
+    color: var(--melika-text-muted);
+}
+ 
+.cita-card__motivo {
+    font-size:  13px;
+    color:      var(--melika-text-muted);
+    font-style: italic;
+    margin-top: var(--space-2);
+}
+ 
+.cita-card__razon {
+    font-size:  12px;
+    color:      var(--melika-error);
+    margin-top: var(--space-2);
+}
+ 
+.cita-card__acciones {
+    display:     flex;
+    align-items: flex-start;
+    padding-top: 2px;
+    flex-shrink: 0;
+}
+ 
+/* Botones de acción */
+.btn-cancelar {
+    background:    none;
+    border:        1.5px solid var(--melika-warning);
+    border-radius: var(--radius-sm);
+    color:         var(--melika-warning);
+    padding:       var(--space-2) var(--space-4);
+    font-size:     13px;
+    font-weight:   700;
+    font-family:   var(--font-display);
+    cursor:        pointer;
+    transition:    all 0.15s;
+    white-space:   nowrap;
+}
+ 
+.btn-cancelar:hover:not(:disabled) { background: var(--melika-warning-bg); }
+.btn-cancelar:disabled { opacity: 0.5; cursor: not-allowed; }
+ 
+.btn-eliminar {
+    background:    none;
+    border:        1.5px solid var(--melika-error);
+    border-radius: var(--radius-sm);
+    color:         var(--melika-error);
+    padding:       var(--space-2) var(--space-4);
+    font-size:     13px;
+    font-weight:   700;
+    font-family:   var(--font-display);
+    cursor:        pointer;
+    transition:    all 0.15s;
+    white-space:   nowrap;
+}
+ 
+.btn-eliminar:hover:not(:disabled) { background: var(--melika-error-bg); }
+.btn-eliminar:disabled { opacity: 0.5; cursor: not-allowed; }
+ 
+/* Badges (compartidos con Dashboard) */
+.badge-pendiente  { background: var(--melika-warning-bg);  color: var(--melika-warning);      padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.badge-cancelada  { background: var(--melika-error-bg);    color: var(--melika-error);        padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.badge-completada { background: var(--melika-success-bg);  color: var(--melika-success);      padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.badge-confirmada { background: var(--melika-primary-50);  color: var(--melika-primary-600);  padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+ 
+/* Modal */
+.modal-overlay {
+    position:        fixed;
+    inset:           0;
+    background:      rgba(11, 26, 54, 0.45);
+    display:         flex;
+    align-items:     center;
+    justify-content: center;
+    z-index:         300;
+    padding:         var(--space-5);
+}
+ 
+.modal-card {
+    background:    var(--melika-bg);
+    border-radius: var(--radius-xl);
+    padding:       var(--space-8);
+    max-width:     420px;
+    width:         100%;
+    box-shadow:    var(--shadow-xl);
+}
+ 
+.modal-card h3 {
+    font-size:     20px;
+    font-weight:   700;
+    color:         var(--melika-text-primary);
+    margin-bottom: var(--space-3);
+}
+ 
+.modal-card p {
+    font-size:     15px;
+    color:         var(--melika-text-secondary);
+    line-height:   1.6;
+    margin-bottom: var(--space-6);
+}
+ 
+.modal-acciones {
+    display:         flex;
+    justify-content: flex-end;
+    gap:             var(--space-3);
+}
+ 
+.btn-secundario {
+    background:    transparent;
+    color:         var(--melika-primary-600);
+    border:        1.5px solid var(--melika-primary-200);
+    border-radius: var(--radius-sm);
+    padding:       var(--space-3) var(--space-6);
+    font-size:     14px;
+    font-weight:   700;
+    font-family:   var(--font-display);
+    cursor:        pointer;
+    transition:    all 0.15s;
+}
+ 
+.btn-secundario:hover:not(:disabled) { background: var(--melika-primary-25); }
+.btn-secundario:disabled { opacity: 0.5; cursor: not-allowed; }
+ 
+@keyframes pulso {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+ 
+@media (max-width: 600px) {
+    .cita-card           { flex-direction: column; }
+    .cita-card__acciones { width: 100%; }
+    .btn-cancelar,
+    .btn-eliminar        { width: 100%; text-align: center; }
+    .modal-acciones      { flex-direction: column-reverse; }
+}
+ 

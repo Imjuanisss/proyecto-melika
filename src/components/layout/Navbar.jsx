@@ -1,108 +1,139 @@
-// src/components/layout/Navbar.jsx
 import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import Boton from '../ui/Boton';
 import './Navbar.css';
-
-const NAV_LINKS = [
-  { label: 'Inicio',        to: '/' },
-  { label: 'Especialidades', to: '/#especialidades' },
-  { label: 'Medicamentos',  to: '/catalogo' },
+ 
+const LINKS_PUBLICOS = [
+    { label: 'Inicio',        to: '/' },
+    { label: 'Especialidades', to: '/#especialidades' },
+    { label: 'Medicamentos',  to: '/catalogo' },
 ];
-
+ 
+const LINKS_PRIVADOS = [
+    { label: 'Inicio',      to: '/' },
+    { label: 'Agendar',     to: '/agendar' },
+    { label: 'Mis citas',   to: '/mis-citas' },
+];
+ 
 export default function Navbar() {
-  const [scrolled,  setScrolled]  = useState(false);
-  const [menuOpen,  setMenuOpen]  = useState(false);
-  const location = useLocation();
-
-  useEffect(() => {
-    const handler = () => setScrolled(window.scrollY > 24);
-    window.addEventListener('scroll', handler, { passive: true });
-    return () => window.removeEventListener('scroll', handler);
-  }, []);
-
-  const cerrar = () => setMenuOpen(false);
-
-  return (
-    <>
-      <header className={`navbar ${scrolled ? 'navbar--scrolled' : ''}`}>
-        <div className="navbar__inner">
-          {/* Logo */}
-          <Link to="/" className="navbar__logo" onClick={cerrar}>
-            <div className="navbar__logo-mark">M</div>
-            <span>ELIKA</span>
-          </Link>
-
-          {/* Links de navegación */}
-          <nav className="navbar__links" aria-label="Navegación principal">
-            {NAV_LINKS.map(l => (
-              <Link
-                key={l.to}
-                to={l.to}
-                className={`navbar__link ${
-                  location.pathname === l.to ? 'navbar__link--activo' : ''
-                }`}
-              >
-                {l.label}
-              </Link>
-            ))}
-          </nav>
-
-          {/* Acciones */}
-          <div className="navbar__acciones">
-            <Link to="/login">
-              <Boton variante="ghost" size="sm">Iniciar sesión</Boton>
-            </Link>
-            <Link to="/registro">
-              <Boton variante="primary-azul" size="sm">Registrarse</Boton>
-            </Link>
-          </div>
-
-          {/* Hamburger mobile */}
-          <button
-            className={`navbar__hamburger ${menuOpen ? 'navbar__hamburger--abierto' : ''}`}
-            onClick={() => setMenuOpen(v => !v)}
-            aria-label="Abrir menú"
-            aria-expanded={menuOpen}
-          >
-            <span />
-            <span />
-            <span />
-          </button>
-        </div>
-      </header>
-
-      {/* Overlay mobile */}
-      {menuOpen && (
-        <div className="navbar__overlay" onClick={cerrar} aria-hidden="true" />
-      )}
-
-      {/* Drawer mobile */}
-      <div
-        className={`navbar__drawer ${menuOpen ? 'navbar__drawer--abierto' : ''}`}
-        aria-hidden={!menuOpen}
-      >
-        <nav className="navbar__drawer-links">
-          {NAV_LINKS.map(l => (
-            <Link
-              key={l.to}
-              to={l.to}
-              className="navbar__drawer-link"
-              onClick={cerrar}
-            >
-              {l.label}
-            </Link>
-          ))}
-        </nav>
-        <div className="navbar__drawer-acciones">
-          <Link to="/login" onClick={cerrar}>
-            <Boton variante="outline" size="md" fullWidth>Iniciar sesión</Boton>
-          </Link>
-          <Link to="/registro" onClick={cerrar}>
-            <Boton variante="primary-azul" size="md" fullWidth>Registrarse</Boton>
-          </Link>
-        </div>
-      </div>
-    </>
-  );
+    const { usuario, logout }      = useAuth();
+    const [scrolled, setScrolled]  = useState(false);
+    const [menuOpen, setMenuOpen]  = useState(false);
+    const location  = useLocation();
+    const navigate  = useNavigate();
+ 
+    useEffect(() => {
+        const onScroll = () => setScrolled(window.scrollY > 24);
+        window.addEventListener('scroll', onScroll, { passive: true });
+        return () => window.removeEventListener('scroll', onScroll);
+    }, []);
+ 
+    function handleLogout() {
+        logout();
+        navigate('/login');
+        setMenuOpen(false);
+    }
+ 
+    const links = usuario ? LINKS_PRIVADOS : LINKS_PUBLICOS;
+    const cerrar = () => setMenuOpen(false);
+ 
+    return (
+        <>
+            <header className={`navbar ${scrolled ? 'navbar--scrolled' : ''}`}>
+                <div className="navbar__inner">
+ 
+                    {/* Logo */}
+                    <Link to="/" className="navbar__logo" onClick={cerrar}>
+                        <div className="navbar__logo-mark">M</div>
+                        <span>ELIKA</span>
+                    </Link>
+ 
+                    {/* Links de navegación */}
+                    <nav className="navbar__links">
+                        {links.map(l => (
+                            <Link
+                                key={l.to}
+                                to={l.to}
+                                className={`navbar__link ${location.pathname === l.to ? 'navbar__link--activo' : ''}`}
+                            >
+                                {l.label}
+                            </Link>
+                        ))}
+                    </nav>
+ 
+                    {/* Acciones según estado de sesión */}
+                    <div className="navbar__acciones">
+                        {usuario ? (
+                            <>
+                                <Link to="/dashboard" className="navbar__saludo">
+                                    Hola, {usuario.nombre}
+                                </Link>
+                                <button className="navbar__logout-btn" onClick={handleLogout}>
+                                    Cerrar sesión
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <Link to="/login">
+                                    <Boton variante="ghost" size="sm">Iniciar sesión</Boton>
+                                </Link>
+                                <Link to="/registro">
+                                    <Boton variante="primary" size="sm">Registrarse</Boton>
+                                </Link>
+                            </>
+                        )}
+                    </div>
+ 
+                    {/* Hamburger para mobile */}
+                    <button
+                        className={`navbar__hamburger ${menuOpen ? 'navbar__hamburger--abierto' : ''}`}
+                        onClick={() => setMenuOpen(v => !v)}
+                        aria-label="Abrir menú"
+                    >
+                        <span /><span /><span />
+                    </button>
+                </div>
+            </header>
+ 
+            {/* Overlay oscuro detrás del drawer */}
+            {menuOpen && (
+                <div className="navbar__overlay" onClick={cerrar} />
+            )}
+ 
+            {/* Drawer mobile */}
+            <div className={`navbar__drawer ${menuOpen ? 'navbar__drawer--abierto' : ''}`}>
+                <nav className="navbar__drawer-links">
+                    {links.map(l => (
+                        <Link
+                            key={l.to}
+                            to={l.to}
+                            className="navbar__drawer-link"
+                            onClick={cerrar}
+                        >
+                            {l.label}
+                        </Link>
+                    ))}
+                </nav>
+                <div className="navbar__drawer-acciones">
+                    {usuario ? (
+                        <button className="navbar__logout-btn" onClick={handleLogout} style={{ width: '100%', textAlign: 'center' }}>
+                            Cerrar sesión
+                        </button>
+                    ) : (
+                        <>
+                            <Link to="/login" onClick={cerrar}>
+                                <Boton variante="outline" size="md" fullWidth>Iniciar sesión</Boton>
+                            </Link>
+                            <Link to="/registro" onClick={cerrar}>
+                                <Boton variante="primary" size="md" fullWidth>Registrarse</Boton>
+                            </Link>
+                        </>
+                    )}
+                </div>
+            </div>
+        </>
+    );
 }
+ 
+ 
