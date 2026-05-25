@@ -1,0 +1,370 @@
+.dashboard-medico {
+    min-height: calc(100vh - 64px);
+    padding:    var(--space-10) 0 var(--space-16);
+    background: var(--melika-bg-secondary);
+    margin-top: 64px;
+}
+
+.dashboard-medico__cabecera {
+    margin-bottom: var(--space-8);
+}
+
+.dashboard-medico__titulo {
+    font-size:     30px;
+    font-weight:   700;
+    color:         var(--melika-text-primary);
+    margin-bottom: var(--space-1);
+}
+
+.dashboard-medico__sub {
+    font-size: 15px;
+    color:     var(--melika-text-secondary);
+}
+
+/* Grid principal */
+.dashboard-medico__grid {
+    display:               grid;
+    grid-template-columns: 1fr 360px;
+    gap:                   var(--space-6);
+    align-items:           start;
+}
+
+/* Panel del calendario */
+.panel-calendario {
+    background:    var(--melika-bg);
+    border:        1px solid var(--melika-primary-100);
+    border-radius: var(--radius-xl);
+    padding:       var(--space-6);
+    box-shadow:    var(--shadow-sm);
+}
+
+.panel-calendario__titulo {
+    font-size:     18px;
+    font-weight:   700;
+    color:         var(--melika-text-primary);
+    margin-bottom: var(--space-5);
+}
+
+/* Sobrescribir estilos FullCalendar para que encaje con el design system */
+.fc {
+    font-family: var(--font-body) !important;
+}
+
+.fc .fc-toolbar-title {
+    font-family: var(--font-display) !important;
+    font-size:   16px !important;
+    font-weight: 700 !important;
+    color:       var(--melika-text-primary) !important;
+}
+
+.fc .fc-button {
+    background:    var(--melika-primary-50) !important;
+    border:        1px solid var(--melika-primary-100) !important;
+    color:         var(--melika-primary-600) !important;
+    font-family:   var(--font-display) !important;
+    font-weight:   600 !important;
+    font-size:     13px !important;
+    border-radius: var(--radius-sm) !important;
+    padding:       6px 12px !important;
+    transition:    all 0.15s !important;
+    text-transform: none !important;
+    box-shadow:    none !important;
+}
+
+.fc .fc-button:hover {
+    background: var(--melika-primary-100) !important;
+    border-color: var(--melika-primary-200) !important;
+}
+
+.fc .fc-button-primary:not(:disabled).fc-button-active {
+    background:   var(--melika-primary-600) !important;
+    border-color: var(--melika-primary-600) !important;
+    color:        #fff !important;
+}
+
+.fc .fc-daygrid-day-number {
+    font-family: var(--font-display) !important;
+    font-size:   13px !important;
+    color:       var(--melika-text-secondary) !important;
+}
+
+.fc .fc-daygrid-day.fc-day-today {
+    background: var(--melika-primary-25) !important;
+}
+
+.fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
+    background:    var(--melika-primary-600) !important;
+    color:         #fff !important;
+    border-radius: 50% !important;
+    width:         24px;
+    height:        24px;
+    display:       flex !important;
+    align-items:   center !important;
+    justify-content: center !important;
+}
+
+.fc .fc-event {
+    background:    var(--melika-accent) !important;
+    border:        none !important;
+    border-radius: 4px !important;
+    font-size:     12px !important;
+    font-weight:   600 !important;
+    padding:       2px 6px !important;
+    cursor:        pointer !important;
+}
+
+.fc .fc-event:hover {
+    background: var(--melika-accent-dark) !important;
+    opacity:    0.9;
+}
+
+.fc .fc-col-header-cell-cushion {
+    font-family: var(--font-display) !important;
+    font-size:   12px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.06em !important;
+    color:       var(--melika-text-muted) !important;
+}
+
+.fc .fc-scrollgrid { border-color: var(--melika-primary-100) !important; }
+.fc .fc-scrollgrid td, .fc .fc-scrollgrid th { border-color: var(--melika-primary-50) !important; }
+
+/* Panel lateral de citas del día */
+.panel-agenda {
+    background:    var(--melika-bg);
+    border:        1px solid var(--melika-primary-100);
+    border-radius: var(--radius-xl);
+    padding:       var(--space-6);
+    box-shadow:    var(--shadow-sm);
+    position:      sticky;
+    top:           80px;
+}
+
+.panel-agenda__cabecera {
+    display:         flex;
+    justify-content: space-between;
+    align-items:     center;
+    margin-bottom:   var(--space-5);
+}
+
+.panel-agenda__titulo {
+    font-size:   17px;
+    font-weight: 700;
+    color:       var(--melika-text-primary);
+}
+
+.panel-agenda__fecha {
+    font-size:  13px;
+    color:      var(--melika-text-muted);
+    font-family: var(--font-display);
+}
+
+.agenda-lista {
+    display:        flex;
+    flex-direction: column;
+    gap:            var(--space-3);
+    max-height:     520px;
+    overflow-y:     auto;
+}
+
+.agenda-item {
+    background:    var(--melika-bg-secondary);
+    border:        1px solid var(--melika-primary-50);
+    border-radius: var(--radius-md);
+    padding:       var(--space-4);
+    border-left:   3px solid var(--melika-accent);
+    transition:    box-shadow 0.15s;
+}
+
+.agenda-item:hover { box-shadow: var(--shadow-sm); }
+
+.agenda-item--completada { border-left-color: var(--melika-success); }
+.agenda-item--cancelada  { border-left-color: var(--melika-primary-200); opacity: 0.7; }
+
+.agenda-item__hora {
+    font-family: var(--font-display);
+    font-size:   13px;
+    font-weight: 700;
+    color:       var(--melika-accent);
+    margin-bottom: var(--space-1);
+}
+
+.agenda-item--completada .agenda-item__hora { color: var(--melika-success); }
+
+.agenda-item__paciente {
+    font-size:   15px;
+    font-weight: 700;
+    color:       var(--melika-text-primary);
+    margin-bottom: var(--space-1);
+}
+
+.agenda-item__tipo {
+    font-size:     12px;
+    color:         var(--melika-text-muted);
+    margin-bottom: var(--space-3);
+}
+
+.agenda-item__btn-historia {
+    font-family:   var(--font-display);
+    font-size:     12px;
+    font-weight:   700;
+    color:         var(--melika-primary-600);
+    background:    var(--melika-primary-50);
+    border:        1px solid var(--melika-primary-100);
+    border-radius: var(--radius-sm);
+    padding:       var(--space-1) var(--space-3);
+    cursor:        pointer;
+    transition:    all 0.15s;
+}
+
+.agenda-item__btn-historia:hover {
+    background:   var(--melika-primary-100);
+    border-color: var(--melika-primary-200);
+}
+
+.agenda-vacio {
+    text-align: center;
+    padding:    var(--space-10) var(--space-4);
+    color:      var(--melika-text-muted);
+    font-size:  14px;
+}
+
+.agenda-vacio span { display: block; font-size: 36px; margin-bottom: var(--space-3); }
+
+.agenda-loading { display: flex; flex-direction: column; gap: var(--space-3); }
+
+.agenda-skeleton {
+    height:        80px;
+    background:    linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation:     pulso 1.5s infinite;
+    border-radius: var(--radius-md);
+}
+
+/* Modal historia clínica */
+.modal-overlay {
+    position:        fixed;
+    inset:           0;
+    background:      rgba(11, 26, 54, 0.5);
+    display:         flex;
+    align-items:     center;
+    justify-content: center;
+    z-index:         300;
+    padding:         var(--space-5);
+}
+
+.modal-historia {
+    background:    var(--melika-bg);
+    border-radius: var(--radius-xl);
+    padding:       var(--space-8);
+    max-width:     600px;
+    width:         100%;
+    max-height:    90vh;
+    overflow-y:    auto;
+    box-shadow:    var(--shadow-xl);
+}
+
+.modal-historia__cabecera {
+    display:         flex;
+    justify-content: space-between;
+    align-items:     flex-start;
+    margin-bottom:   var(--space-5);
+}
+
+.modal-historia__cabecera h3 {
+    font-size:   20px;
+    font-weight: 700;
+    color:       var(--melika-text-primary);
+}
+
+.modal-historia__meta {
+    font-size:     12px;
+    color:         var(--melika-text-muted);
+    margin-bottom: var(--space-1);
+}
+
+.btn-cerrar {
+    background: none;
+    border:     none;
+    font-size:  20px;
+    color:      var(--melika-text-muted);
+    cursor:     pointer;
+    padding:    var(--space-1);
+    line-height: 1;
+}
+
+.historia-textarea {
+    width:         100%;
+    border:        1.5px solid var(--melika-primary-100);
+    border-radius: var(--radius-sm);
+    padding:       var(--space-4);
+    font-size:     15px;
+    font-family:   var(--font-body);
+    color:         var(--melika-text-primary);
+    background:    var(--melika-bg);
+    resize:        vertical;
+    outline:       none;
+    transition:    border-color 0.2s;
+    margin-bottom: var(--space-4);
+}
+
+.historia-textarea:focus { border-color: var(--melika-primary-500); }
+.historia-textarea:disabled { background: var(--melika-bg-secondary); color: var(--melika-text-secondary); }
+
+.historia-acciones {
+    display:         flex;
+    justify-content: flex-end;
+    gap:             var(--space-3);
+}
+
+.btn-editar-historia {
+    background:    var(--melika-primary-50);
+    border:        1.5px solid var(--melika-primary-100);
+    border-radius: var(--radius-sm);
+    color:         var(--melika-primary-600);
+    padding:       var(--space-2) var(--space-5);
+    font-size:     14px;
+    font-weight:   700;
+    font-family:   var(--font-display);
+    cursor:        pointer;
+    transition:    all 0.15s;
+}
+
+.btn-guardar-historia {
+    background:    var(--melika-accent);
+    border:        none;
+    border-radius: var(--radius-sm);
+    color:         #fff;
+    padding:       var(--space-2) var(--space-5);
+    font-size:     14px;
+    font-weight:   700;
+    font-family:   var(--font-display);
+    cursor:        pointer;
+    transition:    background 0.2s;
+}
+
+.btn-guardar-historia:hover:not(:disabled) { background: var(--melika-accent-dark); }
+.btn-guardar-historia:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.historia-error {
+    background:    var(--melika-error-bg);
+    color:         var(--melika-error);
+    border:        1px solid #fca5a5;
+    border-radius: var(--radius-sm);
+    padding:       var(--space-2) var(--space-4);
+    font-size:     14px;
+    margin-bottom: var(--space-3);
+}
+
+@keyframes pulso {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+@media (max-width: 1024px) {
+    .dashboard-medico__grid {
+        grid-template-columns: 1fr;
+    }
+    .panel-agenda { position: static; }
+}
