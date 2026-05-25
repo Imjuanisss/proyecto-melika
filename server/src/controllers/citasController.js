@@ -1,4 +1,4 @@
-const pool = require('../db');
+const pool = require('../config/db');
  
 // POST /citas — crear una nueva cita
 async function crearCita(req, res) {
