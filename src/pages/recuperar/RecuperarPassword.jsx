@@ -1,20 +1,18 @@
-import { useState }     from 'react';
+import { useState }          from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { api }          from '../../lib/apiClient';
+import { api }               from '../../lib/apiClient';
 import '../login/Login.css';
 
 export default function RecuperarPassword() {
   const navigate = useNavigate();
-  const [email, setEmail]     = useState('');
+  const [email,   setEmail]   = useState('');
   const [loading, setLoading] = useState(false);
-  const [mensaje, setMensaje] = useState(null);
-  const [error, setError]     = useState(null);
+  const [error,   setError]   = useState(null);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    setMensaje(null);
 
     try {
       await api.post('/auth/recuperar-password', { email });

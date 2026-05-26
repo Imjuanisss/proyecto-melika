@@ -3,16 +3,16 @@ import { api } from '../../lib/apiClient';
 import './medicosAdmin.css';
 
 const FORM_INICIAL = {
-    nombre:             '',
-    primer_apellido:    '',
-    email:              '',
-    numero_registro:    '',
-    id_especialidad:    '',
-    tarifa:             '',
+    nombre:              '',
+    primer_apellido:     '',
+    email:               '',
+    numero_registro:     '',
+    id_especialidad:     '',
+    tarifa:              '',
     acepta_teleconsulta: true,
     acepta_presencial:   true,
-    biografia:          '',
-    anos_experiencia:   0,
+    biografia:           '',
+    anos_experiencia:    0,
 };
 
 export default function MedicosAdmin() {
@@ -22,19 +22,16 @@ export default function MedicosAdmin() {
     const [error,          setError]          = useState(null);
 
     // Modal crear / editar
-    const [modal,       setModal]       = useState(null); // null | 'crear' | 'editar'
-    const [form,        setForm]        = useState(FORM_INICIAL);
-    const [editandoId,  setEditandoId]  = useState(null);
-    const [guardando,   setGuardando]   = useState(false);
-    const [errorForm,   setErrorForm]   = useState(null);
+    const [modal,      setModal]      = useState(null); // null | 'crear' | 'editar'
+    const [form,       setForm]       = useState(FORM_INICIAL);
+    const [editandoId, setEditandoId] = useState(null);
+    const [guardando,  setGuardando]  = useState(false);
+    const [errorForm,  setErrorForm]  = useState(null);
 
     // Desactivar
     const [desactivando, setDesactivando] = useState(null);
 
-    useEffect(() => {
-        cargarDatos();
-    }, []);
-
+    // ✅ Función declarada ANTES del useEffect que la consume
     function cargarDatos() {
         setLoading(true);
         setError(null);
@@ -50,6 +47,10 @@ export default function MedicosAdmin() {
             .catch(() => setError('No se pudieron cargar los datos.'))
             .finally(() => setLoading(false));
     }
+
+    useEffect(() => {
+        cargarDatos();
+    }, []);
 
     function abrirCrear() {
         setForm(FORM_INICIAL);
