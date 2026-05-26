@@ -6,7 +6,7 @@ import interactionPlugin from '@fullcalendar/interaction';
 import esLocale from '@fullcalendar/core/locales/es';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../lib/apiClient';
-import './DashboardMedico.css';
+import './Dashboardmedico.css';
 
 export default function DashboardMedico() {
     const { usuario } = useAuth();

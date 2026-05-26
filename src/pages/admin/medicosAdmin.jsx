@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../lib/apiClient';
-import './MedicosAdmin.css';
+import './medicosAdmin.css';
 
 const FORM_INICIAL = {
     nombre:             '',

@@ -1,0 +1,101 @@
+.auth-card--verificar { max-width: 480px; }
+
+.verificar__icono-correo {
+  font-size: 48px;
+  margin-bottom: var(--space-3);
+  display: block;
+}
+
+.verificar__inputs {
+  display:         flex;
+  gap:             var(--space-3);
+  justify-content: center;
+  margin:          var(--space-6) 0 0;
+}
+
+.verificar__input {
+  width:         52px;
+  height:        64px;
+  border:        2px solid var(--melika-primary-200);
+  border-radius: var(--radius-md);
+  text-align:    center;
+  font-size:     28px;
+  font-weight:   700;
+  font-family:   var(--font-display);
+  color:         var(--melika-text-primary);
+  background:    var(--melika-bg);
+  outline:       none;
+  transition:    border-color 0.2s, box-shadow 0.2s;
+  caret-color:   transparent;
+}
+
+.verificar__input:focus {
+  border-color: var(--melika-primary-500);
+  box-shadow:   0 0 0 3px rgba(59, 110, 232, 0.12);
+}
+
+.verificar__input:not(:placeholder-shown) {
+  border-color: var(--melika-primary-400);
+  background:   var(--melika-primary-25);
+}
+
+.verificar__reenvio {
+  text-align:  center;
+  margin-top:  var(--space-6);
+}
+
+.verificar__reenvio p {
+  font-size:     14px;
+  color:         var(--melika-text-muted);
+  margin-bottom: var(--space-2);
+}
+
+.verificar__btn-reenvio {
+  background:  none;
+  border:      none;
+  color:       var(--melika-primary-600);
+  font-size:   14px;
+  font-weight: 700;
+  font-family: var(--font-display);
+  cursor:      pointer;
+  padding:     var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  transition:  background 0.15s;
+}
+
+.verificar__btn-reenvio:hover:not(:disabled) {
+  background: var(--melika-primary-25);
+}
+
+.verificar__btn-reenvio:disabled {
+  color:  var(--melika-text-muted);
+  cursor: not-allowed;
+}
+
+.auth-error--warning {
+  background: var(--melika-warning-bg);
+  color:      var(--melika-warning);
+  border:     1px solid #FCD34D;
+}
+
+.auth-error--success {
+  background: var(--melika-success-bg);
+  color:      var(--melika-success);
+  border:     1px solid #6EE7B7;
+}
+
+.auth-link-secundario {
+  font-size:   13px;
+  color:       var(--melika-primary-600);
+  font-weight: 600;
+}
+
+@media (max-width: 480px) {
+  .verificar__input {
+    width:     44px;
+    height:    56px;
+    font-size: 22px;
+  }
+
+  .verificar__inputs { gap: var(--space-2); }
+}
