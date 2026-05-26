@@ -50,7 +50,7 @@ export default function Inicio() {
   }, []);
 
   useEffect(() => {
-    api.get('/specialties')
+    api.get('/especialidades')
       .then(data => { if (data?.length) setEspecialidades(data); })
       .catch(() => {});
   }, []);
