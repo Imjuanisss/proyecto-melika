@@ -1,18 +1,19 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import Navbar           from './components/layout/Navbar';
-import Inicio           from './pages/inicio/Inicio';
-import Login            from './pages/login/Login';
-import Registro         from './pages/registro/Registro';
-import Verificar        from './pages/verificar/Verificar';
+import Navbar            from './components/layout/Navbar';
+import Inicio            from './pages/inicio/Inicio';
+import Login             from './pages/login/Login';
+import Registro          from './pages/registro/Registro';
+import Verificar         from './pages/verificar/Verificar';
 import RecuperarPassword from './pages/recuperar/RecuperarPassword';
-import NuevaPassword    from './pages/recuperar/NuevaPassword';
-import Dashboard        from './pages/dashboard/Dashboard';
-import Agendarcita      from './pages/agendar/Agendarcita';
-import MisCitas         from './pages/miscitas/MisCitas';
-import DashboardMedico  from './pages/dashboard-medico/DashboardMedico';
-import MedicosAdmin     from './pages/admin/MedicosAdmin';
-import ActivarCuenta from './pages/activar-cuenta/ActivarCuenta';
+import NuevaPassword     from './pages/recuperar/NuevaPassword';
+import Dashboard         from './pages/dashboard/Dashboard';
+import Agendarcita       from './pages/agendar/Agendarcita';
+import MisCitas          from './pages/miscitas/MisCitas';
+import DashboardMedico   from './pages/dashboard-medico/DashboardMedico';
+import MedicosAdmin      from './pages/admin/MedicosAdmin';
+import ActivarCuenta     from './pages/activar-cuenta/ActivarCuenta';
+import Catalogo          from './pages/catalogo/Catalogo';
 
 function RutaProtegida({ children }) {
   const { usuario } = useAuth();
@@ -39,29 +40,29 @@ function AppRoutes() {
     <>
       <Navbar />
       <Routes>
-        {/* Públicas */}
-        <Route path="/"                element={<Inicio />} />
-        <Route path="/login"           element={<Login />} />
-        <Route path="/registro"        element={<Registro />} />
-        <Route path="/verificar"       element={<Verificar />} />
-        <Route path="/recuperar"       element={<RecuperarPassword />} />
-        <Route path="/nueva-password"  element={<NuevaPassword />} />
+        {/* ── Públicas ────────────────────────────────── */}
+        <Route path="/"               element={<Inicio />} />
+        <Route path="/login"          element={<Login />} />
+        <Route path="/registro"       element={<Registro />} />
+        <Route path="/verificar"      element={<Verificar />} />
+        <Route path="/recuperar"      element={<RecuperarPassword />} />
+        <Route path="/nueva-password" element={<NuevaPassword />} />
+        <Route path="/activar-cuenta" element={<ActivarCuenta />} />
+        <Route path="/catalogo"       element={<Catalogo />} />
 
-        {/* Paciente */}
+        {/* ── Paciente ────────────────────────────────── */}
         <Route path="/dashboard"  element={<RutaProtegida><Dashboard /></RutaProtegida>} />
         <Route path="/agendar"    element={<RutaProtegida><Agendarcita /></RutaProtegida>} />
         <Route path="/mis-citas"  element={<RutaProtegida><MisCitas /></RutaProtegida>} />
 
-        {/* Médico */}
+        {/* ── Médico ──────────────────────────────────── */}
         <Route path="/dashboard-medico" element={<RutaMedico><DashboardMedico /></RutaMedico>} />
 
-        {/* Admin */}
+        {/* ── Admin ───────────────────────────────────── */}
         <Route path="/admin/medicos" element={<RutaAdmin><MedicosAdmin /></RutaAdmin>} />
 
+        {/* ── Catch-all: siempre al final ─────────────── */}
         <Route path="*" element={<Navigate to="/" replace />} />
-        
-        {/* Activación de cuenta (acceso público vía email) */}
-        <Route path="/activar-cuenta" element={<ActivarCuenta />} />
       </Routes>
     </>
   );

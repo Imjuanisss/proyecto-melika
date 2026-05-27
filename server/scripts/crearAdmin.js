@@ -14,7 +14,7 @@ async function crearAdmin() {
   const nombre          = 'Administrador';
   const primer_apellido = 'MELIKA';
   const email           = 'olartemejiajuanesteban@gmail.com';
-  const password        = 'Admin';       // <-- cámbiala después del primer login
+  const password        = 'Admin';      
 
   try {
     const existe = await pool.query(

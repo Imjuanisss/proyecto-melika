@@ -1,329 +1,359 @@
-/* Añadir al archivo Catalogo.css existente o reemplazar con esta versión */
+/* ─── CATALOGO PAGE ────────────────────────────────────────────────── */
 
 .catalogo-page {
-  padding: 2rem;
+  padding: 2rem 2rem 4rem;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  color: #fff;
-  background-color: #fbfbfb;
+  background-color: #f4f6fa;
+  min-height: calc(100vh - 64px);
+  margin-top: 64px;
 }
+
+/* ─── ENCABEZADO ─────────────────────────────────────────────────────── */
 
 .catalogo-header-container {
   text-align: center;
-  margin-top: 100px;
-  margin-bottom: 2.5rem;
-  padding-bottom: 1rem;
+  margin-bottom: 2rem;
+  padding-top: 1rem;
 }
 
 .catalogo-main-title {
-  color: #31d0fd;
-  font-size: 2.3rem;
-  font-weight: 700;
-  margin-bottom: 0.5rem;
+  color: #0B1A36;
+  font-size: 2.2rem;
+  font-weight: 800;
+  margin-bottom: 0.4rem;
+  letter-spacing: -0.03em;
 }
 
 .catalogo-subtitle {
-  color: #666;
+  color: #4A5978;
   font-size: 1rem;
 }
 
-/* Contenedor de Filtros (Pestañas) */
+/* ─── BARRA DE BÚSQUEDA ──────────────────────────────────────────────── */
+
+.catalogo-busqueda {
+  max-width: 560px;
+  margin: 0 auto 1.5rem;
+  position: relative;
+}
+
+.catalogo-busqueda__input {
+  width: 100%;
+  border: 1.5px solid #D9E4F7;
+  border-radius: 9999px;
+  padding: 12px 44px 12px 20px;
+  font-size: 0.95rem;
+  font-family: inherit;
+  outline: none;
+  background: #fff;
+  color: #0B1A36;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 8px rgba(11, 26, 54, 0.06);
+}
+
+.catalogo-busqueda__input:focus {
+  border-color: #3B6EE8;
+  box-shadow: 0 0 0 3px rgba(59, 110, 232, 0.12);
+}
+
+.catalogo-busqueda__input::placeholder {
+  color: #8A9BBE;
+}
+
+.catalogo-busqueda__limpiar {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #8A9BBE;
+  font-size: 1rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 4px;
+  transition: color 0.15s;
+}
+
+.catalogo-busqueda__limpiar:hover {
+  color: #0B1A36;
+}
+
+/* ─── FILTROS TIPO (OTC / Rx) ────────────────────────────────────────── */
+
+.filtros-tipo {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.filtro-tipo-btn {
+  background: #fff;
+  color: #4A5978;
+  border: 1.5px solid #D9E4F7;
+  padding: 7px 18px;
+  border-radius: 9999px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.filtro-tipo-btn:hover {
+  border-color: #3B6EE8;
+  color: #3B6EE8;
+}
+
+.filtro-tipo-btn.activo {
+  background: #0B1A36;
+  color: #fff;
+  border-color: #0B1A36;
+}
+
+/* ─── FILTROS CATEGORÍA ──────────────────────────────────────────────── */
+
 .filtros-container {
   display: flex;
   justify-content: center;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 2.5rem;
+  gap: 8px;
+  margin-bottom: 1.5rem;
 }
 
 .filtro-btn {
-  background-color: #fff;
-  color: #444;
-  border: 1px solid #ddd;
-  padding: 8px 16px;
+  background: #fff;
+  color: #4A5978;
+  border: 1px solid #D9E4F7;
+  padding: 7px 16px;
   border-radius: 20px;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   font-weight: 500;
-  transition: all 0.2s ease;
+  transition: all 0.2s;
+  font-family: inherit;
 }
 
 .filtro-btn:hover {
-  background-color: #f0f0f0;
-  border-color: #bbb;
+  background: #EEF3FC;
+  border-color: #BFCFEE;
 }
 
 .filtro-btn.activo {
-  background-color: #ff8a65; /* Color similar al botón 'Registrarse' de tu nav */
+  background: #E8856A;
   color: white;
-  border-color: #ff8a65;
-  box-shadow: 0 3px 10px rgba(255, 138, 101, 0.3);
+  border-color: #E8856A;
+  box-shadow: 0 3px 10px rgba(232, 133, 106, 0.3);
 }
 
-/* Tarjetas */
+/* ─── BARRA DE RESULTADOS ────────────────────────────────────────────── */
+
+.catalogo-resultados-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 1100px;
+  margin: 0 auto 1.2rem;
+  padding: 0 4px;
+}
+
+.catalogo-resultados-texto {
+  font-size: 0.875rem;
+  color: #8A9BBE;
+  font-weight: 500;
+}
+
+.catalogo-limpiar-btn {
+  background: none;
+  border: 1.5px solid #D9E4F7;
+  color: #4A5978;
+  padding: 5px 14px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.catalogo-limpiar-btn:hover {
+  border-color: #E8856A;
+  color: #E8856A;
+}
+
+/* ─── ERROR ──────────────────────────────────────────────────────────── */
+
+.catalogo-error {
+  max-width: 560px;
+  margin: 0 auto 1.5rem;
+  background: #FEE2E2;
+  color: #B91C1C;
+  border: 1px solid #FCA5A5;
+  border-radius: 12px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.9rem;
+}
+
+.catalogo-error button {
+  background: #B91C1C;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+/* ─── GRID DE TARJETAS ───────────────────────────────────────────────── */
+
 .medicamentos-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 25px;
+  gap: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
 }
+
+/* ─── TARJETA ────────────────────────────────────────────────────────── */
 
 .medicamento-card {
   background-color: #fff;
-  border-radius: 12px;
+  border-radius: 14px;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 12px rgba(11, 26, 54, 0.07);
   display: flex;
   flex-direction: column;
+  transition: transform 0.2s, box-shadow 0.2s;
+  border: 1px solid #E8EEFA;
+}
+
+.medicamento-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 28px rgba(11, 26, 54, 0.12);
 }
 
 .medicamento-imagen-container {
-  height: 180px;
-  background-color: #fcfcfc;
+  height: 175px;
+  background-color: #F6F9FF;
   display: flex;
   justify-content: center;
   align-items: center;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid #EEF3FC;
 }
 
 .medicamento-imagen {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
-  padding: 10px;
+  padding: 12px;
 }
 
 .medicamento-detalles {
   padding: 1.2rem;
-  background-color: #11141a; /* Un tono oscuro integrado con Melika */
+  background-color: #11141a;
   flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-/* Etiqueta de Especialidad interna */
+/* ─── BADGES ─────────────────────────────────────────────────────────── */
+
 .badge-especialidad {
   display: inline-block;
   background-color: rgba(49, 208, 253, 0.15);
   color: #31d0fd;
   padding: 3px 10px;
   border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: 0.72rem;
+  font-weight: 700;
   text-transform: uppercase;
-  margin-bottom: 0.5rem;
+  letter-spacing: 0.05em;
+  width: fit-content;
 }
 
+.badge-tipo {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  width: fit-content;
+}
+
+.badge-tipo--otc {
+  background: rgba(52, 211, 153, 0.15);
+  color: #34D399;
+}
+
+.badge-tipo--rx {
+  background: rgba(248, 113, 113, 0.15);
+  color: #F87171;
+}
+
+/* ─── CONTENIDO DE TARJETA ───────────────────────────────────────────── */
+
 .medicamento-nombre {
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   color: #fff;
-  margin-bottom: 0.8rem;
-  font-weight: 600;
+  font-weight: 700;
+  line-height: 1.3;
+  margin-top: 2px;
 }
 
 .medicamento-metadatos {
-  margin-bottom: 0.8rem;
   border-bottom: 1px solid #222;
-  padding-bottom: 0.5rem;
+  padding-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .metadato-row {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
   margin-bottom: 4px;
+  gap: 8px;
 }
 
 .etiqueta-pequena {
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   color: #8c96a3;
+  flex-shrink: 0;
 }
 
 .etiqueta-valor {
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   color: #e3e7ed;
+  text-align: right;
 }
 
 .medicamento-presentacion {
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   color: #cbd3dc;
-  margin-bottom: 0.5rem;
+  line-height: 1.4;
 }
 
 .medicamento-descripcion {
-  font-size: 0.85rem;
-  line-height: 1.4;
+  font-size: 0.82rem;
+  line-height: 1.45;
   color: #9aa5b1;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 3;
   line-clamp: 3;
   -webkit-box-orient: vertical;
+  flex-grow: 1;
 }
 
-.sin-resultados {
-  grid-column: 1 / -1;
-  text-align: center;
-  color: #888;
-  padding: 2rem;
-}
+/* ─── BOTÓN VER FICHA ────────────────────────────────────────────────── */
 
-/* --- Añadir esto a tu Catalogo.css existente --- */
-
-.ver-ficha-btn {
-  background: none;
-  border: 1px solid #31d0fd;
-  color: #31d0fd;
-  padding: 8px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.85rem;
-  font-weight: 600;
-  margin-top: auto;
-  transition: all 0.3s ease;
-}
-
-.ver-ficha-btn:hover {
-  background: #31d0fd;
-  color: #11141a;
-}
-
-/* --- Estilos del Modal --- */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.85); /* Fondo oscuro profundo */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-  backdrop-filter: blur(5px);
-}
-
-.modal-content {
-  background: #fff;
-  width: 90%;
-  max-width: 600px;
-  border-radius: 16px;
-  position: relative;
-  overflow: hidden;
-  animation: modalFadeIn 0.3s ease-out;
-}
-
-@keyframes modalFadeIn {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.modal-close {
-  position: absolute;
-  top: 15px;
-  right: 20px;
-  background: none;
-  border: none;
-  font-size: 2rem;
-  color: #333;
-  cursor: pointer;
-}
-
-.modal-body {
-  padding: 2.5rem;
-  color: #333;
-}
-
-.modal-header-info h2 {
-  color: #11141a;
-  margin: 0.5rem 0;
-  font-size: 1.8rem;
-}
-
-.modal-badge {
-  background: #e0f7fe;
-  color: #31d0fd;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 0.8rem;
-  font-weight: 700;
-}
-
-.modal-lab {
-  color: #666;
-  font-style: italic;
-  margin-bottom: 1.5rem;
-}
-
-.modal-grid-info {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  border-top: 1px solid #eee;
-  padding-top: 1.5rem;
-  margin-bottom: 1.5rem;
-}
-
-.info-block h4 {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  color: #888;
-  margin-bottom: 5px;
-}
-
-.modal-technical-section {
-  background: #f9fafb;
-  border-radius: 12px;
-  padding: 1.5rem;
-}
-
-.tech-item {
-  display: flex;
-  gap: 15px;
-  margin-bottom: 1.2rem;
-}
-
-.tech-item h5 {
-  font-size: 0.9rem;
-  margin-bottom: 2px;
-  color: #11141a;
-}
-
-.tech-item p {
-  font-size: 0.85rem;
-  color: #555;
-  line-height: 1.4;
-}
-
-.tech-item.warning h5 { color: #b7791f; }
-.tech-item.danger h5 { color: #c53030; }
-
-.modal-footer {
-  margin-top: 2rem;
-  text-align: center;
-  border-top: 1px solid #eee;
-  padding-top: 1.5rem;
-}
-
-.modal-footer p {
-  font-size: 0.75rem;
-  color: #999;
-  margin-bottom: 1rem;
-}
-
-.modal-agendar-btn {
-  background: #ff8a65;
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.3s;
-}
-
-.modal-agendar-btn:hover {
-  background: #e67a55;
-}
-
-/* --- ESTILOS DE INTERACCIÓN Y VENTANA EMERGENTE --- */
-
-/* Ajuste del botón en la tarjeta */
 .ver-ficha-btn {
   background: transparent;
   border: 1px solid #31d0fd;
@@ -332,10 +362,12 @@
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.85rem;
-  font-weight: 600;
+  font-weight: 700;
   width: 100%;
-  margin-top: 15px;
-  transition: all 0.2s ease-in-out;
+  margin-top: auto;
+  padding-top: 12px;
+  transition: all 0.2s;
+  font-family: inherit;
 }
 
 .ver-ficha-btn:hover {
@@ -344,50 +376,90 @@
   box-shadow: 0 4px 12px rgba(49, 208, 253, 0.25);
 }
 
-/* Telón oscuro trasero */
+/* ─── SKELETON ───────────────────────────────────────────────────────── */
+
+.medicamento-card--skeleton {
+  pointer-events: none;
+}
+
+.skeleton-box {
+  background: linear-gradient(90deg, #e8eef5 25%, #d9e3ef 50%, #e8eef5 75%);
+  background-size: 200% 100%;
+  animation: catalogo-pulse 1.4s infinite;
+}
+
+.skeleton-line {
+  height: 14px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #2a2e38 25%, #333845 50%, #2a2e38 75%);
+  background-size: 200% 100%;
+  animation: catalogo-pulse 1.4s infinite;
+}
+
+@keyframes catalogo-pulse {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ─── SIN RESULTADOS ─────────────────────────────────────────────────── */
+
+.sin-resultados {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: #4A5978;
+  padding: 3rem 2rem;
+  background: #fff;
+  border-radius: 14px;
+  border: 1px dashed #D9E4F7;
+  font-size: 1rem;
+}
+
+/* ─── MODAL ──────────────────────────────────────────────────────────── */
+
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.8);
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(5, 8, 18, 0.82);
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 2000; /* Asegura que se monte por encima del Navbar */
-  backdrop-filter: blur(4px);
+  z-index: 2000;
+  backdrop-filter: blur(5px);
+  padding: 1rem;
 }
 
-/* Caja de la Ficha Técnica (Blanca para máxima lectura) */
 .modal-content {
   background: #ffffff;
   width: 92%;
   max-width: 580px;
-  border-radius: 16px;
+  border-radius: 18px;
   position: relative;
   overflow-y: auto;
   max-height: 90vh;
-  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-  animation: modalScaleUp 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+  animation: modalScaleUp 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 @keyframes modalScaleUp {
-  from { transform: scale(0.95); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
+  from { transform: scale(0.94); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
 }
 
 .modal-close {
   position: absolute;
-  top: 12px;
-  right: 18px;
+  top: 14px; right: 20px;
   background: transparent;
   border: none;
-  font-size: 2.2rem;
-  color: #222;
+  font-size: 2rem;
+  color: #4A5978;
   cursor: pointer;
   line-height: 1;
+  transition: color 0.15s;
+  z-index: 1;
 }
+
+.modal-close:hover { color: #0B1A36; }
 
 .modal-body {
   padding: 2.5rem 2rem;
@@ -395,10 +467,11 @@
 }
 
 .modal-header-info h2 {
-  color: #11141a;
-  font-size: 1.65rem;
-  margin: 8px 0 4px 0;
-  font-weight: 700;
+  color: #0B1A36;
+  font-size: 1.6rem;
+  margin: 8px 0 4px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
 .modal-badge {
@@ -407,48 +480,50 @@
   color: #1182a1;
   padding: 4px 12px;
   border-radius: 30px;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .modal-lab {
-  color: #666;
+  color: #8A9BBE;
   font-size: 0.9rem;
   font-style: italic;
-  margin-bottom: 1.5rem;
+  margin: 4px 0 1.2rem;
 }
 
 .modal-grid-info {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 15px;
-  border-top: 1px solid #eee;
+  gap: 14px;
+  border-top: 1px solid #EEF3FC;
   padding-top: 1.2rem;
   margin-bottom: 1.5rem;
 }
 
 .info-block h4 {
-  font-size: 0.75rem;
-  color: #888;
+  font-size: 0.72rem;
+  color: #8A9BBE;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 3px;
+  letter-spacing: 0.08em;
+  margin-bottom: 4px;
 }
 
 .info-block p {
-  font-size: 0.95rem;
-  color: #222;
-  font-weight: 500;
+  font-size: 0.92rem;
+  color: #0B1A36;
+  font-weight: 600;
+  line-height: 1.4;
 }
 
-/* Sección de advertencias e indicaciones */
 .modal-technical-section {
-  background: #f7f9fa;
+  background: #F6F9FF;
   border-radius: 12px;
   padding: 1.2rem;
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 14px;
 }
 
 .tech-item {
@@ -457,44 +532,40 @@
   align-items: flex-start;
 }
 
-.tech-icon {
-  font-size: 1.25rem;
-  line-height: 1.2;
-}
+.tech-icon { font-size: 1.2rem; line-height: 1.3; flex-shrink: 0; }
 
 .tech-item h5 {
-  font-size: 0.9rem;
-  margin-bottom: 2px;
-  color: #11141a;
-  font-weight: 600;
+  font-size: 0.88rem;
+  margin-bottom: 3px;
+  color: #0B1A36;
+  font-weight: 700;
 }
 
 .tech-item p {
-  font-size: 0.85rem;
-  color: #444;
-  line-height: 1.4;
+  font-size: 0.84rem;
+  color: #4A5978;
+  line-height: 1.5;
 }
 
-/* Colores de Alerta Médica */
-.tech-item.warning h5 { color: #b7791f; }
-.tech-item.danger h5 { color: #c53030; }
+.tech-item.warning h5 { color: #B45309; }
+.tech-item.danger h5  { color: #B91C1C; }
 
 .modal-footer {
   margin-top: 1.8rem;
   text-align: center;
-  border-top: 1px solid #eee;
-  padding-top: 1.2rem;
+  border-top: 1px solid #EEF3FC;
+  padding-top: 1.4rem;
 }
 
 .modal-footer p {
   font-size: 0.75rem;
-  color: #888;
+  color: #8A9BBE;
   margin-bottom: 1.2rem;
+  line-height: 1.5;
 }
 
-/* Botón de conversión a Agendamiento */
 .modal-agendar-btn {
-  background: #ff8a65; /* Color corporativo de tus botones */
+  background: #E8856A;
   color: #fff;
   border: none;
   padding: 12px 28px;
@@ -502,9 +573,22 @@
   font-size: 0.95rem;
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.2s, transform 0.1s;
+  font-family: inherit;
 }
 
 .modal-agendar-btn:hover {
-  background: #e7734e;
+  background: #C96848;
+  transform: translateY(-1px);
+}
+
+/* ─── RESPONSIVE ─────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .catalogo-page         { padding: 1.2rem 1rem 3rem; }
+  .catalogo-main-title   { font-size: 1.6rem; }
+  .modal-grid-info       { grid-template-columns: 1fr; }
+  .medicamentos-grid     { grid-template-columns: 1fr; }
+  .filtros-tipo          { gap: 6px; }
+  .filtro-tipo-btn       { font-size: 0.8rem; padding: 6px 12px; }
 }
