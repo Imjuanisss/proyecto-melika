@@ -162,3 +162,349 @@
   color: #888;
   padding: 2rem;
 }
+
+/* --- Añadir esto a tu Catalogo.css existente --- */
+
+.ver-ficha-btn {
+  background: none;
+  border: 1px solid #31d0fd;
+  color: #31d0fd;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-top: auto;
+  transition: all 0.3s ease;
+}
+
+.ver-ficha-btn:hover {
+  background: #31d0fd;
+  color: #11141a;
+}
+
+/* --- Estilos del Modal --- */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85); /* Fondo oscuro profundo */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(5px);
+}
+
+.modal-content {
+  background: #fff;
+  width: 90%;
+  max-width: 600px;
+  border-radius: 16px;
+  position: relative;
+  overflow: hidden;
+  animation: modalFadeIn 0.3s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.modal-close {
+  position: absolute;
+  top: 15px;
+  right: 20px;
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: #333;
+  cursor: pointer;
+}
+
+.modal-body {
+  padding: 2.5rem;
+  color: #333;
+}
+
+.modal-header-info h2 {
+  color: #11141a;
+  margin: 0.5rem 0;
+  font-size: 1.8rem;
+}
+
+.modal-badge {
+  background: #e0f7fe;
+  color: #31d0fd;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.modal-lab {
+  color: #666;
+  font-style: italic;
+  margin-bottom: 1.5rem;
+}
+
+.modal-grid-info {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  border-top: 1px solid #eee;
+  padding-top: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.info-block h4 {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: #888;
+  margin-bottom: 5px;
+}
+
+.modal-technical-section {
+  background: #f9fafb;
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.tech-item {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 1.2rem;
+}
+
+.tech-item h5 {
+  font-size: 0.9rem;
+  margin-bottom: 2px;
+  color: #11141a;
+}
+
+.tech-item p {
+  font-size: 0.85rem;
+  color: #555;
+  line-height: 1.4;
+}
+
+.tech-item.warning h5 { color: #b7791f; }
+.tech-item.danger h5 { color: #c53030; }
+
+.modal-footer {
+  margin-top: 2rem;
+  text-align: center;
+  border-top: 1px solid #eee;
+  padding-top: 1.5rem;
+}
+
+.modal-footer p {
+  font-size: 0.75rem;
+  color: #999;
+  margin-bottom: 1rem;
+}
+
+.modal-agendar-btn {
+  background: #ff8a65;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.modal-agendar-btn:hover {
+  background: #e67a55;
+}
+
+/* --- ESTILOS DE INTERACCIÓN Y VENTANA EMERGENTE --- */
+
+/* Ajuste del botón en la tarjeta */
+.ver-ficha-btn {
+  background: transparent;
+  border: 1px solid #31d0fd;
+  color: #31d0fd;
+  padding: 10px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  width: 100%;
+  margin-top: 15px;
+  transition: all 0.2s ease-in-out;
+}
+
+.ver-ficha-btn:hover {
+  background: #31d0fd;
+  color: #11141a;
+  box-shadow: 0 4px 12px rgba(49, 208, 253, 0.25);
+}
+
+/* Telón oscuro trasero */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000; /* Asegura que se monte por encima del Navbar */
+  backdrop-filter: blur(4px);
+}
+
+/* Caja de la Ficha Técnica (Blanca para máxima lectura) */
+.modal-content {
+  background: #ffffff;
+  width: 92%;
+  max-width: 580px;
+  border-radius: 16px;
+  position: relative;
+  overflow-y: auto;
+  max-height: 90vh;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+  animation: modalScaleUp 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes modalScaleUp {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.modal-close {
+  position: absolute;
+  top: 12px;
+  right: 18px;
+  background: transparent;
+  border: none;
+  font-size: 2.2rem;
+  color: #222;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.modal-body {
+  padding: 2.5rem 2rem;
+  color: #333;
+}
+
+.modal-header-info h2 {
+  color: #11141a;
+  font-size: 1.65rem;
+  margin: 8px 0 4px 0;
+  font-weight: 700;
+}
+
+.modal-badge {
+  display: inline-block;
+  background: rgba(49, 208, 253, 0.12);
+  color: #1182a1;
+  padding: 4px 12px;
+  border-radius: 30px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.modal-lab {
+  color: #666;
+  font-size: 0.9rem;
+  font-style: italic;
+  margin-bottom: 1.5rem;
+}
+
+.modal-grid-info {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  border-top: 1px solid #eee;
+  padding-top: 1.2rem;
+  margin-bottom: 1.5rem;
+}
+
+.info-block h4 {
+  font-size: 0.75rem;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 3px;
+}
+
+.info-block p {
+  font-size: 0.95rem;
+  color: #222;
+  font-weight: 500;
+}
+
+/* Sección de advertencias e indicaciones */
+.modal-technical-section {
+  background: #f7f9fa;
+  border-radius: 12px;
+  padding: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.tech-item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.tech-icon {
+  font-size: 1.25rem;
+  line-height: 1.2;
+}
+
+.tech-item h5 {
+  font-size: 0.9rem;
+  margin-bottom: 2px;
+  color: #11141a;
+  font-weight: 600;
+}
+
+.tech-item p {
+  font-size: 0.85rem;
+  color: #444;
+  line-height: 1.4;
+}
+
+/* Colores de Alerta Médica */
+.tech-item.warning h5 { color: #b7791f; }
+.tech-item.danger h5 { color: #c53030; }
+
+.modal-footer {
+  margin-top: 1.8rem;
+  text-align: center;
+  border-top: 1px solid #eee;
+  padding-top: 1.2rem;
+}
+
+.modal-footer p {
+  font-size: 0.75rem;
+  color: #888;
+  margin-bottom: 1.2rem;
+}
+
+/* Botón de conversión a Agendamiento */
+.modal-agendar-btn {
+  background: #ff8a65; /* Color corporativo de tus botones */
+  color: #fff;
+  border: none;
+  padding: 12px 28px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.modal-agendar-btn:hover {
+  background: #e7734e;
+}
