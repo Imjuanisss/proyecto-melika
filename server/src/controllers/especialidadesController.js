@@ -1,4 +1,4 @@
-const pool = require('../db');
+const pool = require('../config/db');
  
 // GET /especialidades — lista todas las especialidades activas
 async function listarEspecialidades(req, res) {

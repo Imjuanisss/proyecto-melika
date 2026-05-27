@@ -1,0 +1,150 @@
+/* src/pages/catalogo/Catalogo.css */
+
+/* Restablecimiento básico para un diseño limpio */
+.catalogo-page * {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.catalogo-page {
+  padding: 2rem;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Tipografía más profesional */
+  color: #fff;
+  background-color: #fbfbfb; /* Fondo claro general */
+}
+
+/* Encabezado: Título centrado y separado del navbar */
+.catalogo-header-container {
+  text-align: center;
+  margin-bottom: 3rem; /* Mucho espacio inferior */
+  padding-bottom: 1.5rem;
+  border-bottom: 2px solid #eaeaea;
+}
+
+.catalogo-main-title {
+  color: #31d0fd; /* Azul más vibrante del logo */
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -1px;
+}
+
+/* Diseño de cuadrícula (grid) responsivo */
+.medicamentos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); /* Tarjetas más anchas */
+  gap: 30px; /* Más espacio entre tarjetas */
+}
+
+/* Estilos para cada tarjeta (card) */
+.medicamento-card {
+  background-color: #fff; /* Fondo de tarjeta claro */
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05); /* Sombra más sutil */
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.medicamento-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+/* Contenedor de imagen: limpio y profesional */
+.medicamento-imagen-container {
+  height: 200px; /* Altura fija para uniformidad */
+  background-color: #f5f5f5; /* Fondo claro para imágenes */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-bottom: 1px solid #eaeaea;
+}
+
+.medicamento-imagen {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  padding: 15px;
+}
+
+/* Imagen de marcador de posición para un aspecto uniforme */
+.medicamento-placeholder {
+  max-width: 80px;
+  max-height: 80px;
+  opacity: 0.2; /* Muy sutil */
+}
+
+/* Contenedor de detalles en negro: Contraste alto */
+.medicamento-detalles {
+  padding: 1.5rem;
+  background-color: #1a1a1a; /* Negro profundo para contraste */
+  flex-grow: 1; /* Ocupa el resto del espacio */
+  display: flex;
+  flex-direction: column;
+}
+
+.medicamento-nombre {
+  margin: 0 0 1rem 0;
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: #fff; /* Blanco puro para el nombre */
+  line-height: 1.2;
+}
+
+.medicamento-metadatos {
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.metadato-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.etiqueta-pequena {
+  font-size: 0.8rem;
+  color: #b1b1b1; /* Gris más claro para las etiquetas */
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.etiqueta-valor {
+  font-size: 0.85rem;
+  color: #eee; /* Casi blanco para los valores */
+  text-align: right;
+  flex: 1;
+  margin-left: 10px;
+}
+
+.medicamento-presentacion {
+  font-size: 0.95rem;
+  margin-bottom: 1.2rem;
+  color: #eaeaea; /* Más claro para la presentación */
+  line-height: 1.4;
+}
+
+/* Descripción: Mejor contraste y límite de líneas */
+.medicamento-descripcion {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: #d1d1d1; /* Mejor contraste */
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3; /* Límite de 3 líneas para una cuadrícula más limpia */
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.sin-resultados {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: #666;
+  padding: 3rem;
+  font-size: 1.1rem;
+}
