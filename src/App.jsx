@@ -7,6 +7,7 @@ import Registro    from './pages/registro/Registro';
 import Dashboard   from './pages/dashboard/Dashboard';
 import Agendarcita from './pages/agendar/Agendarcita';
 import MisCitas    from './pages/miscitas/MisCitas';
+import Catalogo from './pages/catalogo/Catalogo';
  
 // Componente que protege rutas: si no hay sesión, redirige al login
 function RutaProtegida({ children }) {
@@ -38,6 +39,9 @@ function AppRoutes() {
  
                 {/* Cualquier ruta desconocida lleva al inicio */}
                 <Route path="*" element={<Navigate to="/" replace />} />
+
+                {/* Ruta para el catálogo de medicamentos */}
+                <Route path="/catalogo" element={<Catalogo />} />
             </Routes>
         </>
     );
