@@ -66,9 +66,21 @@ export default function Navbar() {
                     <div className="navbar__acciones">
                         {usuario ? (
                             <>
-                                <Link to="/dashboard" className="navbar__saludo">
+                                <Link 
+                                    to={
+                                        usuario.rol === 'medico' ? '/dashboard-medico' :
+                                        usuario.rol === 'admin'  ? '/admin/medicos'    :
+                                        '/dashboard'
+                                    } 
+                                    className="navbar__saludo"
+                                >
                                     Hola, {usuario.nombre}
                                 </Link>
+                                {usuario.rol === 'admin' && (
+                                    <Link to="/admin/medicos" className="navbar__link">
+                                        Panel Admin
+                                    </Link>
+                                )}
                                 <button className="navbar__logout-btn" onClick={handleLogout}>
                                     Cerrar sesión
                                 </button>
@@ -114,6 +126,12 @@ export default function Navbar() {
                             {l.label}
                         </Link>
                     ))}
+                    {/* Enlace de administración también en el menú móvil si corresponde */}
+                    {usuario && usuario.rol === 'admin' && (
+                        <Link to="/admin/medicos" className="navbar__drawer-link" onClick={cerrar}>
+                            Panel Admin
+                        </Link>
+                    )}
                 </nav>
                 <div className="navbar__drawer-acciones">
                     {usuario ? (
@@ -135,5 +153,3 @@ export default function Navbar() {
         </>
     );
 }
- 
- 

@@ -1,13 +1,14 @@
 const express = require('express');
 const router  = express.Router();
 const {
-    listarEspecialidades,
-    medicosPorEspecialidad,
-    disponibilidad,
+  listarEspecialidades,
+  medicosPorEspecialidad,
+  disponibilidad,
 } = require('../controllers/especialidadesController');
- 
-router.get('/',                  listarEspecialidades);
-router.get('/:id/medicos',       medicosPorEspecialidad);
-router.get('/disponibilidad',    disponibilidad);
- 
+
+// IMPORTANTE: /disponibilidad antes de /:id/medicos
+router.get('/',                listarEspecialidades);
+router.get('/disponibilidad',  disponibilidad);       // ← primero
+router.get('/:id/medicos',     medicosPorEspecialidad); // ← después
+
 module.exports = router;

@@ -144,3 +144,24 @@
 @media (max-width: 480px) {
     .auth-card { padding: var(--space-8) var(--space-5); }
 }
+
+/* Estilos adicionales para auth */
+.auth-link-secundario {
+  font-size:   13px;
+  color:       var(--melika-primary-600);
+  font-weight: 600;
+  display:     inline-block;
+  margin-top:  var(--space-1);
+}
+
+.auth-error--warning {
+  background: var(--melika-warning-bg);
+  color:      var(--melika-warning);
+  border:     1px solid #FCD34D;
+}
+
+.auth-error--success {
+  background: var(--melika-success-bg);
+  color:      var(--melika-success);
+  border:     1px solid #6EE7B7;
+}

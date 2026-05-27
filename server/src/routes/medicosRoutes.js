@@ -1,19 +1,35 @@
-const express      = require('express');
-const router       = express.Router();
-const { verifyToken } = require('../middleware/authMiddleware');
-
+const express = require('express');
+const router = express.Router();
+const { verifyToken, isAdmin, isMedico } = require('../middleware/authMiddleware');
 const {
-    listarMedicos,
-    crearMedico,
-    obtenerMedico,
-    actualizarMedico,
-    eliminarMedico
+  crearMedico,
+  activarCuenta,
+  listarMedicos,
+  actualizarMedico,
+  toggleEstadoMedico,
+  perfilMedico,
+  agendaMedico,
+  agendaRango,
+  crearFranja,
+  listarFranjas,
+  eliminarFranja,
 } = require('../controllers/medicosController');
 
-router.get('/',       verifyToken, listarMedicos);
-router.post('/',      verifyToken, crearMedico);
-router.get('/:id',    verifyToken, obtenerMedico);
-router.put('/:id',    verifyToken, actualizarMedico);
-router.delete('/:id', verifyToken, eliminarMedico);
+// ── Públicas (no requieren token) ──────────────────────
+router.post('/activar', activarCuenta);     // el médico activa su cuenta
+
+// ── Admin ──────────────────────────────────────────────
+router.get('/', verifyToken, isAdmin, listarMedicos);
+router.post('/', verifyToken, isAdmin, crearMedico);
+router.put('/:id', verifyToken, isAdmin, actualizarMedico);
+router.patch('/:id/estado', verifyToken, isAdmin, toggleEstadoMedico);
+
+// ── Médico autenticado ─────────────────────────────────
+router.get('/perfil', verifyToken, isMedico, perfilMedico);
+router.get('/agenda', verifyToken, isMedico, agendaMedico);
+router.get('/agenda/rango', verifyToken, isMedico, agendaRango);
+router.post('/franjas', verifyToken, isMedico, crearFranja);
+router.get('/franjas', verifyToken, isMedico, listarFranjas);
+router.delete('/franjas/:id', verifyToken, isMedico, eliminarFranja);
 
 module.exports = router;
