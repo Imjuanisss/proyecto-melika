@@ -1,142 +1,157 @@
-/* src/pages/catalogo/Catalogo.css */
-
-/* Restablecimiento básico para un diseño limpio */
-.catalogo-page * {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+/* Añadir al archivo Catalogo.css existente o reemplazar con esta versión */
 
 .catalogo-page {
   padding: 2rem;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Tipografía más profesional */
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   color: #fff;
-  background-color: #fbfbfb; /* Fondo claro general */
+  background-color: #fbfbfb;
 }
 
-/* Encabezado: Título centrado y separado del navbar */
 .catalogo-header-container {
   text-align: center;
-  margin-bottom: 3rem; /* Mucho espacio inferior */
-  padding-bottom: 1.5rem;
-  border-bottom: 2px solid #eaeaea;
+  margin-top: 100px;
+  margin-bottom: 2.5rem;
+  padding-bottom: 1rem;
 }
 
 .catalogo-main-title {
-  color: #31d0fd; /* Azul más vibrante del logo */
-  font-size: 2.5rem;
+  color: #31d0fd;
+  font-size: 2.3rem;
   font-weight: 700;
-  letter-spacing: -1px;
+  margin-bottom: 0.5rem;
 }
 
-/* Diseño de cuadrícula (grid) responsivo */
+.catalogo-subtitle {
+  color: #666;
+  font-size: 1rem;
+}
+
+/* Contenedor de Filtros (Pestañas) */
+.filtros-container {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 2.5rem;
+}
+
+.filtro-btn {
+  background-color: #fff;
+  color: #444;
+  border: 1px solid #ddd;
+  padding: 8px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.filtro-btn:hover {
+  background-color: #f0f0f0;
+  border-color: #bbb;
+}
+
+.filtro-btn.activo {
+  background-color: #ff8a65; /* Color similar al botón 'Registrarse' de tu nav */
+  color: white;
+  border-color: #ff8a65;
+  box-shadow: 0 3px 10px rgba(255, 138, 101, 0.3);
+}
+
+/* Tarjetas */
 .medicamentos-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); /* Tarjetas más anchas */
-  gap: 30px; /* Más espacio entre tarjetas */
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 25px;
 }
 
-/* Estilos para cada tarjeta (card) */
 .medicamento-card {
-  background-color: #fff; /* Fondo de tarjeta claro */
+  background-color: #fff;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05); /* Sombra más sutil */
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
 }
 
-.medicamento-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-}
-
-/* Contenedor de imagen: limpio y profesional */
 .medicamento-imagen-container {
-  height: 200px; /* Altura fija para uniformidad */
-  background-color: #f5f5f5; /* Fondo claro para imágenes */
+  height: 180px;
+  background-color: #fcfcfc;
   display: flex;
   justify-content: center;
   align-items: center;
-  border-bottom: 1px solid #eaeaea;
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .medicamento-imagen {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
-  padding: 15px;
+  padding: 10px;
 }
 
-/* Imagen de marcador de posición para un aspecto uniforme */
-.medicamento-placeholder {
-  max-width: 80px;
-  max-height: 80px;
-  opacity: 0.2; /* Muy sutil */
-}
-
-/* Contenedor de detalles en negro: Contraste alto */
 .medicamento-detalles {
-  padding: 1.5rem;
-  background-color: #1a1a1a; /* Negro profundo para contraste */
-  flex-grow: 1; /* Ocupa el resto del espacio */
-  display: flex;
-  flex-direction: column;
+  padding: 1.2rem;
+  background-color: #11141a; /* Un tono oscuro integrado con Melika */
+  flex-grow: 1;
+}
+
+/* Etiqueta de Especialidad interna */
+.badge-especialidad {
+  display: inline-block;
+  background-color: rgba(49, 208, 253, 0.15);
+  color: #31d0fd;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
 }
 
 .medicamento-nombre {
-  margin: 0 0 1rem 0;
-  font-size: 1.3rem;
+  font-size: 1.15rem;
+  color: #fff;
+  margin-bottom: 0.8rem;
   font-weight: 600;
-  color: #fff; /* Blanco puro para el nombre */
-  line-height: 1.2;
 }
 
 .medicamento-metadatos {
-  margin-bottom: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  margin-bottom: 0.8rem;
+  border-bottom: 1px solid #222;
+  padding-bottom: 0.5rem;
 }
 
 .metadato-row {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  margin-bottom: 4px;
 }
 
 .etiqueta-pequena {
   font-size: 0.8rem;
-  color: #b1b1b1; /* Gris más claro para las etiquetas */
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  color: #8c96a3;
 }
 
 .etiqueta-valor {
   font-size: 0.85rem;
-  color: #eee; /* Casi blanco para los valores */
-  text-align: right;
-  flex: 1;
-  margin-left: 10px;
+  color: #e3e7ed;
 }
 
 .medicamento-presentacion {
-  font-size: 0.95rem;
-  margin-bottom: 1.2rem;
-  color: #eaeaea; /* Más claro para la presentación */
-  line-height: 1.4;
+  font-size: 0.85rem;
+  color: #cbd3dc;
+  margin-bottom: 0.5rem;
 }
 
-/* Descripción: Mejor contraste y límite de líneas */
 .medicamento-descripcion {
-  font-size: 0.9rem;
-  line-height: 1.5;
-  color: #d1d1d1; /* Mejor contraste */
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: #9aa5b1;
   overflow: hidden;
   display: -webkit-box;
-  -webkit-line-clamp: 3; /* Límite de 3 líneas para una cuadrícula más limpia */
+  -webkit-line-clamp: 3;
   line-clamp: 3;
   -webkit-box-orient: vertical;
 }
@@ -144,7 +159,6 @@
 .sin-resultados {
   grid-column: 1 / -1;
   text-align: center;
-  color: #666;
-  padding: 3rem;
-  font-size: 1.1rem;
+  color: #888;
+  padding: 2rem;
 }
