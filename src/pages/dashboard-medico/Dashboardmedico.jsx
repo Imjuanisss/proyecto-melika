@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -12,6 +12,9 @@ export default function DashboardMedico() {
     const { usuario } = useAuth();
     const calendarRef = useRef(null);
 
+    // Control de vista: 'agenda' o 'disponibilidad'
+    const [vistaActiva, setVistaActiva] = useState('agenda');
+
     // Agenda del día seleccionado
     const [fechaSeleccionada, setFechaSeleccionada] = useState(
         new Date().toISOString().split('T')[0]
@@ -19,6 +22,13 @@ export default function DashboardMedico() {
     const [citasDia,    setCitasDia]    = useState([]);
     const [loadingDia,  setLoadingDia]  = useState(true);
     const [errorDia,    setErrorDia]    = useState(null);
+
+    // Gestión de Franjas de Disponibilidad
+    const [franjas, setFranjas] = useState([]);
+    const [loadingFranjas, setLoadingFranjas] = useState(false);
+    const [errorFranjas, setErrorFranjas] = useState(null);
+    const [nuevaFranja, setNuevaFranja] = useState({ hora_inicio: '', hora_fin: '' });
+    const [guardandoFranja, setGuardandoFranja] = useState(false);
 
     // Modal historia clínica
     const [modalHistoria,  setModalHistoria]  = useState(null); // cita completa
@@ -29,16 +39,30 @@ export default function DashboardMedico() {
     const [errorHist,      setErrorHist]      = useState(null);
     const [loadingHist,    setLoadingHist]    = useState(false);
 
-    // Cargar citas del día seleccionado
-    useEffect(() => {
-        setLoadingDia(true);
-        setErrorDia(null);
-
-        api.get(`/medico/agenda?fecha=${fechaSeleccionada}`)
-            .then(data => setCitasDia(data.citas || []))
-            .catch(() => setErrorDia('No se pudo cargar la agenda.'))
-            .finally(() => setLoadingDia(false));
+    // Memorizar cargarFranjas con useCallback para evitar re-creaciones de función innecesarias
+    const cargarFranjas = useCallback(() => {
+        setLoadingFranjas(true);
+        setErrorFranjas(null);
+        api.get(`/medico/franjas?fecha=${fechaSeleccionada}`)
+            .then(data => setFranjas(data || []))
+            .catch(() => setErrorFranjas('No se pudieron cargar las franjas horarias.'))
+            .finally(() => setLoadingFranjas(false));
     }, [fechaSeleccionada]);
+
+    // Cargar citas del día seleccionado o franjas según la vista activa
+    useEffect(() => {
+        if (vistaActiva === 'agenda') {
+            setLoadingDia(true);
+            setErrorDia(null);
+
+            api.get(`/medico/agenda?fecha=${fechaSeleccionada}`)
+                .then(data => setCitasDia(data.citas || []))
+                .catch(() => setErrorDia('No se pudo cargar la agenda.'))
+                .finally(() => setLoadingDia(false));
+        } else if (vistaActiva === 'disponibilidad') {
+            cargarFranjas();
+        }
+    }, [fechaSeleccionada, vistaActiva, cargarFranjas]);
 
     // Al hacer clic en un día del calendario
     function handleDateClick(info) {
@@ -59,6 +83,41 @@ export default function DashboardMedico() {
         api.get(`/medico/agenda/rango?inicio=${inicio}&fin=${fin}`)
             .then(eventos => successCallback(eventos))
             .catch(() => failureCallback());
+    }
+
+    // Crear una nueva franja horaria
+    async function handleCrearFranja(e) {
+        e.preventDefault();
+        if (!nuevaFranja.hora_inicio || !nuevaFranja.hora_fin) return;
+        setGuardandoFranja(true);
+        setErrorFranjas(null);
+
+        try {
+            await api.post('/medico/franjas', {
+                fecha: fechaSeleccionada,
+                hora_inicio: nuevaFranja.hora_inicio,
+                hora_fin: nuevaFranja.hora_fin
+            });
+            setNuevaFranja({ hora_inicio: '', hora_fin: '' });
+            cargarFranjas();
+            calendarRef.current?.getApi().refetchEvents();
+        } catch (err) {
+            setErrorFranjas(err.message || 'Error al crear la franja horaria.');
+        } finally {
+            setGuardandoFranja(false);
+        }
+    }
+
+    // Eliminar una franja horaria
+    async function handleEliminarFranja(id) {
+        if (!window.confirm('¿Estás seguro de eliminar esta franja de disponibilidad?')) return;
+        try {
+            await api.delete(`/medico/franjas/${id}`);
+            setFranjas(prev => prev.filter(f => f.id !== id));
+            calendarRef.current?.getApi().refetchEvents();
+        } catch {
+            alert('No se pudo eliminar la franja horaria.');
+        }
     }
 
     // Abrir modal de historia clínica
@@ -97,14 +156,14 @@ export default function DashboardMedico() {
             if (historia) {
                 // Actualizar existente
                 const res = await api.put(`/historias/${historia.id}`, { contenido });
-                setHistoria(res.historia);
+                setHistoria(res.res_historia || res.historia);
             } else {
                 // Crear nueva
                 const res = await api.post('/historias', {
                     contenido,
                     id_cita: modalHistoria.id,
                 });
-                setHistoria(res.historia);
+                setHistoria(res.res_historia || res.historia);
             }
             setModoEdicion(false);
         } catch (err) {
@@ -132,19 +191,37 @@ export default function DashboardMedico() {
             <div className="contenedor">
 
                 <div className="dashboard-medico__cabecera">
-                    <h1 className="dashboard-medico__titulo">
-                        Bienvenido, Dr(a). {usuario?.nombre}
-                    </h1>
-                    <p className="dashboard-medico__sub">
-                        Selecciona un día en el calendario para ver tus citas
-                    </p>
+                    <div>
+                        <h1 className="dashboard-medico__titulo">
+                            Bienvenido, Dr(a). {usuario?.nombre}
+                        </h1>
+                        <p className="dashboard-medico__sub">
+                            Gestiona tus consultas y horarios disponibles desde tu panel
+                        </p>
+                    </div>
+                    
+                    {/* Selector de Pestañas / Vistas */}
+                    <div className="dashboard-medico__tabs">
+                        <button 
+                            className={`tab-btn ${vistaActiva === 'agenda' ? 'tab-btn--activo' : ''}`}
+                            onClick={() => setVistaActiva('agenda')}
+                        >
+                            🗓️ Agenda de Citas
+                        </button>
+                        <button 
+                            className={`tab-btn ${vistaActiva === 'disponibilidad' ? 'tab-btn--activo' : ''}`}
+                            onClick={() => setVistaActiva('disponibilidad')}
+                        >
+                            ⚙️ Gestionar Disponibilidad
+                        </button>
+                    </div>
                 </div>
 
                 <div className="dashboard-medico__grid">
 
-                    {/* Calendario */}
+                    {/* Calendario (Compartido por ambas vistas) */}
                     <div className="panel-calendario">
-                        <h2 className="panel-calendario__titulo">Calendario de citas</h2>
+                        <h2 className="panel-calendario__titulo">Calendario de gestión</h2>
                         <FullCalendar
                             ref={calendarRef}
                             plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
@@ -168,62 +245,149 @@ export default function DashboardMedico() {
                         />
                     </div>
 
-                    {/* Panel lateral: citas del día */}
-                    <div className="panel-agenda">
-                        <div className="panel-agenda__cabecera">
-                            <h2 className="panel-agenda__titulo">Agenda del día</h2>
-                            <span className="panel-agenda__fecha">
-                                {formatFecha(fechaSeleccionada)}
-                            </span>
+                    {/* VISTA 1: PANEL DE CITAS DEL DÍA */}
+                    {vistaActiva === 'agenda' && (
+                        <div className="panel-agenda">
+                            <div className="panel-agenda__cabecera">
+                                <h2 className="panel-agenda__titulo">Agenda del día</h2>
+                                <span className="panel-agenda__fecha">
+                                    {formatFecha(fechaSeleccionada)}
+                                </span>
+                            </div>
+
+                            {errorDia && (
+                                <div className="historia-error">{errorDia}</div>
+                            )}
+
+                            {loadingDia ? (
+                                <div className="agenda-loading">
+                                    {Array(3).fill(0).map((_, i) => (
+                                        <div key={i} className="agenda-skeleton" />
+                                    ))}
+                                </div>
+                            ) : citasDia.length === 0 ? (
+                                <div className="agenda-vacio">
+                                    <span>📭</span>
+                                    No hay citas para este día
+                                </div>
+                            ) : (
+                                <div className="agenda-lista">
+                                    {citasDia.map(cita => (
+                                        <div
+                                            key={cita.id}
+                                            className={`agenda-item agenda-item--${cita.estado}`}
+                                        >
+                                            <div className="agenda-item__hora">
+                                                {formatHora(cita.hora_inicio)}
+                                            </div>
+                                            <div className="agenda-item__paciente">
+                                                {cita.paciente_nombre} {cita.paciente_apellido}
+                                            </div>
+                                            <div className="agenda-item__tipo">
+                                                {cita.tipo_consulta === 'teleconsulta'
+                                                    ? '💻 Teleconsulta'
+                                                    : '🏥 Presencial'}
+                                                {cita.motivo && ` · ${cita.motivo.substring(0, 30)}…`}
+                                            </div>
+                                            {cita.estado !== 'cancelada' && (
+                                                <button
+                                                    className="agenda-item__btn-historia"
+                                                    onClick={() => abrirHistoria(cita)}
+                                                >
+                                                    {cita.historia_id ? 'Ver historia' : 'Crear historia'}
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
+                    )}
 
-                        {errorDia && (
-                            <div className="historia-error">{errorDia}</div>
-                        )}
+                    {/* VISTA 2: PANEL DE GESTIÓN DE DISPONIBILIDAD */}
+                    {vistaActiva === 'disponibilidad' && (
+                        <div className="panel-agenda">
+                            <div className="panel-agenda__cabecera">
+                                <h2 className="panel-agenda__titulo">Franjas de Disponibilidad</h2>
+                                <span className="panel-agenda__fecha">
+                                    {formatFecha(fechaSeleccionada)}
+                                </span>
+                            </div>
 
-                        {loadingDia ? (
-                            <div className="agenda-loading">
-                                {Array(3).fill(0).map((_, i) => (
-                                    <div key={i} className="agenda-skeleton" />
-                                ))}
-                            </div>
-                        ) : citasDia.length === 0 ? (
-                            <div className="agenda-vacio">
-                                <span>📭</span>
-                                No hay citas para este día
-                            </div>
-                        ) : (
-                            <div className="agenda-lista">
-                                {citasDia.map(cita => (
-                                    <div
-                                        key={cita.id}
-                                        className={`agenda-item agenda-item--${cita.estado}`}
-                                    >
-                                        <div className="agenda-item__hora">
-                                            {formatHora(cita.hora_inicio)}
-                                        </div>
-                                        <div className="agenda-item__paciente">
-                                            {cita.paciente_nombre} {cita.paciente_apellido}
-                                        </div>
-                                        <div className="agenda-item__tipo">
-                                            {cita.tipo_consulta === 'teleconsulta'
-                                                ? '💻 Teleconsulta'
-                                                : '🏥 Presencial'}
-                                            {cita.motivo && ` · ${cita.motivo.substring(0, 30)}…`}
-                                        </div>
-                                        {cita.estado !== 'cancelada' && (
-                                            <button
-                                                className="agenda-item__btn-historia"
-                                                onClick={() => abrirHistoria(cita)}
-                                            >
-                                                {cita.historia_id ? 'Ver historia' : 'Crear historia'}
-                                            </button>
-                                        )}
+                            {errorFranjas && (
+                                <div className="historia-error">{errorFranjas}</div>
+                            )}
+
+                            {/* Formulario para añadir nueva franja */}
+                            <form onSubmit={handleCrearFranja} className="dispo-formulario">
+                                <div className="dispo-formulario__inputs">
+                                    <div className="dispo-campo">
+                                        <label>Hora Inicio</label>
+                                        <input 
+                                            type="time" 
+                                            value={nuevaFranja.hora_inicio}
+                                            onChange={e => setNuevaFranja(p => ({ ...p, hora_inicio: e.target.value }))}
+                                            required
+                                        />
                                     </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                                    <div className="dispo-campo">
+                                        <label>Hora Fin</label>
+                                        <input 
+                                            type="time" 
+                                            value={nuevaFranja.hora_fin}
+                                            onChange={e => setNuevaFranja(p => ({ ...p, hora_fin: e.target.value }))}
+                                            required
+                                        />
+                                    </div>
+                                </div>
+                                <button 
+                                    type="submit" 
+                                    className="btn-guardar-historia" 
+                                    style={{ width: '100%', marginTop: '10px' }}
+                                    disabled={guardandoFranja}
+                                >
+                                    {guardandoFranja ? 'Añadiendo...' : '＋ Añadir Franja Libre'}
+                                </button>
+                            </form>
+
+                            <hr style={{ margin: '20px 0', border: '0', borderTop: '1px solid #eee' }} />
+
+                            {/* Listado de franjas del día */}
+                            <h3 className="panel-calendario__titulo" style={{ fontSize: '1.1rem', marginBottom: '10px' }}>
+                                Franjas horarias del día
+                            </h3>
+
+                            {loadingFranjas ? (
+                                <div className="agenda-loading">
+                                    <div className="agenda-skeleton" style={{ height: '50px' }} />
+                                </div>
+                            ) : franjas.length === 0 ? (
+                                <div className="agenda-vacio">
+                                    <span>⏰</span>
+                                    No has definido franjas libres para este día.
+                                </div>
+                            ) : (
+                                <div className="dispo-lista">
+                                    {franjas.map(franja => (
+                                        <div key={franja.id} className="dispo-item">
+                                            <div className="dispo-item__info">
+                                                🟢 <span>{formatHora(franja.hora_inicio)} - {formatHora(franja.hora_fin)}</span>
+                                            </div>
+                                            <button 
+                                                type="button"
+                                                className="dispo-item__btn-eliminar"
+                                                onClick={() => handleEliminarFranja(franja.id)}
+                                                title="Eliminar disponibilidad"
+                                            >
+                                                🗑️
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                 </div>
             </div>
 

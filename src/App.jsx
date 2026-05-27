@@ -12,6 +12,7 @@ import Agendarcita      from './pages/agendar/Agendarcita';
 import MisCitas         from './pages/miscitas/MisCitas';
 import DashboardMedico  from './pages/dashboard-medico/DashboardMedico';
 import MedicosAdmin     from './pages/admin/MedicosAdmin';
+import ActivarCuenta from './pages/activar-cuenta/ActivarCuenta';
 
 function RutaProtegida({ children }) {
   const { usuario } = useAuth();
@@ -58,6 +59,9 @@ function AppRoutes() {
         <Route path="/admin/medicos" element={<RutaAdmin><MedicosAdmin /></RutaAdmin>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
+        
+        {/* Activación de cuenta (acceso público vía email) */}
+        <Route path="/activar-cuenta" element={<ActivarCuenta />} />
       </Routes>
     </>
   );
