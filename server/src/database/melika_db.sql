@@ -15,7 +15,7 @@
 --DROP TABLE IF EXISTS usuarios             CASCADE;
 
 
--
+
 -- TABLA: usuarios
 
 CREATE TABLE usuarios (
