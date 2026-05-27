@@ -1,6 +1,5 @@
-// server/src/routes/medicosRoutes.js
-const express  = require('express');
-const router   = express.Router();
+const express = require('express');
+const router = express.Router();
 const { verifyToken, isAdmin, isMedico } = require('../middleware/authMiddleware');
 const {
   crearMedico,
@@ -20,17 +19,17 @@ const {
 router.post('/activar', activarCuenta);     // el médico activa su cuenta
 
 // ── Admin ──────────────────────────────────────────────
-router.get('/',              verifyToken, isAdmin, listarMedicos);
-router.post('/',             verifyToken, isAdmin, crearMedico);
-router.put('/:id',           verifyToken, isAdmin, actualizarMedico);
-router.patch('/:id/estado',  verifyToken, isAdmin, toggleEstadoMedico);
+router.get('/', verifyToken, isAdmin, listarMedicos);
+router.post('/', verifyToken, isAdmin, crearMedico);
+router.put('/:id', verifyToken, isAdmin, actualizarMedico);
+router.patch('/:id/estado', verifyToken, isAdmin, toggleEstadoMedico);
 
 // ── Médico autenticado ─────────────────────────────────
-router.get('/perfil',        verifyToken, isMedico, perfilMedico);
-router.get('/agenda',        verifyToken, isMedico, agendaMedico);
-router.get('/agenda/rango',  verifyToken, isMedico, agendaRango);
-router.post('/franjas',      verifyToken, isMedico, crearFranja);
-router.get('/franjas',       verifyToken, isMedico, listarFranjas);
-router.delete('/franjas/:id',verifyToken, isMedico, eliminarFranja);
+router.get('/perfil', verifyToken, isMedico, perfilMedico);
+router.get('/agenda', verifyToken, isMedico, agendaMedico);
+router.get('/agenda/rango', verifyToken, isMedico, agendaRango);
+router.post('/franjas', verifyToken, isMedico, crearFranja);
+router.get('/franjas', verifyToken, isMedico, listarFranjas);
+router.delete('/franjas/:id', verifyToken, isMedico, eliminarFranja);
 
 module.exports = router;

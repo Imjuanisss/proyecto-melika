@@ -1,7 +1,6 @@
-// server/src/controllers/medicosController.js
-const pool       = require('../db');
-const bcrypt     = require('bcrypt');
-const crypto     = require('crypto');
+const pool = require('../config/db');
+const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 
 function crearTransporter() {
@@ -58,14 +57,14 @@ async function crearMedico(req, res) {
       [
         id_usuario, id_especialidad, numero_registro, tarifa,
         acepta_teleconsulta ?? true,
-        acepta_presencial   ?? true,
-        biografia           || '',
-        anos_experiencia    || 0,
+        acepta_presencial ?? true,
+        biografia || '',
+        anos_experiencia || 0,
       ]
     );
 
     // Generar token de invitación (expira en 72 horas)
-    const token    = crypto.randomBytes(48).toString('hex');
+    const token = crypto.randomBytes(48).toString('hex');
     const expiraEn = new Date(Date.now() + 72 * 60 * 60 * 1000);
 
     await pool.query(
@@ -79,8 +78,8 @@ async function crearMedico(req, res) {
     try {
       const transporter = crearTransporter();
       await transporter.sendMail({
-        from:    process.env.EMAIL_FROM,
-        to:      email,
+        from: process.env.EMAIL_FROM,
+        to: email,
         subject: 'Bienvenido a MELIKA — Activa tu cuenta',
         html: `
           <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:32px;">
@@ -106,7 +105,7 @@ async function crearMedico(req, res) {
 
     res.status(201).json({
       mensaje: `Médico creado. Se envió un email de activación a ${email}.`,
-      medico:  { ...nuevoMedico.rows[0], nombre, primer_apellido, email },
+      medico: { ...nuevoMedico.rows[0], nombre, primer_apellido, email },
     });
   } catch (err) {
     console.error('Error en crearMedico:', err.message);
@@ -278,7 +277,7 @@ async function perfilMedico(req, res) {
 // ─── GET /medico/agenda?fecha= — Agenda del médico autenticado ────────────
 async function agendaMedico(req, res) {
   const id_usuario = req.usuario.id;
-  const { fecha }  = req.query;
+  const { fecha } = req.query;
   const fechaConsulta = fecha || new Date().toISOString().split('T')[0];
 
   try {
@@ -318,7 +317,7 @@ async function agendaMedico(req, res) {
 
 // ─── GET /medico/agenda/rango?inicio=&fin= — Para FullCalendar ────────────
 async function agendaRango(req, res) {
-  const id_usuario  = req.usuario.id;
+  const id_usuario = req.usuario.id;
   const { inicio, fin } = req.query;
 
   if (!inicio || !fin)
@@ -347,7 +346,7 @@ async function agendaRango(req, res) {
     );
 
     const eventos = resultado.rows.map(c => ({
-      id:    c.id,
+      id: c.id,
       title: `${c.paciente_nombre} ${c.paciente_apellido}`,
       start: `${c.fecha.toISOString().split('T')[0]}T${c.hora_inicio}`,
       extendedProps: { tipo: c.tipo_consulta, estado: c.estado },
@@ -401,7 +400,7 @@ async function crearFranja(req, res) {
 // ─── GET /medico/franjas?fecha= — Listar franjas del médico ───────────────
 async function listarFranjas(req, res) {
   const id_usuario = req.usuario.id;
-  const { fecha }  = req.query;
+  const { fecha } = req.query;
 
   try {
     const medicoRes = await pool.query(
@@ -411,9 +410,9 @@ async function listarFranjas(req, res) {
     if (medicoRes.rows.length === 0)
       return res.status(404).json({ mensaje: 'Perfil de médico no encontrado.' });
 
-    const id_medico  = medicoRes.rows[0].id;
-    const condFecha  = fecha ? 'AND f.fecha = $2' : '';
-    const params     = fecha ? [id_medico, fecha] : [id_medico];
+    const id_medico = medicoRes.rows[0].id;
+    const condFecha = fecha ? 'AND f.fecha = $2' : '';
+    const params = fecha ? [id_medico, fecha] : [id_medico];
 
     const resultado = await pool.query(
       `SELECT f.*, c.id AS cita_id
@@ -434,7 +433,7 @@ async function listarFranjas(req, res) {
 
 // ─── DELETE /medico/franjas/:id — Eliminar franja libre (Médico) ──────────
 async function eliminarFranja(req, res) {
-  const { id }     = req.params;
+  const { id } = req.params;
   const id_usuario = req.usuario.id;
 
   try {

@@ -1,5 +1,4 @@
-// server/src/controllers/historiasController.js
-const pool = require('../db');
+const pool = require('../config/db');
 
 // ─── POST /historias — Crear historia clínica ─────────────────────────────
 async function crearHistoria(req, res) {
@@ -54,13 +53,13 @@ async function crearHistoria(req, res) {
        RETURNING *`,
       [
         id_cita, id_paciente, id_medico, motivo_consulta,
-        anamnesis              || null,
-        examen_fisico          || null,
-        diagnostico_cie10      || null,
+        anamnesis || null,
+        examen_fisico || null,
+        diagnostico_cie10 || null,
         descripcion_diagnostico || null,
-        plan_tratamiento       || null,
+        plan_tratamiento || null,
         medicamentos_recetados || null,
-        observaciones          || null,
+        observaciones || null,
       ]
     );
 
@@ -80,7 +79,7 @@ async function crearHistoria(req, res) {
 
 // ─── PUT /historias/:id — Actualizar historia ─────────────────────────────
 async function actualizarHistoria(req, res) {
-  const { id }     = req.params;
+  const { id } = req.params;
   const id_usuario = req.usuario.id;
   const {
     motivo_consulta, anamnesis, examen_fisico,
