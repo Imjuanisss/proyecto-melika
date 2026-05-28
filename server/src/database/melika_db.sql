@@ -232,3 +232,100 @@ INSERT INTO medicamentos (nombre_comercial, principio_activo, laboratorio, tipo,
   ('Omeprazol 20mg',     'Omeprazol',              'Tecnoquímicas',   'Rx',  'Úlcera gástrica, reflujo.',       'Hipersensibilidad a omeprazol.',   'Cápsulas 10mg, 20mg, 40mg',            'INVIMA2017M-0056789'),
   ('Metformina 850mg',   'Metformina clorhidrato', 'Lafrancol',       'Rx',  'Diabetes mellitus tipo 2.',       'Insuficiencia renal severa.',      'Tabletas 500mg, 850mg, 1000mg',        'INVIMA2016M-0067890'),
   ('Salbutamol 100mcg',  'Salbutamol sulfato',     'GlaxoSmithKline', 'Rx',  'Broncoespasmo en asma y EPOC.',  'Hipersensibilidad a salbutamol.', 'Inhalador 100mcg/dosis',               'INVIMA2019M-0078901');
+
+
+
+-- MELIKA — Migración: categorías para medicamentos seed
+-- Ejecutar una sola vez después del seed inicial.
+
+
+-- 1. Asignar categoría a cada medicamento sembrado
+UPDATE medicamentos SET categoria = 'Analgésicos y Antipiréticos'
+  WHERE nombre_comercial = 'Acetaminofén 500mg';
+
+UPDATE medicamentos SET categoria = 'Antiinflamatorios (AINEs)'
+  WHERE nombre_comercial = 'Ibuprofeno 400mg';
+
+UPDATE medicamentos SET categoria = 'Antibióticos'
+  WHERE nombre_comercial = 'Amoxicilina 500mg';
+
+UPDATE medicamentos SET categoria = 'Antihistamínicos'
+  WHERE nombre_comercial = 'Loratadina 10mg';
+
+UPDATE medicamentos SET categoria = 'Gastrointestinal'
+  WHERE nombre_comercial = 'Omeprazol 20mg';
+
+UPDATE medicamentos SET categoria = 'Antidiabéticos'
+  WHERE nombre_comercial = 'Metformina 850mg';
+
+UPDATE medicamentos SET categoria = 'Respiratorio'
+  WHERE nombre_comercial = 'Salbutamol 100mcg';
+
+
+-- 2. Medicamentos adicionales para un catálogo más robusto (opcional)
+INSERT INTO medicamentos
+  (nombre_comercial, principio_activo, laboratorio, categoria, tipo,
+   descripcion, indicaciones, contraindicaciones, presentaciones, registro_invima)
+VALUES
+  ('Azitromicina 500mg',  'Azitromicina dihidrato',  'Genfar',          'Antibióticos',
+   'Rx',
+   'Antibiótico macrólido de amplio espectro. Usado en infecciones respiratorias, de piel y tejidos blandos.',
+   'Tomar 1 tableta al día por 3 días o según pauta médica. Puede tomarse con o sin alimentos.',
+   'Hipersensibilidad a macrólidos, arritmias cardiacas (prolongación QT), insuficiencia hepática grave.',
+   'Cápsulas 500mg, Suspensión 200mg/5mL', 'INVIMA2020M-0091234'),
+
+  ('Cetirizina 10mg',     'Cetirizina clorhidrato',  'Pfizer',          'Antihistamínicos',
+   'OTC',
+   'Antihistamínico de segunda generación con escasa sedación. Indicado en rinitis alérgica y urticaria crónica.',
+   'Tomar 1 tableta por día, preferiblemente por la noche.',
+   'Hipersensibilidad a la cetirizina o hidroxizina, insuficiencia renal grave.',
+   'Tabletas 10mg, Solución 5mg/5mL', 'INVIMA2018M-0082345'),
+
+  ('Pantoprazol 40mg',    'Pantoprazol sódico',      'Tecnoquímicas',   'Gastrointestinal',
+   'Rx',
+   'Inhibidor de la bomba de protones. Reduce la producción de ácido gástrico.',
+   'Tomar 1 tableta en ayunas 30 minutos antes del desayuno. Tragar entera sin masticar.',
+   'Hipersensibilidad al pantoprazol o benzimidazoles sustituidos.',
+   'Tabletas gastrorresistentes 20mg y 40mg', 'INVIMA2019M-0073456'),
+
+  ('Losartán 50mg',       'Losartán potásico',       'MK',              'Cardiovascular',
+   'Rx',
+   'Antagonista del receptor de angiotensina II. Tratamiento de hipertensión arterial y protección renal en diabéticos.',
+   'Tomar 1 tableta al día a la misma hora. La dosis puede ajustarse a criterio médico.',
+   'Embarazo (2.° y 3.° trimestre), hipersensibilidad, hiperpotasemia severa.',
+   'Tabletas 25mg, 50mg y 100mg', 'INVIMA2017M-0064567'),
+
+  ('Atorvastatina 20mg',  'Atorvastatina cálcica',   'Lafrancol',       'Cardiovascular',
+   'Rx',
+   'Estatina para reducción de colesterol LDL y prevención de eventos cardiovasculares.',
+   'Tomar 1 tableta cada noche junto con dieta baja en grasas saturadas.',
+   'Hepatopatía activa, embarazo, lactancia, miopatía preexistente.',
+   'Tabletas recubiertas 10mg, 20mg, 40mg, 80mg', 'INVIMA2016M-0055678'),
+
+  ('Betametasona crema 0.05%', 'Betametasona dipropionato', 'Tecnoquímicas', 'Dermatología',
+   'Rx',
+   'Corticoide tópico de alta potencia para dermatosis inflamatorias como psoriasis y eccema.',
+   'Aplicar capa delgada en área afectada 1-2 veces al día. Uso máximo 2 semanas continuas.',
+   'Infecciones cutáneas virales, bacterianas o fúngicas no tratadas, rosácea, acné.',
+   'Crema 0.05% tubo x 40g, Ungüento 0.05% tubo x 40g', 'INVIMA2021M-0046789'),
+
+  ('Ácido Fólico 5mg',    'Ácido fólico (vitamina B9)', 'Sanofi',        'Vitaminas y Suplementos',
+   'OTC',
+   'Vitamina B9 esencial para síntesis de ADN y división celular. Prevención de defectos del tubo neural.',
+   'Tomar 1 tableta diaria, preferiblemente antes del desayuno. En embarazo iniciar al menos 1 mes antes de la concepción.',
+   'Anemia perniciosa no tratada, hipersensibilidad al ácido fólico.',
+   'Tabletas 1mg y 5mg', 'INVIMA2022M-0037890'),
+
+  ('Gabapentina 300mg',   'Gabapentina',             'Procaps',         'Neurología',
+   'Rx',
+   'Antiepiléptico y analgésico neuropático. Indicado en neuropatía diabética, neuralgia postherpética y epilepsia parcial.',
+   'Iniciar con dosis baja (300mg/día) e incrementar según tolerancia según esquema médico.',
+   'Hipersensibilidad, antecedente de pancreatitis. No suspender abruptamente.',
+   'Cápsulas 100mg, 300mg, 400mg', 'INVIMA2019M-0028901');
+
+-- Verificación rápida
+SELECT categoria, COUNT(*) AS total, string_agg(tipo, ', ') AS tipos
+FROM medicamentos
+WHERE activo = TRUE
+GROUP BY categoria
+ORDER BY categoria;
