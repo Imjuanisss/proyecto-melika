@@ -3,6 +3,64 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../../lib/apiClient';
 import './Catalogo.css';
 
+// ── Tus Datos de Respaldo Recuperados ────────────────────────────────────────
+const medicamentosDeRespaldo = [
+  {
+    id: 'm1',
+    nombre_comercial: 'Losartán Potásico 50mg',
+    principio_activo: 'Losartán',
+    laboratorio: 'Genfar',
+    categoria: 'Cardiología',
+    tipo: 'Rx',
+    registro_invima: 'INVIMA 2019M-0009432',
+    presentaciones: 'Caja con 30 tabletas.',
+    descripcion: 'Medicamento indicado para el control de la hipertensión arterial esencial.',
+    indicaciones: 'Tomar una tableta al día, preferiblemente a la misma hora, según indicación médica.',
+    contraindicaciones: 'No consumir durante el embarazo o lactancia. Hipersensibilidad al principio activo.'
+  },
+  {
+    id: 'm2',
+    nombre_comercial: 'Atorvastatina 20mg',
+    principio_activo: 'Atorvastatina Cálcica',
+    laboratorio: 'Lafrancol',
+    categoria: 'Cardiología',
+    tipo: 'Rx',
+    registro_invima: 'INVIMA 2021M-0012455',
+    presentaciones: 'Caja con 28 tabletas.',
+    descripcion: 'Utilizado para disminuir los niveles de colesterol y triglicéridos en la sangre.',
+    indicaciones: 'Administración por vía oral una vez al día. Se recomienda acompañar de una dieta baja en grasas.',
+    contraindicaciones: 'Enfermedad hepática activa, embarazo y lactancia.'
+  },
+  {
+    id: 'm3',
+    nombre_comercial: 'Betametasona 0.05% Crema',
+    principio_activo: 'Betametasona dipropionato',
+    laboratorio: 'Tecnoquímicas',
+    categoria: 'Dermatología',
+    tipo: 'Rx',
+    registro_invima: 'INVIMA 2018M-0004122',
+    presentaciones: 'Tubo por 40g.',
+    descripcion: 'Corticoide tópico para el alivio de manifestaciones inflamatorias y pruríticas de las dermatosis.',
+    indicaciones: 'Aplicar una capa delgada sobre el área afectada 1 o 2 veces al día.',
+    contraindicaciones: 'Infecciones cutáneas bacterianas, virales o fúngicas no tratadas.'
+  },
+  {
+    id: 'm4',
+    nombre_comercial: 'Acetaminofén Jarabe 150mg/5mL',
+    principio_activo: 'Acetaminofén (Paracetamol)',
+    laboratorio: 'MK',
+    categoria: 'Pediatría',
+    tipo: 'OTC',
+    registro_invima: 'INVIMA 2020M-0019877',
+    presentaciones: 'Frasco por 120mL con dosificador.',
+    descripcion: 'Analgésico y antipirético ideal para el alivio del dolor y la fiebre en niños.',
+    indicaciones: 'Dosificar según el peso y edad del niño. No superar la dosis máxima recomendada.',
+    contraindicaciones: 'Hipersensibilidad al acetaminofén. Usar con precaución en pacientes con daño hepático.'
+  }
+];
+
+const categoriasDeRespaldo = ['Cardiología', 'Dermatología', 'Pediatría', 'Neurología', 'Ginecología', 'Medicina General'];
+
 // ── Skeleton de tarjeta ────────────────────────────────────────────────────
 function MedicamentoSkeleton() {
   return (
@@ -22,7 +80,7 @@ function MedicamentoSkeleton() {
 function TipoBadge({ tipo }) {
   return (
     <span className={`badge-tipo badge-tipo--${tipo?.toLowerCase()}`}>
-      {tipo === 'OTC' ? '🟢 Venta libre' : '🔴 Requiere Rx'}
+      {tipo?.toUpperCase() === 'OTC' ? '🟢 Venta libre' : '🔴 Requiere Rx'}
     </span>
   );
 }
@@ -38,9 +96,9 @@ export default function Catalogo() {
 
   // ── Estado de filtros ────────────────────────────────────────────────────
   const [categoriaActiva, setCategoriaActiva] = useState('Todos');
-  const [tipoActivo,      setTipoActivo]      = useState('Todos'); // 'Todos' | 'OTC' | 'Rx'
+  const [tipoActivo,      setTipoActivo]      = useState('Todos'); 
   const [buscar,          setBuscar]          = useState('');
-  const [buscarInput,     setBuscarInput]     = useState('');   // estado del input (debounce)
+  const [buscarInput,     setBuscarInput]     = useState('');   
 
   // ── Modal ────────────────────────────────────────────────────────────────
   const [selectedMed, setSelectedMed] = useState(null);
@@ -48,8 +106,14 @@ export default function Catalogo() {
   // ─── Cargar categorías al montar ─────────────────────────────────────────
   useEffect(() => {
     api.get('/medicamentos/categorias')
-      .then(data => setCategorias(data || []))
-      .catch(() => setCategorias([])); // sin categorías => el filtro igualmente funciona
+      .then(data => {
+        if (data && data.length > 0) {
+          setCategorias(data);
+        } else {
+          setCategorias(categoriasDeRespaldo);
+        }
+      })
+      .catch(() => setCategorias(categoriasDeRespaldo));
   }, []);
 
   // ─── Cargar medicamentos cuando cambian los filtros ───────────────────────
@@ -60,13 +124,41 @@ export default function Catalogo() {
     const params = new URLSearchParams();
     if (categoriaActiva !== 'Todos') params.set('categoria', categoriaActiva);
     if (tipoActivo      !== 'Todos') params.set('tipo',      tipoActivo);
-    if (buscar.trim())               params.set('buscar',    buscar.trim());
+    if (buscar.trim())                params.set('buscar',    buscar.trim());
 
     const query = params.toString() ? `?${params.toString()}` : '';
 
     api.get(`/medicamentos${query}`)
-      .then(data => setMedicamentos(data || []))
-      .catch(() => setError('No se pudo cargar el catálogo. Intenta nuevamente.'))
+      .then(data => {
+        // SI EL BACKEND RESPONDE VACÍO, METEMOS TUS DATOS MAQUETADOS APLICANDO LOS FILTROS LOCALMENTE
+        if (!data || data.length === 0) {
+          let filtrados = medicamentosDeRespaldo;
+          
+          if (categoriaActiva !== 'Todos') {
+            filtrados = filtrados.filter(m => m.categoria === categoriaActiva);
+          }
+          if (tipoActivo !== 'Todos') {
+            filtrados = filtrados.filter(m => m.tipo?.toUpperCase() === tipoActivo.toUpperCase());
+          }
+          if (buscar.trim()) {
+            const termino = buscar.toLowerCase();
+            filtrados = filtrados.filter(m => 
+              m.nombre_comercial.toLowerCase().includes(termino) || 
+              m.principio_activo.toLowerCase().includes(termino)
+            );
+          }
+          setMedicamentos(filtrados);
+        } else {
+          setMedicamentos(data);
+        }
+      })
+      .catch(() => {
+        // En caso de que falle el backend por completo (ej. server apagado), mostramos tus datos como salvavidas
+        let filtrados = medicamentosDeRespaldo;
+        if (categoriaActiva !== 'Todos') filtrados = filtrados.filter(m => m.categoria === categoriaActiva);
+        if (tipoActivo !== 'Todos') filtrados = filtrados.filter(m => m.tipo?.toUpperCase() === tipoActivo.toUpperCase());
+        setMedicamentos(filtrados);
+      })
       .finally(() => setLoading(false));
   }, [categoriaActiva, tipoActivo, buscar]);
 
@@ -91,7 +183,6 @@ export default function Catalogo() {
   const hayFiltrosActivos =
     categoriaActiva !== 'Todos' || tipoActivo !== 'Todos' || buscar.trim().length > 0;
 
-  // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="catalogo-page">
 
@@ -134,7 +225,7 @@ export default function Catalogo() {
         ))}
       </div>
 
-      {/* Filtros por categoría (dinámicos desde la BD) */}
+      {/* Filtros por categoría */}
       {categorias.length > 0 && (
         <div className="filtros-container">
           <button
@@ -155,7 +246,7 @@ export default function Catalogo() {
         </div>
       )}
 
-      {/* Resumen de resultados + botón limpiar */}
+      {/* Resumen de resultados */}
       <div className="catalogo-resultados-bar">
         {!loading && (
           <span className="catalogo-resultados-texto">
@@ -205,7 +296,7 @@ export default function Catalogo() {
                   onError={e => {
                     e.target.src =
                       `https://placehold.co/200x200/f5f5f5/9ca3af?text=${encodeURIComponent(
-                        med.nombre_comercial.split(' ')[0]
+                        med.nombre_comercial ? med.nombre_comercial.split(' ')[0] : 'Med'
                       )}`;
                   }}
                 />
@@ -270,7 +361,6 @@ export default function Catalogo() {
             <button className="modal-close" onClick={() => setSelectedMed(null)}>&times;</button>
 
             <div className="modal-body">
-              {/* Header */}
               <div className="modal-header-info">
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}>
                   {selectedMed.categoria && (
@@ -284,7 +374,6 @@ export default function Catalogo() {
                 )}
               </div>
 
-              {/* Grid datos básicos */}
               <div className="modal-grid-info">
                 <div className="info-block">
                   <h4>Principio activo</h4>
@@ -310,7 +399,6 @@ export default function Catalogo() {
                 )}
               </div>
 
-              {/* Sección técnica */}
               {(selectedMed.indicaciones || selectedMed.contraindicaciones) && (
                 <div className="modal-technical-section">
                   {selectedMed.indicaciones && (
@@ -334,7 +422,6 @@ export default function Catalogo() {
                 </div>
               )}
 
-              {/* Footer */}
               <div className="modal-footer">
                 <p>
                   La información es de carácter instructivo. Consulta siempre a tu médico antes de
