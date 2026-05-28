@@ -1,245 +1,353 @@
-// src/pages/catalogo/Catalogo.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { api } from '../../lib/apiClient';
 import './Catalogo.css';
 
-const initialMedicationData = [
-  // 1. CARDIOLOGÍA
-  {
-    id: 1,
-    especialidad: 'Cardiología',
-    image: '/medicamentos/losartan.jpg',
-    nombre: 'Losartán Potásico 50mg',
-    principioActivo: 'Losartán',
-    laboratorio: 'Genfar',
-    presentacion: 'Caja con 30 tabletas.',
-    descripcion: 'Antihipertensivo indicado para el tratamiento de la hipertensión arterial esencial. Ayuda a proteger los riñones en pacientes con diabetes tipo 2 y reduce el riesgo de accidente cerebrovascular.',
-    uso: 'Tomar 1 tableta al día, preferiblemente a la misma hora, con o sin alimentos según indicación médica.',
-    advertencias: 'Puede causar mareos al inicio del tratamiento. Controle su presión arterial regularmente.',
-    contraindicaciones: 'Hipersensibilidad al componente, segundo y tercer trimestre de embarazo, insuficiencia hepática grave.'
-  },
-  {
-    id: 2,
-    especialidad: 'Cardiología',
-    image: '/medicamentos/atorvastatina.jpg',
-    nombre: 'Atorvastatina 20mg',
-    principioActivo: 'Atorvastatina Cálcica',
-    laboratorio: 'Lafrancol',
-    presentacion: 'Caja con 28 tabletas recubiertas.',
-    descripcion: 'Estatina indicada para reducir los niveles de colesterol total, colesterol LDL ("malo") y triglicéridos en sangre, previniendo eventos cardiovasculares como infartos en pacientes de alto riesgo.',
-    uso: 'Tomar 1 tableta una vez al día, idealmente en la noche junto con una dieta balanceada baja en grasas.',
-    advertencias: 'Realizar exámenes de control hepático periódicos. Suspender si presenta dolor muscular injustificado.',
-    contraindicaciones: 'Enfermedad hepática activa, embarazo, lactancia y menores de 10 años.'
-  },
+// ── Skeleton de tarjeta ────────────────────────────────────────────────────
+function MedicamentoSkeleton() {
+  return (
+    <div className="medicamento-card medicamento-card--skeleton">
+      <div className="medicamento-imagen-container skeleton-box" />
+      <div className="medicamento-detalles" style={{ background: '#1a1e27' }}>
+        <div className="skeleton-line" style={{ width: '60%', marginBottom: '10px' }} />
+        <div className="skeleton-line" style={{ width: '90%', marginBottom: '6px' }} />
+        <div className="skeleton-line" style={{ width: '75%', marginBottom: '6px' }} />
+        <div className="skeleton-line" style={{ width: '50%' }} />
+      </div>
+    </div>
+  );
+}
 
-  // 2. DERMATOLOGÍA
-  {
-    id: 3,
-    especialidad: 'Dermatología',
-    image: '/medicamentos/acido-retinoico.jpg',
-    nombre: 'Betametasona 0.05% Crema',
-    principioActivo: 'Betametasona dipropionato',
-    laboratorio: 'Tecnoquímicas',
-    presentacion: 'Tubo por 40g.',
-    descripcion: 'Corticoide tópico de alta potencia indicado para el alivio de manifestaciones inflamatorias y prurito en dermatosis que responden a corticosteroides, como psoriasis y eccemas rebeldes.',
-    uso: 'Aplicar una capa delgada sobre el área afectada 1 o 2 veces al día frotando suavemente.',
-    advertencias: 'No aplicar en la cara por periodos prolongados. Evitar el contacto con los ojos y heridas abiertas.',
-    contraindicaciones: 'Infecciones cutáneas virales (como herpes o varicela), bacterianas o fúngicas no tratadas.'
-  },
+// ── Badge por tipo ─────────────────────────────────────────────────────────
+function TipoBadge({ tipo }) {
+  return (
+    <span className={`badge-tipo badge-tipo--${tipo?.toLowerCase()}`}>
+      {tipo === 'OTC' ? '🟢 Venta libre' : '🔴 Requiere Rx'}
+    </span>
+  );
+}
 
-  // 3. PEDIATRÍA
-  {
-    id: 4,
-    especialidad: 'Pediatría',
-    image: '/medicamentos/acetaminofen-jarabe.jpg',
-    nombre: 'Acetaminofén Jarabe 150mg/5mL',
-    principioActivo: 'Acetaminofén (Paracetamol)',
-    laboratorio: 'MK',
-    presentacion: 'Frasco por 60 mL sabor a fresa.',
-    descripcion: 'Analgésico y antipirético de uso pediátrico. Indicado para el control de la fiebre y el alivio del dolor leve a moderado en niños, como el causado por procesos virales o dentición.',
-    uso: 'La dosis se calcula según el peso del paciente. Usualmente 10-15 mg/kg por dosis cada 4 a 6 horas.',
-    advertencias: 'No superar la dosis máxima diaria recomendada para evitar riesgo de toxicidad hepática.',
-    contraindicaciones: 'Hipersensibilidad al paracetamol, insuficiencia hepática grave o enfermedad celíaca (si contiene gluten).'
-  },
+export default function Catalogo() {
+  const navigate = useNavigate();
 
-  // 4. NEUROLOGÍA
-  {
-    id: 5,
-    especialidad: 'Neurología',
-    image: '/medicamentos/gabapentina.png',
-    nombre: 'Gabapentina 300mg',
-    principioActivo: 'Gabapentina',
-    laboratorio: 'Procaps',
-    presentacion: 'Caja con 30 cápsulas.',
-    descripcion: 'Anticonvulsivo utilizado para el tratamiento del dolor neuropático periférico, como la neuralgia postherpética o la neuropatía diabética, y como terapia añadida en crisis convulsivas parciales.',
-    uso: 'Iniciar con dosis bajas e incrementar paulatinamente siguiendo el esquema recetado por el neurólogo.',
-    advertencias: 'Puede producir somnolencia y reducir los reflejos. No suspender el tratamiento de forma abrupta.',
-    contraindicaciones: 'Hipersensibilidad al medicamento, antecedentes de pancreatitis aguda.'
-  },
+  // ── Estado de datos ──────────────────────────────────────────────────────
+  const [medicamentos, setMedicamentos]   = useState([]);
+  const [categorias,   setCategorias]     = useState([]);
+  const [loading,      setLoading]        = useState(true);
+  const [error,        setError]          = useState(null);
 
-  // 5. GINECOLOGÍA
-  {
-    id: 6,
-    especialidad: 'Ginecología',
-    image: '/medicamentos/acido-folico.jpg',
-    nombre: 'Ácido Fólico 5mg',
-    principioActivo: 'Ácido Fólico (Vitamina B9)',
-    laboratorio: 'Sanofi',
-    presentacion: 'Caja con 30 tabletas.',
-    descripcion: 'Suplemento vitamínico esencial previene defectos del tubo neural (como espina bífida) en el feto. Recomendado antes de la concepción y durante los primeros meses del embarazo.',
-    uso: 'Tomar 1 tableta diaria, preferiblemente en las mañanas antes de la comida principal.',
-    advertencias: 'Dosis elevadas pueden enmascarar síntomas de anemia perniciosa por deficiencia de vitamina B12.',
-    contraindicaciones: 'Anemia perniciosa no tratada o hipersensibilidad al principio activo.'
-  },
-
-  // 6. MEDICINA GENERAL
-  {
-    id: 7,
-    especialidad: 'Medicina General',
-    image: '/medicamentos/ibuprofeno.jpg',
-    nombre: 'Ibuprofeno 400mg',
-    principioActivo: 'Ibuprofeno',
-    laboratorio: 'Laproff',
-    presentacion: 'Caja con 20 tabletas.',
-    descripcion: 'Antiinflamatorio no esteroideo (AINE) con acción analgésica y antipirética. Indicado para aliviar dolores de cabeza, articulares, musculares y dolores menstruales ordinarios.',
-    uso: 'Tomar 1 tableta cada 6 u 8 horas acompañado de alimentos para proteger el estómago.',
-    advertencias: 'Evitar uso prolongado sin supervisión debido a riesgos gastrointestinales y renales.',
-    contraindicaciones: 'Úlcera péptica activa, sangrado gastrointestinal, insuficiencia cardíaca grave y último trimestre de embarazo.'
-  }
-];
-
-function Catalogo() {
-  const [medicamentos, setMedicamentos] = useState([]);
+  // ── Estado de filtros ────────────────────────────────────────────────────
   const [categoriaActiva, setCategoriaActiva] = useState('Todos');
-  const [selectedMed, setSelectedMed] = useState(null); // 👈 Controla el medicamento abierto en el modal
+  const [tipoActivo,      setTipoActivo]      = useState('Todos'); // 'Todos' | 'OTC' | 'Rx'
+  const [buscar,          setBuscar]          = useState('');
+  const [buscarInput,     setBuscarInput]     = useState('');   // estado del input (debounce)
 
-  const pedigrees = ['Todos', 'Cardiología', 'Dermatología', 'Pediatría', 'Neurología', 'Ginecología', 'Medicina General'];
+  // ── Modal ────────────────────────────────────────────────────────────────
+  const [selectedMed, setSelectedMed] = useState(null);
 
+  // ─── Cargar categorías al montar ─────────────────────────────────────────
   useEffect(() => {
-    setMedicamentos(initialMedicationData);
+    api.get('/medicamentos/categorias')
+      .then(data => setCategorias(data || []))
+      .catch(() => setCategorias([])); // sin categorías => el filtro igualmente funciona
   }, []);
 
-  const medicamentosFiltrados = categoriaActiva === 'Todos'
-    ? medicamentos
-    : medicamentos.filter(med => med.especialidad === categoriaActiva);
+  // ─── Cargar medicamentos cuando cambian los filtros ───────────────────────
+  const cargarMedicamentos = useCallback(() => {
+    setLoading(true);
+    setError(null);
 
+    const params = new URLSearchParams();
+    if (categoriaActiva !== 'Todos') params.set('categoria', categoriaActiva);
+    if (tipoActivo      !== 'Todos') params.set('tipo',      tipoActivo);
+    if (buscar.trim())               params.set('buscar',    buscar.trim());
+
+    const query = params.toString() ? `?${params.toString()}` : '';
+
+    api.get(`/medicamentos${query}`)
+      .then(data => setMedicamentos(data || []))
+      .catch(() => setError('No se pudo cargar el catálogo. Intenta nuevamente.'))
+      .finally(() => setLoading(false));
+  }, [categoriaActiva, tipoActivo, buscar]);
+
+  useEffect(() => {
+    cargarMedicamentos();
+  }, [cargarMedicamentos]);
+
+  // ─── Debounce del campo de búsqueda (300ms) ───────────────────────────────
+  useEffect(() => {
+    const timer = setTimeout(() => setBuscar(buscarInput), 300);
+    return () => clearTimeout(timer);
+  }, [buscarInput]);
+
+  // ─── Helpers ──────────────────────────────────────────────────────────────
+  function limpiarFiltros() {
+    setCategoriaActiva('Todos');
+    setTipoActivo('Todos');
+    setBuscarInput('');
+    setBuscar('');
+  }
+
+  const hayFiltrosActivos =
+    categoriaActiva !== 'Todos' || tipoActivo !== 'Todos' || buscar.trim().length > 0;
+
+  // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="catalogo-page">
+
+      {/* Encabezado */}
       <div className="catalogo-header-container">
-        <h1 className="catalogo-main-title">Catálogo Especializado de Medicamentos</h1>
-        <p className="catalogo-subtitle">Información técnica clasificada por especialidad médica</p>
+        <h1 className="catalogo-main-title">Catálogo de Medicamentos</h1>
+        <p className="catalogo-subtitle">
+          Información técnica verificada · Medicamentos OTC y con receta (Rx)
+        </p>
       </div>
 
-      {/* Menú de Filtros por Especialidad */}
-      <div className="filtros-container">
-        {pedigrees.map((esp) => (
+      {/* Barra de búsqueda */}
+      <div className="catalogo-busqueda">
+        <input
+          type="text"
+          className="catalogo-busqueda__input"
+          placeholder="Buscar por nombre comercial o principio activo…"
+          value={buscarInput}
+          onChange={e => setBuscarInput(e.target.value)}
+        />
+        {buscarInput && (
+          <button className="catalogo-busqueda__limpiar" onClick={() => setBuscarInput('')}>
+            ✕
+          </button>
+        )}
+      </div>
+
+      {/* Filtros de tipo (OTC / Rx) */}
+      <div className="filtros-tipo">
+        {['Todos', 'OTC', 'Rx'].map(t => (
           <button
-            key={esp}
-            className={`filtro-btn ${categoriaActiva === esp ? 'activo' : ''}`}
-            onClick={() => setCategoriaActiva(esp)}
+            key={t}
+            className={`filtro-tipo-btn ${tipoActivo === t ? 'activo' : ''}`}
+            onClick={() => setTipoActivo(t)}
           >
-            {esp}
+            {t === 'Todos' && 'Todos los tipos'}
+            {t === 'OTC'   && '🟢 Venta libre (OTC)'}
+            {t === 'Rx'    && '🔴 Con receta (Rx)'}
           </button>
         ))}
       </div>
 
-      {/* Grid de medicamentos filtrados */}
+      {/* Filtros por categoría (dinámicos desde la BD) */}
+      {categorias.length > 0 && (
+        <div className="filtros-container">
+          <button
+            className={`filtro-btn ${categoriaActiva === 'Todos' ? 'activo' : ''}`}
+            onClick={() => setCategoriaActiva('Todos')}
+          >
+            Todas las categorías
+          </button>
+          {categorias.map(cat => (
+            <button
+              key={cat}
+              className={`filtro-btn ${categoriaActiva === cat ? 'activo' : ''}`}
+              onClick={() => setCategoriaActiva(cat)}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Resumen de resultados + botón limpiar */}
+      <div className="catalogo-resultados-bar">
+        {!loading && (
+          <span className="catalogo-resultados-texto">
+            {medicamentos.length === 0
+              ? 'Sin resultados'
+              : `${medicamentos.length} medicamento${medicamentos.length !== 1 ? 's' : ''}`}
+          </span>
+        )}
+        {hayFiltrosActivos && (
+          <button className="catalogo-limpiar-btn" onClick={limpiarFiltros}>
+            Limpiar filtros
+          </button>
+        )}
+      </div>
+
+      {/* Error */}
+      {error && (
+        <div className="catalogo-error">
+          <span>⚠️ {error}</span>
+          <button onClick={cargarMedicamentos}>Reintentar</button>
+        </div>
+      )}
+
+      {/* Grid de medicamentos */}
       <div className="medicamentos-grid">
-        {medicamentosFiltrados.length > 0 ? (
-          medicamentosFiltrados.map(med => (
+        {loading
+          ? Array(6).fill(0).map((_, i) => <MedicamentoSkeleton key={i} />)
+          : medicamentos.length === 0 && !error
+          ? (
+            <div className="sin-resultados">
+              <span style={{ fontSize: '3rem', display: 'block', marginBottom: '1rem' }}>🔍</span>
+              <p>No se encontraron medicamentos con los filtros seleccionados.</p>
+              <button className="filtro-btn" style={{ marginTop: '1rem' }} onClick={limpiarFiltros}>
+                Ver todos
+              </button>
+            </div>
+          )
+          : medicamentos.map(med => (
             <div key={med.id} className="medicamento-card">
+
+              {/* Imagen */}
               <div className="medicamento-imagen-container">
-                {med.image ? (
-                  <img src={med.image} alt={med.nombre} className="medicamento-imagen" />
-                ) : (
-                  <img src="https://placehold.co/200x200/f5f5f5/cccccc?text=Medicina" alt="No disponible" className="medicamento-placeholder" />
-                )}
+                <img
+                  src={med.imagen_url || '/medicamentos/default.png'}
+                  alt={med.nombre_comercial}
+                  className="medicamento-imagen"
+                  onError={e => {
+                    e.target.src =
+                      `https://placehold.co/200x200/f5f5f5/9ca3af?text=${encodeURIComponent(
+                        med.nombre_comercial.split(' ')[0]
+                      )}`;
+                  }}
+                />
               </div>
-              
+
+              {/* Detalles */}
               <div className="medicamento-detalles">
-                <span className="badge-especialidad">{med.especialidad}</span>
-                <h3 className="medicamento-nombre">{med.nombre}</h3>
-                
+                {med.categoria && (
+                  <span className="badge-especialidad">{med.categoria}</span>
+                )}
+                <TipoBadge tipo={med.tipo} />
+
+                <h3 className="medicamento-nombre">{med.nombre_comercial}</h3>
+
                 <div className="medicamento-metadatos">
                   <div className="metadato-row">
-                    <span className="etiqueta-pequena">Componente:</span>
-                    <span className="etiqueta-valor">{med.principioActivo}</span>
+                    <span className="etiqueta-pequena">Principio activo:</span>
+                    <span className="etiqueta-valor">{med.principio_activo}</span>
                   </div>
-                  <div className="metadato-row">
-                    <span className="etiqueta-pequena">Laboratorio:</span>
-                    <span className="etiqueta-valor">{med.laboratorio}</span>
-                  </div>
+                  {med.laboratorio && (
+                    <div className="metadato-row">
+                      <span className="etiqueta-pequena">Laboratorio:</span>
+                      <span className="etiqueta-valor">{med.laboratorio}</span>
+                    </div>
+                  )}
+                  {med.registro_invima && (
+                    <div className="metadato-row">
+                      <span className="etiqueta-pequena">INVIMA:</span>
+                      <span className="etiqueta-valor" style={{ fontSize: '0.78rem' }}>
+                        {med.registro_invima}
+                      </span>
+                    </div>
+                  )}
                 </div>
-                
-                <p className="medicamento-presentacion"><b>Presentación:</b> {med.presentacion}</p>
-                <p className="medicamento-descripcion">{med.descripcion}</p>
 
-                {/* Botón para abrir la ventana emergente */}
-                <button 
-                  className="ver-ficha-btn" 
+                {med.presentaciones && (
+                  <p className="medicamento-presentacion">
+                    <b>Presentación:</b> {med.presentaciones}
+                  </p>
+                )}
+
+                {med.descripcion && (
+                  <p className="medicamento-descripcion">{med.descripcion}</p>
+                )}
+
+                <button
+                  className="ver-ficha-btn"
                   onClick={() => setSelectedMed(med)}
                 >
-                  Ver Ficha Técnica →
+                  Ver ficha técnica →
                 </button>
               </div>
             </div>
           ))
-        ) : (
-          <p className="sin-resultados">No hay medicamentos registrados en esta especialidad.</p>
-        )}
+        }
       </div>
 
-      {/* --- CÓDIGO DEL MODAL (VENTANA EMERGENTE) --- */}
+      {/* ── MODAL Ficha Técnica ───────────────────────────────────────────── */}
       {selectedMed && (
         <div className="modal-overlay" onClick={() => setSelectedMed(null)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <button className="modal-close" onClick={() => setSelectedMed(null)}>&times;</button>
-            
+
             <div className="modal-body">
+              {/* Header */}
               <div className="modal-header-info">
-                <span className="modal-badge">{selectedMed.especialidad}</span>
-                <h2>{selectedMed.nombre}</h2>
-                <p className="modal-lab">Fabricado por: {selectedMed.laboratorio}</p>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}>
+                  {selectedMed.categoria && (
+                    <span className="modal-badge">{selectedMed.categoria}</span>
+                  )}
+                  <TipoBadge tipo={selectedMed.tipo} />
+                </div>
+                <h2>{selectedMed.nombre_comercial}</h2>
+                {selectedMed.laboratorio && (
+                  <p className="modal-lab">Fabricado por: {selectedMed.laboratorio}</p>
+                )}
               </div>
 
+              {/* Grid datos básicos */}
               <div className="modal-grid-info">
                 <div className="info-block">
-                  <h4>Principio Activo</h4>
-                  <p>{selectedMed.principioActivo}</p>
+                  <h4>Principio activo</h4>
+                  <p>{selectedMed.principio_activo}</p>
                 </div>
-                <div className="info-block">
-                  <h4>Presentación Comercial</h4>
-                  <p>{selectedMed.presentacion}</p>
-                </div>
+                {selectedMed.presentaciones && (
+                  <div className="info-block">
+                    <h4>Presentaciones</h4>
+                    <p>{selectedMed.presentaciones}</p>
+                  </div>
+                )}
+                {selectedMed.registro_invima && (
+                  <div className="info-block">
+                    <h4>Registro INVIMA</h4>
+                    <p style={{ fontSize: '0.85rem' }}>{selectedMed.registro_invima}</p>
+                  </div>
+                )}
+                {selectedMed.descripcion && (
+                  <div className="info-block" style={{ gridColumn: '1 / -1' }}>
+                    <h4>Descripción</h4>
+                    <p>{selectedMed.descripcion}</p>
+                  </div>
+                )}
               </div>
 
-              <div className="modal-technical-section">
-                <div className="tech-item">
-                  <span className="tech-icon">📋</span>
-                  <div>
-                    <h5>Indicación y Modo de Uso</h5>
-                    <p>{selectedMed.uso}</p>
-                  </div>
+              {/* Sección técnica */}
+              {(selectedMed.indicaciones || selectedMed.contraindicaciones) && (
+                <div className="modal-technical-section">
+                  {selectedMed.indicaciones && (
+                    <div className="tech-item">
+                      <span className="tech-icon">📋</span>
+                      <div>
+                        <h5>Indicaciones y modo de uso</h5>
+                        <p>{selectedMed.indicaciones}</p>
+                      </div>
+                    </div>
+                  )}
+                  {selectedMed.contraindicaciones && (
+                    <div className="tech-item danger">
+                      <span className="tech-icon">🚫</span>
+                      <div>
+                        <h5>Contraindicaciones</h5>
+                        <p>{selectedMed.contraindicaciones}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className="tech-item warning">
-                  <span className="tech-icon">⚠️</span>
-                  <div>
-                    <h5>Advertencias Especiales</h5>
-                    <p>{selectedMed.advertencias}</p>
-                  </div>
-                </div>
-                <div className="tech-item danger">
-                  <span className="tech-icon">🚫</span>
-                  <div>
-                    <h5>Contraindicaciones Generales</h5>
-                    <p>{selectedMed.contraindicaciones}</p>
-                  </div>
-                </div>
-              </div>
+              )}
 
+              {/* Footer */}
               <div className="modal-footer">
-                <p>La información contenida aquí es de carácter estrictamente instructivo. Nunca se automedique.</p>
-                <button className="modal-agendar-btn" onClick={() => window.location.href='/agendar'}>
-                  Solicitar Cita Médica Relacionada
+                <p>
+                  La información es de carácter instructivo. Consulta siempre a tu médico antes de
+                  iniciar o modificar cualquier tratamiento.
+                </p>
+                <button
+                  className="modal-agendar-btn"
+                  onClick={() => {
+                    setSelectedMed(null);
+                    navigate('/agendar');
+                  }}
+                >
+                  Solicitar cita médica →
                 </button>
               </div>
             </div>
@@ -249,5 +357,3 @@ function Catalogo() {
     </div>
   );
 }
-
-export default Catalogo;
