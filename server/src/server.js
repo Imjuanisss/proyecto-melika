@@ -8,6 +8,7 @@ const citasRoutes         = require('./routes/citasRoutes');
 const medicosRoutes       = require('./routes/medicosRoutes');
 const historiasRoutes     = require('./routes/historiasRoutes');
 const medicamentosRoutes  = require('./routes/medicamentosRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
 
@@ -16,6 +17,9 @@ app.use(express.json());
 
 // ── Autenticación ──────────────────────────────────────────────────────────
 app.use('/auth', authRoutes);
+
+// ── Rutas admin (requieren token + rol admin)
+app.use('/admin', adminRoutes);
 
 // ── Recursos principales ───────────────────────────────────────────────────
 app.use('/especialidades',  especialidadesRoutes);
