@@ -1,3 +1,5 @@
+/* ─── BASE ─────────────────────────────────────────────────────────── */
+
 .dashboard-medico {
     min-height: calc(100vh - 64px);
     padding:    var(--space-10) 0 var(--space-16);
@@ -6,7 +8,12 @@
 }
 
 .dashboard-medico__cabecera {
-    margin-bottom: var(--space-8);
+    display:         flex;
+    justify-content: space-between;
+    align-items:     flex-start;
+    flex-wrap:       wrap;
+    gap:             var(--space-4);
+    margin-bottom:   var(--space-8);
 }
 
 .dashboard-medico__titulo {
@@ -21,7 +28,45 @@
     color:     var(--melika-text-secondary);
 }
 
-/* Grid principal */
+/* ─── TABS (selector de vista) ─────────────────────────────────────── */
+
+.dashboard-medico__tabs {
+    display:       flex;
+    gap:           var(--space-2);
+    flex-wrap:     wrap;
+    align-items:   center;
+    background:    var(--melika-bg);
+    border:        1px solid var(--melika-primary-100);
+    border-radius: var(--radius-md);
+    padding:       var(--space-1);
+}
+
+.tab-btn {
+    font-family:   var(--font-display);
+    font-size:     0.875rem;
+    font-weight:   600;
+    color:         var(--melika-text-secondary);
+    background:    transparent;
+    border:        none;
+    border-radius: var(--radius-sm);
+    padding:       var(--space-2) var(--space-4);
+    cursor:        pointer;
+    transition:    all 0.18s;
+    white-space:   nowrap;
+}
+
+.tab-btn:hover {
+    background: var(--melika-primary-25);
+    color:      var(--melika-text-primary);
+}
+
+.tab-btn--activo {
+    background: var(--melika-primary-600) !important;
+    color:      #fff !important;
+}
+
+/* ─── GRID PRINCIPAL ───────────────────────────────────────────────── */
+
 .dashboard-medico__grid {
     display:               grid;
     grid-template-columns: 1fr 360px;
@@ -29,7 +74,8 @@
     align-items:           start;
 }
 
-/* Panel del calendario */
+/* ─── PANEL CALENDARIO ─────────────────────────────────────────────── */
+
 .panel-calendario {
     background:    var(--melika-bg);
     border:        1px solid var(--melika-primary-100);
@@ -45,10 +91,9 @@
     margin-bottom: var(--space-5);
 }
 
-/* Sobrescribir estilos FullCalendar para que encaje con el design system */
-.fc {
-    font-family: var(--font-body) !important;
-}
+/* ─── ESTILOS FULLCALENDAR ─────────────────────────────────────────── */
+
+.fc { font-family: var(--font-body) !important; }
 
 .fc .fc-toolbar-title {
     font-family: var(--font-display) !important;
@@ -113,24 +158,23 @@
     cursor:        pointer !important;
 }
 
-.fc .fc-event:hover {
-    background: var(--melika-accent-dark) !important;
-    opacity:    0.9;
-}
+.fc .fc-event:hover { background: var(--melika-accent-dark) !important; }
 
 .fc .fc-col-header-cell-cushion {
-    font-family: var(--font-display) !important;
-    font-size:   12px !important;
-    font-weight: 700 !important;
+    font-family:    var(--font-display) !important;
+    font-size:      12px !important;
+    font-weight:    700 !important;
     text-transform: uppercase !important;
     letter-spacing: 0.06em !important;
-    color:       var(--melika-text-muted) !important;
+    color:          var(--melika-text-muted) !important;
 }
 
 .fc .fc-scrollgrid { border-color: var(--melika-primary-100) !important; }
-.fc .fc-scrollgrid td, .fc .fc-scrollgrid th { border-color: var(--melika-primary-50) !important; }
+.fc .fc-scrollgrid td,
+.fc .fc-scrollgrid th { border-color: var(--melika-primary-50) !important; }
 
-/* Panel lateral de citas del día */
+/* ─── PANEL AGENDA / DISPONIBILIDAD (lateral derecho) ──────────────── */
+
 .panel-agenda {
     background:    var(--melika-bg);
     border:        1px solid var(--melika-primary-100);
@@ -155,10 +199,12 @@
 }
 
 .panel-agenda__fecha {
-    font-size:  13px;
-    color:      var(--melika-text-muted);
+    font-size:   13px;
+    color:       var(--melika-text-muted);
     font-family: var(--font-display);
 }
+
+/* ─── LISTA DE AGENDA (citas del día) ──────────────────────────────── */
 
 .agenda-lista {
     display:        flex;
@@ -183,19 +229,19 @@
 .agenda-item--cancelada  { border-left-color: var(--melika-primary-200); opacity: 0.7; }
 
 .agenda-item__hora {
-    font-family: var(--font-display);
-    font-size:   13px;
-    font-weight: 700;
-    color:       var(--melika-accent);
+    font-family:   var(--font-display);
+    font-size:     13px;
+    font-weight:   700;
+    color:         var(--melika-accent);
     margin-bottom: var(--space-1);
 }
 
 .agenda-item--completada .agenda-item__hora { color: var(--melika-success); }
 
 .agenda-item__paciente {
-    font-size:   15px;
-    font-weight: 700;
-    color:       var(--melika-text-primary);
+    font-size:     15px;
+    font-weight:   700;
+    color:         var(--melika-text-primary);
     margin-bottom: var(--space-1);
 }
 
@@ -242,7 +288,123 @@
     border-radius: var(--radius-md);
 }
 
-/* Modal historia clínica */
+/* ─── FORMULARIO DISPONIBILIDAD ────────────────────────────────────── */
+
+.dispo-formulario {
+    background:    var(--melika-bg-secondary);
+    border:        1px solid var(--melika-primary-100);
+    border-radius: var(--radius-md);
+    padding:       var(--space-4);
+    margin-bottom: var(--space-2);
+}
+
+.dispo-formulario__inputs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap:     var(--space-3);
+    margin-bottom: var(--space-3);
+}
+
+.dispo-campo {
+    display:        flex;
+    flex-direction: column;
+    gap:            var(--space-1);
+}
+
+.dispo-campo label {
+    font-size:   12px;
+    font-weight: 700;
+    color:       var(--melika-text-primary);
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.dispo-campo input[type="time"] {
+    border:        1.5px solid var(--melika-primary-100);
+    border-radius: var(--radius-sm);
+    padding:       var(--space-2) var(--space-3);
+    font-size:     15px;
+    font-family:   var(--font-body);
+    color:         var(--melika-text-primary);
+    background:    var(--melika-bg);
+    outline:       none;
+    transition:    border-color 0.2s;
+    width:         100%;
+}
+
+.dispo-campo input[type="time"]:focus {
+    border-color: var(--melika-primary-500);
+}
+
+/* ─── LISTA DE FRANJAS ─────────────────────────────────────────────── */
+
+.dispo-lista {
+    display:        flex;
+    flex-direction: column;
+    gap:            var(--space-2);
+    max-height:     320px;
+    overflow-y:     auto;
+}
+
+.dispo-item {
+    display:         flex;
+    justify-content: space-between;
+    align-items:     center;
+    background:      var(--melika-bg-secondary);
+    border:          1px solid var(--melika-primary-100);
+    border-radius:   var(--radius-sm);
+    padding:         var(--space-3) var(--space-4);
+    transition:      background 0.15s;
+}
+
+.dispo-item:hover { background: var(--melika-primary-25); }
+
+.dispo-item__info {
+    font-family: var(--font-display);
+    font-size:   14px;
+    font-weight: 600;
+    color:       var(--melika-text-primary);
+    display:     flex;
+    align-items: center;
+    gap:         var(--space-2);
+}
+
+.dispo-item__badge-reservada {
+    font-size:     11px;
+    font-weight:   700;
+    background:    var(--melika-warning-bg);
+    color:         var(--melika-warning);
+    padding:       2px 8px;
+    border-radius: 20px;
+    margin-left:   var(--space-2);
+}
+
+.dispo-item__btn-eliminar {
+    background:    none;
+    border:        1px solid transparent;
+    border-radius: var(--radius-sm);
+    color:         var(--melika-text-muted);
+    padding:       var(--space-1) var(--space-2);
+    cursor:        pointer;
+    font-size:     16px;
+    transition:    all 0.15s;
+    line-height:   1;
+}
+
+.dispo-item__btn-eliminar:hover {
+    background:   var(--melika-error-bg);
+    border-color: #fca5a5;
+    color:        var(--melika-error);
+}
+
+.dispo-item__btn-eliminar:disabled {
+    opacity: 0.4;
+    cursor:  not-allowed;
+}
+
+/* ─── MODAL HISTORIA CLÍNICA ───────────────────────────────────────── */
+
 .modal-overlay {
     position:        fixed;
     inset:           0;
@@ -258,7 +420,7 @@
     background:    var(--melika-bg);
     border-radius: var(--radius-xl);
     padding:       var(--space-8);
-    max-width:     600px;
+    max-width:     640px;
     width:         100%;
     max-height:    90vh;
     overflow-y:    auto;
@@ -276,6 +438,7 @@
     font-size:   20px;
     font-weight: 700;
     color:       var(--melika-text-primary);
+    margin-bottom: var(--space-1);
 }
 
 .modal-historia__meta {
@@ -285,37 +448,71 @@
 }
 
 .btn-cerrar {
-    background: none;
-    border:     none;
-    font-size:  20px;
-    color:      var(--melika-text-muted);
-    cursor:     pointer;
-    padding:    var(--space-1);
+    background:  none;
+    border:      none;
+    font-size:   20px;
+    color:       var(--melika-text-muted);
+    cursor:      pointer;
+    padding:     var(--space-1);
     line-height: 1;
+    transition:  color 0.15s;
+    flex-shrink: 0;
+}
+
+.btn-cerrar:hover { color: var(--melika-text-primary); }
+
+/* ─── CAMPOS DE HISTORIA ───────────────────────────────────────────── */
+
+.historia-campo {
+    display:        flex;
+    flex-direction: column;
+    gap:            var(--space-1);
+    margin-bottom:  var(--space-4);
+}
+
+.historia-campo label {
+    font-size:   12px;
+    font-weight: 700;
+    color:       var(--melika-text-primary);
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.historia-campo .historia-campo__requerido {
+    color: var(--melika-accent);
 }
 
 .historia-textarea {
     width:         100%;
     border:        1.5px solid var(--melika-primary-100);
     border-radius: var(--radius-sm);
-    padding:       var(--space-4);
-    font-size:     15px;
+    padding:       var(--space-3) var(--space-4);
+    font-size:     14px;
     font-family:   var(--font-body);
     color:         var(--melika-text-primary);
     background:    var(--melika-bg);
     resize:        vertical;
     outline:       none;
     transition:    border-color 0.2s;
-    margin-bottom: var(--space-4);
+    min-height:    80px;
 }
 
-.historia-textarea:focus { border-color: var(--melika-primary-500); }
-.historia-textarea:disabled { background: var(--melika-bg-secondary); color: var(--melika-text-secondary); }
+.historia-textarea:focus  { border-color: var(--melika-primary-500); }
+.historia-textarea:disabled {
+    background: var(--melika-bg-secondary);
+    color:      var(--melika-text-secondary);
+    cursor:     default;
+    resize:     none;
+}
 
 .historia-acciones {
     display:         flex;
     justify-content: flex-end;
     gap:             var(--space-3);
+    margin-top:      var(--space-2);
+    padding-top:     var(--space-4);
+    border-top:      1px solid var(--melika-primary-50);
 }
 
 .btn-editar-historia {
@@ -329,6 +526,11 @@
     font-family:   var(--font-display);
     cursor:        pointer;
     transition:    all 0.15s;
+}
+
+.btn-editar-historia:hover {
+    background:   var(--melika-primary-100);
+    border-color: var(--melika-primary-200);
 }
 
 .btn-guardar-historia {
@@ -357,14 +559,23 @@
     margin-bottom: var(--space-3);
 }
 
+/* ─── ANIMACIONES ──────────────────────────────────────────────────── */
+
 @keyframes pulso {
     0%   { background-position: 200% 0; }
     100% { background-position: -200% 0; }
 }
 
+/* ─── RESPONSIVE ───────────────────────────────────────────────────── */
+
 @media (max-width: 1024px) {
-    .dashboard-medico__grid {
-        grid-template-columns: 1fr;
-    }
-    .panel-agenda { position: static; }
+    .dashboard-medico__grid { grid-template-columns: 1fr; }
+    .panel-agenda           { position: static; }
+}
+
+@media (max-width: 640px) {
+    .dashboard-medico__cabecera { flex-direction: column; }
+    .dashboard-medico__tabs     { width: 100%; }
+    .tab-btn                    { flex: 1; text-align: center; }
+    .dispo-formulario__inputs   { grid-template-columns: 1fr; }
 }
