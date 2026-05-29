@@ -1,22 +1,21 @@
--- =============================================================================
+
 --                   MELIKA — SCHEMAv2 CON ARQUITECTURA DE DATOS ADVANCED
--- =============================================================================
+-- Integracion de LOGS and TRIGGERS para auditoría y seguridad, con enfoque en integridad transaccional y prevención de conflictos de concurrencia.
 
 -- 1. DROP EN ORDEN INVERSO A DEPENDENCIAS (Para recreación limpia)
-DROP TABLE IF EXISTS logs_citas              CASCADE;
-DROP TABLE IF EXISTS historias_clinicas      CASCADE;
-DROP TABLE IF EXISTS citas                   CASCADE;
-DROP TABLE IF EXISTS franjas_horarias        CASCADE;
-DROP TABLE IF EXISTS medicos                 CASCADE;
-DROP TABLE IF EXISTS medicamentos            CASCADE;
-DROP TABLE IF EXISTS especialidades          CASCADE;
-DROP TABLE IF EXISTS tokens_invitacion       CASCADE;
-DROP TABLE IF EXISTS codigos_verificacion    CASCADE;
-DROP TABLE IF EXISTS usuarios                CASCADE;
+--DROP TABLE IF EXISTS logs_citas              CASCADE;
+--DROP TABLE IF EXISTS historias_clinicas      CASCADE;
+--DROP TABLE IF EXISTS citas                   CASCADE;
+--DROP TABLE IF EXISTS franjas_horarias        CASCADE;
+--DROP TABLE IF EXISTS medicos                 CASCADE;
+--DROP TABLE IF EXISTS medicamentos            CASCADE;
+--DROP TABLE IF EXISTS especialidades          CASCADE;
+--DROP TABLE IF EXISTS tokens_invitacion       CASCADE;
+--DROP TABLE IF EXISTS codigos_verificacion    CASCADE;
+--DROP TABLE IF EXISTS usuarios                CASCADE;
 
--- =============================================================================
+
 -- 2. DEFINICIÓN DE TABLAS BASE INDEPENDIENTES Y DE AUTENTICACIÓN
--- =============================================================================
 
 CREATE TABLE usuarios (
   id               SERIAL        PRIMARY KEY,
@@ -32,9 +31,9 @@ CREATE TABLE usuarios (
   fecha_nacimiento DATE,
   genero           VARCHAR(20),
   direccion        VARCHAR(255),
-  ciudad           VARCHAR(100)  DEFAULT 'Medellín',
-  tipo_documento   VARCHAR(20),
-  numero_documento VARCHAR(50)   UNIQUE,
+  ciudad           VARCHAR(100),
+  tipo_documento   VARCHAR(20) NOT NULL CHECK DEFAULT 'CC' (tipo_documento IN ('CC','CE','PASAPORTE')),
+  numero_documento VARCHAR(50)   NOT NULL UNIQUE,
   created_at       TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at       TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
