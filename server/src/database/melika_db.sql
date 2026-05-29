@@ -1,22 +1,21 @@
 
--- MELIKA — Schema completo v2
+--                   MELIKA — SCHEMAv2 CON ARQUITECTURA DE DATOS ADVANCED
+-- Integracion de LOGS and TRIGGERS para auditoría y seguridad, con enfoque en integridad transaccional y prevención de conflictos de concurrencia.
+
+-- 1. DROP EN ORDEN INVERSO A DEPENDENCIAS (Para recreación limpia)
+--DROP TABLE IF EXISTS logs_citas              CASCADE;
+--DROP TABLE IF EXISTS historias_clinicas      CASCADE;
+--DROP TABLE IF EXISTS citas                   CASCADE;
+--DROP TABLE IF EXISTS franjas_horarias        CASCADE;
+--DROP TABLE IF EXISTS medicos                 CASCADE;
+--DROP TABLE IF EXISTS medicamentos            CASCADE;
+--DROP TABLE IF EXISTS especialidades          CASCADE;
+--DROP TABLE IF EXISTS tokens_invitacion       CASCADE;
+--DROP TABLE IF EXISTS codigos_verificacion    CASCADE;
+--DROP TABLE IF EXISTS usuarios                CASCADE;
 
 
-
--- 1. DROP en orden inverso a dependencias
---DROP TABLE IF EXISTS historias_clinicas   CASCADE;
---DROP TABLE IF EXISTS citas                CASCADE;
---DROP TABLE IF EXISTS franjas_horarias     CASCADE;
---DROP TABLE IF EXISTS medicos              CASCADE;
---DROP TABLE IF EXISTS medicamentos         CASCADE;
---DROP TABLE IF EXISTS especialidades       CASCADE;
---DROP TABLE IF EXISTS tokens_invitacion    CASCADE;
---DROP TABLE IF EXISTS codigos_verificacion CASCADE;
---DROP TABLE IF EXISTS usuarios             CASCADE;
-
-
-
--- TABLA: usuarios
+-- 2. DEFINICIÓN DE TABLAS BASE INDEPENDIENTES Y DE AUTENTICACIÓN
 
 CREATE TABLE usuarios (
   id               SERIAL        PRIMARY KEY,
@@ -32,203 +31,268 @@ CREATE TABLE usuarios (
   fecha_nacimiento DATE,
   genero           VARCHAR(20),
   direccion        VARCHAR(255),
-  ciudad           VARCHAR(100)  DEFAULT 'Medellín',
-  tipo_documento   VARCHAR(20)   DEFAULT 'CC',
-  numero_documento VARCHAR(30)   UNIQUE,
-  foto_url         VARCHAR(500),
-  created_at       TIMESTAMP     NOT NULL DEFAULT NOW(),
-  updated_at       TIMESTAMP     NOT NULL DEFAULT NOW()
+  ciudad           VARCHAR(100),
+  tipo_documento   VARCHAR(20) NOT NULL CHECK DEFAULT 'CC' (tipo_documento IN ('CC','CE','PASAPORTE')),
+  numero_documento VARCHAR(50)   NOT NULL UNIQUE,
+  created_at       TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at       TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-
-CREATE INDEX idx_usuarios_email ON usuarios(email);
-CREATE INDEX idx_usuarios_rol   ON usuarios(rol);
-
-
-
--- TABLA: codigos_verificacion
--- Uso: verificación de cuenta y recuperación de contraseña
 
 CREATE TABLE codigos_verificacion (
   id         SERIAL       PRIMARY KEY,
   email      VARCHAR(255) NOT NULL,
   codigo     VARCHAR(6)   NOT NULL,
-  tipo       VARCHAR(20)  NOT NULL DEFAULT 'registro' CHECK (tipo IN ('registro','recuperacion')),
+  tipo       VARCHAR(20)  NOT NULL CHECK (tipo IN ('registro','recuperacion')),
   expira_en  TIMESTAMP    NOT NULL,
-  created_at TIMESTAMP    NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-
-CREATE INDEX idx_codigos_email_tipo ON codigos_verificacion(email, tipo);
-
-
-
--- TABLA: tokens_invitacion
--- Uso: el Admin invita a un médico; el médico activa su cuenta
 
 CREATE TABLE tokens_invitacion (
-  id          SERIAL       PRIMARY KEY,
-  id_usuario  INTEGER      NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
-  token       VARCHAR(128) NOT NULL UNIQUE,
-  expira_en   TIMESTAMP    NOT NULL,
-  usado       BOOLEAN      NOT NULL DEFAULT FALSE,
-  created_at  TIMESTAMP    NOT NULL DEFAULT NOW()
+  id         SERIAL       PRIMARY KEY,
+  email      VARCHAR(255) NOT NULL UNIQUE,
+  token      VARCHAR(255) NOT NULL UNIQUE,
+  rol        VARCHAR(20)  NOT NULL CHECK (rol IN ('medico','admin')),
+  usado      BOOLEAN      NOT NULL DEFAULT FALSE,
+  expira_en  TIMESTAMP    NOT NULL,
+  created_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_tokens_token ON tokens_invitacion(token);
-
-
-
--- TABLA: especialidades
+-- =============================================================================
+-- 3. TABLAS DEL CATÁLOGO MÉDICO Y CLÍNICO
+-- =============================================================================
 
 CREATE TABLE especialidades (
   id          SERIAL        PRIMARY KEY,
-  nombre      VARCHAR(150)  NOT NULL UNIQUE,
+  nombre      VARCHAR(100)  NOT NULL UNIQUE,
   descripcion TEXT,
   precio_base NUMERIC(10,2) NOT NULL DEFAULT 0.00,
-  imagen_url  VARCHAR(500),
+  imagen_url  VARCHAR(255),
   activa      BOOLEAN       NOT NULL DEFAULT TRUE,
-  created_at  TIMESTAMP     NOT NULL DEFAULT NOW(),
-  updated_at  TIMESTAMP     NOT NULL DEFAULT NOW()
+  created_at  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-
-
--- TABLA: medicos
--- Perfil extendido del usuario con rol='medico'
+CREATE TABLE medicamentos (
+  id                SERIAL       PRIMARY KEY,
+  nombre_comercial  VARCHAR(150) NOT NULL,
+  principio_activa  VARCHAR(150), -- Se preserva el typo original del modelo base para no alterar mapeos
+  principio_activo  VARCHAR(150), 
+  laboratorio       VARCHAR(100),
+  categoria         VARCHAR(100),
+  tipo              VARCHAR(10)  NOT NULL CHECK (tipo IN ('OTC','Rx')),
+  descripcion       TEXT,
+  indicaciones      TEXT,
+  posologia         TEXT,
+  contraindicaciones TEXT,
+  presentaciones    TEXT,
+  registro_invima   VARCHAR(50),
+  imagen_url        VARCHAR(255),
+  activo            BOOLEAN      NOT NULL DEFAULT TRUE,
+  created_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 
 CREATE TABLE medicos (
   id                  SERIAL        PRIMARY KEY,
-  id_usuario          INTEGER       NOT NULL UNIQUE REFERENCES usuarios(id) ON DELETE RESTRICT,
-  id_especialidad     INTEGER       NOT NULL REFERENCES especialidades(id) ON DELETE RESTRICT,
+  id_usuario          INT           NOT NULL UNIQUE REFERENCES usuarios(id) ON DELETE CASCADE,
+  id_especialidad     INT           NOT NULL REFERENCES especialidades(id),
   numero_registro     VARCHAR(50)   NOT NULL UNIQUE,
-  tarifa              NUMERIC(10,2) NOT NULL DEFAULT 0.00,
-  biografia           TEXT,
-  anos_experiencia    SMALLINT      NOT NULL DEFAULT 0,
-  calificacion        NUMERIC(3,1)  NOT NULL DEFAULT 0.0,
-  acepta_teleconsulta BOOLEAN       NOT NULL DEFAULT FALSE,
+  tarifa              NUMERIC(10,2) NOT NULL,
+  calificacion        NUMERIC(3,2)  DEFAULT 5.00,
+  acepta_teleconsulta BOOLEAN       NOT NULL DEFAULT TRUE,
   acepta_presencial   BOOLEAN       NOT NULL DEFAULT TRUE,
+  biografia           TEXT,
+  anos_experiencia    INT           DEFAULT 0,
   activo              BOOLEAN       NOT NULL DEFAULT TRUE,
-  created_at          TIMESTAMP     NOT NULL DEFAULT NOW(),
-  updated_at          TIMESTAMP     NOT NULL DEFAULT NOW()
+  created_at          TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at          TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-
-CREATE INDEX idx_medicos_especialidad ON medicos(id_especialidad);
-CREATE INDEX idx_medicos_activo       ON medicos(activo);
-
-
-
--- TABLA: franjas_horarias
--- Las crea el médico (o el admin en su nombre)
 
 CREATE TABLE franjas_horarias (
   id          SERIAL    PRIMARY KEY,
-  id_medico   INTEGER   NOT NULL REFERENCES medicos(id) ON DELETE CASCADE,
+  id_medico   INT       NOT NULL REFERENCES medicos(id) ON DELETE CASCADE,
   fecha       DATE      NOT NULL,
   hora_inicio TIME      NOT NULL,
   hora_fin    TIME      NOT NULL,
   disponible  BOOLEAN   NOT NULL DEFAULT TRUE,
-  created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
-  UNIQUE (id_medico, fecha, hora_inicio)
+  created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT  chk_horas_orden CHECK (hora_inicio < hora_fin)
 );
 
-CREATE INDEX idx_franjas_medico_fecha ON franjas_horarias(id_medico, fecha);
-CREATE INDEX idx_franjas_disponible   ON franjas_horarias(disponible);
-
-
-
--- TABLA: citas
+-- =============================================================================
+-- 4. TABLA CORE DEL SISTEMA: CITAS
+-- =============================================================================
 
 CREATE TABLE citas (
-  id                SERIAL        PRIMARY KEY,
-  id_paciente       INTEGER       NOT NULL REFERENCES usuarios(id) ON DELETE RESTRICT,
-  id_medico         INTEGER       NOT NULL REFERENCES medicos(id)  ON DELETE RESTRICT,
-  id_especialidad   INTEGER       NOT NULL REFERENCES especialidades(id) ON DELETE RESTRICT,
-  id_franja         INTEGER       NOT NULL UNIQUE REFERENCES franjas_horarias(id) ON DELETE RESTRICT,
-  fecha             DATE          NOT NULL,
-  hora_inicio       TIME          NOT NULL,
-  tipo_consulta     VARCHAR(20)   NOT NULL DEFAULT 'presencial' CHECK (tipo_consulta IN ('presencial','teleconsulta')),
-  motivo            TEXT,
-  estado            VARCHAR(20)   NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente','confirmada','completada','cancelada')),
-  razon_cancelacion TEXT,
-  tarifa_cobrada    NUMERIC(10,2) NOT NULL DEFAULT 0.00,
-  created_at        TIMESTAMP     NOT NULL DEFAULT NOW(),
-  updated_at        TIMESTAMP     NOT NULL DEFAULT NOW()
+  id              SERIAL        PRIMARY KEY,
+  id_paciente     INT           NOT NULL REFERENCES usuarios(id),
+  id_medico       INT           NOT NULL REFERENCES medicos(id),
+  id_especialidad INT           NOT NULL REFERENCES especialidades(id),
+  id_franja       INT           NOT NULL REFERENCES franjas_horarias(id),
+  fecha           DATE          NOT NULL,
+  hora_inicio     TIME          NOT NULL,
+  tipo_consulta   VARCHAR(20)   NOT NULL DEFAULT 'presencial' CHECK (tipo_consulta IN ('presencial','teleconsulta')),
+  estado          VARCHAR(20)   NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente','completada','cancelada','no_asistio')),
+  motivo          TEXT,
+  tarifa          NUMERIC(10,2) NOT NULL,
+  notas_medicas   TEXT,
+  created_at      TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at      TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-
-CREATE INDEX idx_citas_paciente ON citas(id_paciente);
-CREATE INDEX idx_citas_medico   ON citas(id_medico);
-CREATE INDEX idx_citas_fecha    ON citas(fecha);
-CREATE INDEX idx_citas_estado   ON citas(estado);
-
-
-
--- TABLA: medicamentos
-
-CREATE TABLE medicamentos (
-  id                 SERIAL        PRIMARY KEY,
-  nombre_comercial   VARCHAR(255)  NOT NULL,
-  principio_activo   VARCHAR(255)  NOT NULL,
-  laboratorio        VARCHAR(150),
-  categoria          VARCHAR(100),
-  tipo               VARCHAR(10)   NOT NULL DEFAULT 'OTC' CHECK (tipo IN ('OTC','Rx')),
-  descripcion        TEXT,
-  indicaciones       TEXT,
-  contraindicaciones TEXT,
-  presentaciones     TEXT,
-  registro_invima    VARCHAR(100)  UNIQUE,
-  imagen_url         VARCHAR(500),
-  activo             BOOLEAN       NOT NULL DEFAULT TRUE,
-  created_at         TIMESTAMP     NOT NULL DEFAULT NOW(),
-  updated_at         TIMESTAMP     NOT NULL DEFAULT NOW()
-);
-
-
-
--- TABLA: historias_clinicas
--- Estructura profesional con campos CIE-10 y plan de tratamiento
 
 CREATE TABLE historias_clinicas (
   id                      SERIAL    PRIMARY KEY,
-  id_cita                 INTEGER   NOT NULL UNIQUE REFERENCES citas(id) ON DELETE RESTRICT,
-  id_paciente             INTEGER   NOT NULL REFERENCES usuarios(id) ON DELETE RESTRICT,
-  id_medico               INTEGER   NOT NULL  REFERENCES medicos(id) ON DELETE RESTRICT,
-  -- Campos clínicos estructurados
+  id_paciente             INT       NOT NULL REFERENCES usuarios(id),
+  id_medico               INT       NOT NULL REFERENCES medicos(id),
+  id_cita                 INT       NOT NULL UNIQUE REFERENCES citas(id),
   motivo_consulta         TEXT      NOT NULL,
   anamnesis               TEXT,
   examen_fisico           TEXT,
   diagnostico_cie10       VARCHAR(10),
   descripcion_diagnostico TEXT,
   plan_tratamiento        TEXT,
-  medicamentos_recetados  TEXT,
+  medicamentos_recetados  JSONB,
   observaciones           TEXT,
-  created_at              TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at              TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at              TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at              TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_historias_paciente ON historias_clinicas(id_paciente);
-CREATE INDEX idx_historias_medico   ON historias_clinicas(id_medico);
+-- =============================================================================
+-- 5. NUEVA CAPA DE SEGURIDAD Y AUDITORÍA: LOGS DE CITAS (JSONB)
+-- =============================================================================
+
+CREATE TABLE logs_citas (
+    id               SERIAL        PRIMARY KEY,
+    id_cita          INT           NOT NULL,
+    accion           VARCHAR(20)   NOT NULL, -- 'INSERT', 'UPDATE', 'DELETE'
+    estado_anterior  VARCHAR(50),
+    estado_nuevo     VARCHAR(50),
+    datos_anteriores JSONB,                  -- Snapshot de la fila antes del cambio
+    datos_nuevos     JSONB,                  -- Snapshot de la fila posterior al cambio
+    usuario_db       VARCHAR(100)  DEFAULT CURRENT_USER,
+    fecha_registro   TIMESTAMP     DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Índices de optimización arquitectónica para búsquedas analíticas en auditoría
+CREATE INDEX idx_logs_citas_id_cita ON logs_citas(id_cita);
+CREATE INDEX idx_logs_citas_gin_nuevos ON logs_citas USING gin (datos_nuevos);
+
+-- =============================================================================
+-- 6. PROGRAMACIÓN DE LÓGICA REACTIVA DE DATOS: TRIGGERS & PROCEDURES (PL/pgSQL)
+-- =============================================================================
+
+-- ── TRIGGER 1: AUDITORÍA TRANSPARENTE E INMUTABLE ───────────────────────────
+CREATE OR REPLACE FUNCTION fn_auditar_citas()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (TG_OP = 'INSERT') THEN
+        INSERT INTO logs_citas (id_cita, accion, estado_anterior, estado_nuevo, datos_anteriores, datos_nuevos)
+        VALUES (NEW.id, 'INSERT', NULL, NEW.estado, NULL, to_jsonb(NEW));
+        RETURN NEW;
+        
+    ELSIF (TG_OP = 'UPDATE') THEN
+        IF (OLD.* IS DISTINCT FROM NEW.*) THEN
+            INSERT INTO logs_citas (id_cita, accion, estado_anterior, estado_nuevo, datos_anteriores, datos_nuevos)
+            VALUES (NEW.id, 'UPDATE', OLD.estado, NEW.estado, to_jsonb(OLD), to_jsonb(NEW));
+        END IF;
+        RETURN NEW;
+        
+    ELSIF (TG_OP = 'DELETE') THEN
+        INSERT INTO logs_citas (id_cita, accion, estado_anterior, estado_nuevo, datos_anteriores, datos_nuevos)
+        VALUES (OLD.id, 'DELETE', OLD.estado, NULL, to_jsonb(OLD), NULL);
+        RETURN OLD;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_auditoria_citas
+AFTER INSERT OR UPDATE OR DELETE ON citas
+FOR EACH ROW
+EXECUTE FUNCTION fn_auditar_citas();
 
 
+-- ── TRIGGER 2: BLINDAJE DE CONCURRENCIA ATÓMICA (PREVENCIÓN DE DOBLE AGENDAMIENTO) ──
+CREATE OR REPLACE FUNCTION fn_verificar_disponibilidad_critica()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_disponible BOOLEAN;
+BEGIN
+    -- Bloqueo pesimista mitigado consultando el estado de la franja horaria
+    SELECT disponible INTO v_disponible 
+    FROM franjas_horarias 
+    WHERE id = NEW.id_franja;
 
--- DATOS SEMILLA
+    IF v_disponible IS NULL THEN
+        RAISE EXCEPTION 'ERR_FRANJA_INEXISTENTE: La franja horaria especificada no existe en los registros.'
+            USING ERRCODE = '45001';
+    ELSIF v_disponible = FALSE THEN
+        RAISE EXCEPTION 'ERR_FRANJA_OCUPADA: Conflicto de concurrencia. La franja horaria ya ha sido reservada.'
+            USING ERRCODE = '45002';
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_seguridad_reserva_critica
+BEFORE INSERT ON citas
+FOR EACH ROW
+EXECUTE FUNCTION fn_verificar_disponibilidad_critica();
 
 
-INSERT INTO especialidades (nombre, descripcion, precio_base, imagen_url) VALUES
-  ('Medicina General',  'Atención primaria y consulta general.',              45000.00, '/imagenes/especialidades/medicina-general.jpg'),
-  ('Cardiología',       'Enfermedades del corazón y sistema cardiovascular.', 80000.00, '/imagenes/especialidades/cardiologia.jpg'),
-  ('Dermatología',      'Cuidado integral de la piel, cabello y uñas.',       70000.00, '/imagenes/especialidades/dermatologia.jpg'),
-  ('Pediatría',         'Atención médica para niños y adolescentes.',         65000.00, '/imagenes/especialidades/pediatria.jpg'),
-  ('Ginecología',       'Salud integral de la mujer.',                        75000.00, '/imagenes/especialidades/ginecologia.jpg'),
-  ('Neurología',        'Enfermedades del sistema nervioso.',                 90000.00, '/imagenes/especialidades/neurologia.jpg'),
-  ('Ortopedia',         'Lesiones del sistema musculoesquelético.',           85000.00, '/imagenes/especialidades/ortopedia.jpg'),
-  ('Oftalmología',      'Salud visual y enfermedades de los ojos.',           75000.00, '/imagenes/especialidades/oftalmologia.jpg'),
-  ('Psiquiatría',       'Diagnóstico y tratamiento de trastornos mentales.',  90000.00, '/imagenes/especialidades/psiquiatria.jpg'),
-  ('Endocrinología',    'Diabetes, tiroides y enfermedades hormonales.',      85000.00, '/imagenes/especialidades/endocrinologia.jpg');
+-- ── TRIGGER 3: CONTROL DE ESTADO REACTIVO AUTOMATIZADO ──────────────────────
+CREATE OR REPLACE FUNCTION fn_sincronizar_franja_horaria()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Inserción exitosa -> Marcar franja como OCUPADA de inmediato
+    IF (TG_OP = 'INSERT') THEN
+        UPDATE franjas_horarias SET disponible = FALSE WHERE id = NEW.id_franja;
+        RETURN NEW;
+        
+    -- Cambio transaccional a Cancelado -> LIBERAR franja de inmediato
+    ELSIF (TG_OP = 'UPDATE') THEN
+        IF (OLD.estado <> 'cancelada' AND NEW.estado = 'cancelada') THEN
+            UPDATE franjas_horarias SET disponible = TRUE WHERE id = NEW.id_franja;
+        END IF;
+        RETURN NEW;
+        
+    -- Eliminación física preventiva -> LIBERAR franja de inmediato
+    ELSIF (TG_OP = 'DELETE') THEN
+        UPDATE franjas_horarias SET disponible = TRUE WHERE id = OLD.id_franja;
+        RETURN OLD;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
 
-INSERT INTO medicamentos (nombre_comercial, principio_activo, laboratorio, tipo, indicaciones, contraindicaciones, presentaciones, registro_invima) VALUES
-  ('Acetaminofén 500mg', 'Acetaminofén',           'Genfar',          'OTC', 'Dolor leve a moderado, fiebre.',  'Insuficiencia hepática grave.',    'Tabletas 500mg, Jarabe 150mg/5ml',     'INVIMA2020M-0012345'),
-  ('Ibuprofeno 400mg',   'Ibuprofeno',             'Pfizer',          'OTC', 'Dolor muscular, articular.',      'Úlcera péptica, insuf. renal.',    'Tabletas 200mg, 400mg',                'INVIMA2019M-0023456'),
-  ('Amoxicilina 500mg',  'Amoxicilina trihidrato', 'Novartis',        'Rx',  'Infecciones bacterianas.',        'Alergia a penicilinas.',           'Cápsulas 500mg, Suspensión 250mg/5ml', 'INVIMA2018M-0034567'),
-  ('Loratadina 10mg',    'Loratadina',             'MK',              'OTC', 'Rinitis alérgica, urticaria.',    'Hipersensibilidad a loratadina.',  'Tabletas 10mg, Jarabe 5mg/5ml',        'INVIMA2021M-0045678'),
-  ('Omeprazol 20mg',     'Omeprazol',              'Tecnoquímicas',   'Rx',  'Úlcera gástrica, reflujo.',       'Hipersensibilidad a omeprazol.',   'Cápsulas 10mg, 20mg, 40mg',            'INVIMA2017M-0056789'),
-  ('Metformina 850mg',   'Metformina clorhidrato', 'Lafrancol',       'Rx',  'Diabetes mellitus tipo 2.',       'Insuficiencia renal severa.',      'Tabletas 500mg, 850mg, 1000mg',        'INVIMA2016M-0067890'),
-  ('Salbutamol 100mcg',  'Salbutamol sulfato',     'GlaxoSmithKline', 'Rx',  'Broncoespasmo en asma y EPOC.',  'Hipersensibilidad a salbutamol.', 'Inhalador 100mcg/dosis',               'INVIMA2019M-0078901');
+CREATE TRIGGER trg_sincronizacion_automatica_franja
+AFTER INSERT OR UPDATE OR DELETE ON citas
+FOR EACH ROW
+EXECUTE FUNCTION fn_sincronizar_franja_horaria();
+
+-- =============================================================================
+-- 7. INSERCIÓN DE SEMILLAS DE PRUEBA (DATA SEEDING COMPATIBLE)
+-- =============================================================================
+
+INSERT INTO usuarios (nombre, primer_apellido, email, password_hash, rol, activo, verificado, numero_documento) VALUES
+('Admin', 'Melika', 'admin@melika.com', '$2b$10$xyz...', 'admin', true, true, '10001'),
+('Carlos', 'Mendoza', 'carlos.medico@melika.com', '$2b$10$xyz...', 'medico', true, true, '20002'),
+('Ana', 'Gomez', 'ana.paciente@gmail.com', '$2b$10$xyz...', 'paciente', true, true, '30003');
+
+INSERT INTO especialidades (nombre, descripcion, precio_base, activa) VALUES
+('Medicina General', 'Atención médica primaria y preventiva.', 70000.00, true),
+('Pediatría', 'Cuidado médico de bebés, niños y adolescentes.', 90000.00, true),
+('Dermatología', 'Diagnóstico y tratamiento de afecciones de la piel.', 110000.00, true);
+
+INSERT INTO medicos (id_usuario, id_especialidad, numero_registro, tarifa, anos_experiencia) VALUES
+(2, 1, 'RM-98765-CO', 75000.00, 8);
+
+INSERT INTO franjas_horarias (id_medico, fecha, hora_inicio, hora_fin, disponible) VALUES
+(1, CURRENT_DATE + 1, '08:00:00', '08:30:00', true),
+(1, CURRENT_DATE + 1, '08:30:00', '09:00:00', true),
+(1, CURRENT_DATE + 1, '09:00:00', '09:30:00', true);
+
+INSERT INTO medicamentos (nombre_comercial, principio_activo, laboratorio, categoria, tipo, activo) VALUES
+('Acetaminofén 500mg', 'Acetaminofén', 'Genfar', 'Analgésicos', 'OTC', true),
+('Amoxicilina 500mg', 'Amoxicilina', 'MK', 'Antibióticos', 'Rx', true);
