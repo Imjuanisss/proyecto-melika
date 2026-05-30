@@ -1,237 +1,452 @@
+/* ── BASE ─────────────────────────────────────────────────── */
 .miscitas-pagina {
-    min-height: calc(100vh - 64px);
-    padding:    var(--space-10) 0 var(--space-16);
-    background: var(--melika-bg-secondary);
-    margin-top: 64px;
+  min-height: calc(100vh - 64px);
+  padding:    var(--space-10) 0 var(--space-16);
+  background: var(--melika-bg-secondary);
+  margin-top: 64px;
 }
- 
+
+.miscitas-cabecera {
+  display:         flex;
+  justify-content: space-between;
+  align-items:     center;
+  flex-wrap:       wrap;
+  gap:             var(--space-4);
+  margin-bottom:   var(--space-6);
+}
+
 .miscitas-titulo {
-    font-size:     28px;
-    font-weight:   700;
-    color:         var(--melika-text-primary);
-    margin-bottom: var(--space-6);
+  font-size:   28px;
+  font-weight: 700;
+  color:       var(--melika-text-primary);
 }
- 
+
+/* ── Toggle vista ──────────────────────────────────────────── */
+.miscitas-toggle {
+  display:       flex;
+  gap:           var(--space-1);
+  background:    var(--melika-bg);
+  border:        1px solid var(--melika-primary-100);
+  border-radius: var(--radius-md);
+  padding:       var(--space-1);
+}
+
+.miscitas-toggle__btn {
+  font-family:   var(--font-display);
+  font-size:     0.875rem;
+  font-weight:   600;
+  color:         var(--melika-text-secondary);
+  background:    transparent;
+  border:        none;
+  border-radius: var(--radius-sm);
+  padding:       var(--space-2) var(--space-4);
+  cursor:        pointer;
+  transition:    all 0.18s;
+  white-space:   nowrap;
+}
+
+.miscitas-toggle__btn:hover {
+  background: var(--melika-primary-25);
+  color:      var(--melika-text-primary);
+}
+
+.miscitas-toggle__btn--activo {
+  background: var(--melika-primary-600) !important;
+  color:      #fff !important;
+}
+
+/* ── Leyenda ───────────────────────────────────────────────── */
+.miscitas-leyenda {
+  display:       flex;
+  gap:           var(--space-4);
+  flex-wrap:     wrap;
+  margin-bottom: var(--space-4);
+}
+
+.leyenda-item {
+  display:     flex;
+  align-items: center;
+  gap:         var(--space-2);
+  font-family: var(--font-display);
+  font-size:   12px;
+  font-weight: 600;
+  color:       var(--melika-text-secondary);
+}
+
+.leyenda-dot {
+  width:         10px;
+  height:        10px;
+  border-radius: 50%;
+  flex-shrink:   0;
+}
+
+/* ── Grid calendario + detalle ─────────────────────────────── */
+.miscitas-grid {
+  display:               grid;
+  grid-template-columns: 1fr 340px;
+  gap:                   var(--space-5);
+  align-items:           start;
+}
+
+/* ── Contenedor FullCalendar ───────────────────────────────── */
+.miscitas-calendar-wrap {
+  background:    var(--melika-bg);
+  border:        1px solid var(--melika-primary-100);
+  border-radius: var(--radius-xl);
+  padding:       var(--space-6);
+  box-shadow:    var(--shadow-sm);
+}
+
+.miscitas-calendar-wrap .fc { font-family: var(--font-body) !important; }
+
+.miscitas-calendar-wrap .fc .fc-toolbar-title {
+  font-family: var(--font-display) !important;
+  font-size:   16px !important;
+  font-weight: 700 !important;
+  color:       var(--melika-text-primary) !important;
+}
+
+.miscitas-calendar-wrap .fc .fc-button {
+  background:     var(--melika-primary-50) !important;
+  border:         1px solid var(--melika-primary-100) !important;
+  color:          var(--melika-primary-600) !important;
+  font-family:    var(--font-display) !important;
+  font-weight:    600 !important;
+  font-size:      13px !important;
+  border-radius:  var(--radius-sm) !important;
+  padding:        6px 12px !important;
+  box-shadow:     none !important;
+  text-transform: none !important;
+  transition:     all 0.15s !important;
+}
+
+.miscitas-calendar-wrap .fc .fc-button:hover {
+  background:   var(--melika-primary-100) !important;
+  border-color: var(--melika-primary-200) !important;
+}
+
+.miscitas-calendar-wrap .fc .fc-button-primary:not(:disabled).fc-button-active {
+  background:   var(--melika-primary-600) !important;
+  border-color: var(--melika-primary-600) !important;
+  color:        #fff !important;
+}
+
+.miscitas-calendar-wrap .fc .fc-daygrid-day.fc-day-today {
+  background: var(--melika-primary-25) !important;
+}
+
+.miscitas-calendar-wrap .fc .fc-event {
+  border-radius: 5px !important;
+  font-size:     12px !important;
+  font-weight:   600 !important;
+  padding:       2px 6px !important;
+  cursor:        pointer !important;
+  border:        none !important;
+  transition:    filter 0.1s !important;
+}
+
+.miscitas-calendar-wrap .fc .fc-event:hover { filter: brightness(1.12) !important; }
+
+.miscitas-calendar-wrap .fc .fc-col-header-cell-cushion {
+  font-family:    var(--font-display) !important;
+  font-size:      12px !important;
+  font-weight:    700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  color:          var(--melika-text-muted) !important;
+}
+
+.miscitas-calendar-wrap .fc .fc-scrollgrid { border-color: var(--melika-primary-100) !important; }
+.miscitas-calendar-wrap .fc .fc-scrollgrid td,
+.miscitas-calendar-wrap .fc .fc-scrollgrid th { border-color: var(--melika-primary-50) !important; }
+
+/* ── Panel detalle lateral ─────────────────────────────────── */
+.miscitas-detalle-panel {
+  background:    var(--melika-bg);
+  border:        1px solid var(--melika-primary-100);
+  border-radius: var(--radius-xl);
+  padding:       var(--space-6);
+  box-shadow:    var(--shadow-sm);
+  position:      sticky;
+  top:           80px;
+}
+
+.miscitas-detalle-panel__titulo {
+  font-size:     16px;
+  font-weight:   700;
+  color:         var(--melika-text-primary);
+  margin-bottom: var(--space-5);
+}
+
+.miscitas-detalle-vacio {
+  text-align:  center;
+  padding:     var(--space-8) var(--space-4);
+  color:       var(--melika-text-muted);
+  font-size:   14px;
+  line-height: 1.6;
+}
+
+.miscitas-detalle-vacio span {
+  display:       block;
+  font-size:     32px;
+  margin-bottom: var(--space-3);
+}
+
+/* ── Tarjeta detalle ───────────────────────────────────────── */
+.detalle-cita {
+  display:        flex;
+  flex-direction: column;
+  gap:            var(--space-3);
+}
+
+.detalle-cita__header {
+  padding-bottom: var(--space-3);
+  border-bottom:  1px solid var(--melika-primary-50);
+  margin-bottom:  var(--space-1);
+}
+
+.detalle-cita__especialidad {
+  font-size:     17px;
+  font-weight:   700;
+  color:         var(--melika-text-primary);
+  margin-bottom: var(--space-2);
+}
+
+.detalle-fila {
+  display:  flex;
+  gap:      var(--space-2);
+  font-size: 13px;
+}
+
+.detalle-fila__etiqueta {
+  color:       var(--melika-text-muted);
+  font-weight: 600;
+  white-space: nowrap;
+  min-width:   64px;
+}
+
+.detalle-fila__valor { color: var(--melika-text-secondary); }
+
+.detalle-cita__acciones {
+  display:        flex;
+  flex-direction: column;
+  gap:            var(--space-2);
+  margin-top:     var(--space-2);
+  padding-top:    var(--space-3);
+  border-top:     1px solid var(--melika-primary-50);
+}
+
+/* ── Badges ────────────────────────────────────────────────── */
+.badge-pendiente  { background: var(--melika-warning-bg);  color: var(--melika-warning);     padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; white-space: nowrap; display: inline-block; }
+.badge-cancelada  { background: var(--melika-error-bg);    color: var(--melika-error);       padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; white-space: nowrap; display: inline-block; }
+.badge-completada { background: var(--melika-success-bg);  color: var(--melika-success);     padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; white-space: nowrap; display: inline-block; }
+.badge-confirmada { background: var(--melika-primary-50);  color: var(--melika-primary-600); padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; white-space: nowrap; display: inline-block; }
+.badge-no_asistio { background: #f1f5f9; color: #64748b; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; white-space: nowrap; display: inline-block; }
+
+/* ── Botones detalle ───────────────────────────────────────── */
+.btn-cancelar-detalle {
+  background:    none;
+  border:        1.5px solid var(--melika-warning);
+  border-radius: var(--radius-sm);
+  color:         var(--melika-warning);
+  padding:       var(--space-2) var(--space-4);
+  font-size:     13px;
+  font-weight:   700;
+  font-family:   var(--font-display);
+  cursor:        pointer;
+  transition:    all 0.15s;
+  width:         100%;
+  text-align:    center;
+}
+.btn-cancelar-detalle:hover:not(:disabled) { background: var(--melika-warning-bg); }
+.btn-cancelar-detalle:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-eliminar-detalle {
+  background:    none;
+  border:        1.5px solid var(--melika-error);
+  border-radius: var(--radius-sm);
+  color:         var(--melika-error);
+  padding:       var(--space-2) var(--space-4);
+  font-size:     13px;
+  font-weight:   700;
+  font-family:   var(--font-display);
+  cursor:        pointer;
+  transition:    all 0.15s;
+  width:         100%;
+  text-align:    center;
+}
+.btn-eliminar-detalle:hover:not(:disabled) { background: var(--melika-error-bg); }
+.btn-eliminar-detalle:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-agendar-nueva {
+  display:       block;
+  width:         100%;
+  background:    var(--melika-accent);
+  color:         #fff;
+  border:        none;
+  border-radius: var(--radius-sm);
+  padding:       var(--space-3) var(--space-4);
+  font-size:     13px;
+  font-weight:   700;
+  font-family:   var(--font-display);
+  cursor:        pointer;
+  transition:    background 0.2s;
+  text-align:    center;
+  margin-top:    var(--space-2);
+}
+.btn-agendar-nueva:hover { background: var(--melika-accent-dark); }
+
+/* ── Vista lista ───────────────────────────────────────────── */
 .miscitas-error {
-    background:    var(--melika-error-bg);
-    color:         var(--melika-error);
-    border:        1px solid #fca5a5;
-    border-radius: var(--radius-sm);
-    padding:       var(--space-3) var(--space-4);
-    font-size:     14px;
-    margin-bottom: var(--space-4);
+  background:    var(--melika-error-bg);
+  color:         var(--melika-error);
+  border:        1px solid #fca5a5;
+  border-radius: var(--radius-sm);
+  padding:       var(--space-3) var(--space-4);
+  font-size:     14px;
+  margin-bottom: var(--space-4);
 }
- 
+
 .miscitas-vacio {
-    background:    var(--melika-bg);
-    border:        1px dashed var(--melika-primary-200);
-    border-radius: var(--radius-lg);
-    padding:       var(--space-16);
-    text-align:    center;
+  background:    var(--melika-bg);
+  border:        1px dashed var(--melika-primary-200);
+  border-radius: var(--radius-lg);
+  padding:       var(--space-16);
+  text-align:    center;
 }
- 
-.miscitas-vacio p {
-    font-size:     16px;
-    color:         var(--melika-text-muted);
-    margin-bottom: var(--space-5);
-}
- 
-.miscitas-lista {
-    display:        flex;
-    flex-direction: column;
-    gap:            var(--space-4);
-}
- 
-/* Skeleton */
+
+.miscitas-vacio p { font-size: 16px; color: var(--melika-text-muted); margin-bottom: var(--space-5); }
+
+.miscitas-lista { display: flex; flex-direction: column; gap: var(--space-4); }
+
 .cita-skeleton {
-    height:        140px;
-    background:    linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
-    background-size: 200% 100%;
-    animation:     pulso 1.5s infinite;
-    border-radius: var(--radius-lg);
+  height:          140px;
+  background:      linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation:       miscitas-pulso 1.5s infinite;
+  border-radius:   var(--radius-lg);
 }
- 
-/* Tarjeta de cita */
+
 .cita-card {
-    background:    var(--melika-bg);
-    border:        1px solid var(--melika-primary-100);
-    border-radius: var(--radius-lg);
-    padding:       var(--space-5) var(--space-6);
-    display:       flex;
-    justify-content: space-between;
-    align-items:   flex-start;
-    gap:           var(--space-4);
-    box-shadow:    var(--shadow-xs);
-    transition:    box-shadow 0.15s;
+  background:      var(--melika-bg);
+  border:          1px solid var(--melika-primary-100);
+  border-radius:   var(--radius-lg);
+  padding:         var(--space-5) var(--space-6);
+  display:         flex;
+  justify-content: space-between;
+  align-items:     flex-start;
+  gap:             var(--space-4);
+  box-shadow:      var(--shadow-xs);
+  transition:      box-shadow 0.15s;
 }
- 
 .cita-card:hover { box-shadow: var(--shadow-sm); }
- 
 .cita-card__cuerpo { flex: 1; }
- 
-.cita-card__encabezado {
-    display:       flex;
-    align-items:   center;
-    gap:           var(--space-3);
-    margin-bottom: var(--space-2);
-}
- 
-.cita-card__especialidad {
-    font-size:  16px;
-    font-weight: 700;
-    color:       var(--melika-text-primary);
-}
- 
-.cita-card__medico {
-    font-size:     14px;
-    color:         var(--melika-text-secondary);
-    margin-bottom: var(--space-1);
-}
- 
-.cita-card__fecha {
-    font-size:     14px;
-    color:         var(--melika-text-secondary);
-    margin-bottom: var(--space-1);
-}
- 
-.cita-card__tipo {
-    font-size:     13px;
-    color:         var(--melika-text-muted);
-    margin-bottom: var(--space-1);
-}
- 
-.cita-card__tarifa {
-    color: var(--melika-text-muted);
-}
- 
-.cita-card__motivo {
-    font-size:  13px;
-    color:      var(--melika-text-muted);
-    font-style: italic;
-    margin-top: var(--space-2);
-}
- 
-.cita-card__razon {
-    font-size:  12px;
-    color:      var(--melika-error);
-    margin-top: var(--space-2);
-}
- 
+
+.cita-card__encabezado { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-2); }
+.cita-card__especialidad { font-size: 16px; font-weight: 700; color: var(--melika-text-primary); }
+.cita-card__medico  { font-size: 14px; color: var(--melika-text-secondary); margin-bottom: var(--space-1); }
+.cita-card__fecha   { font-size: 14px; color: var(--melika-text-secondary); margin-bottom: var(--space-1); }
+.cita-card__tipo    { font-size: 13px; color: var(--melika-text-muted);     margin-bottom: var(--space-1); }
+.cita-card__tarifa  { color: var(--melika-text-muted); }
+.cita-card__motivo  { font-size: 13px; color: var(--melika-text-muted); font-style: italic; margin-top: var(--space-2); }
+.cita-card__razon   { font-size: 12px; color: var(--melika-error); margin-top: var(--space-2); }
+
 .cita-card__acciones {
-    display:     flex;
-    align-items: flex-start;
-    padding-top: 2px;
-    flex-shrink: 0;
+  display:        flex;
+  align-items:    flex-start;
+  flex-direction: column;
+  gap:            var(--space-2);
+  flex-shrink:    0;
 }
- 
-/* Botones de acción */
-.btn-cancelar {
-    background:    none;
-    border:        1.5px solid var(--melika-warning);
-    border-radius: var(--radius-sm);
-    color:         var(--melika-warning);
-    padding:       var(--space-2) var(--space-4);
-    font-size:     13px;
-    font-weight:   700;
-    font-family:   var(--font-display);
-    cursor:        pointer;
-    transition:    all 0.15s;
-    white-space:   nowrap;
+
+.btn-cancelar-lista {
+  background:    none;
+  border:        1.5px solid var(--melika-warning);
+  border-radius: var(--radius-sm);
+  color:         var(--melika-warning);
+  padding:       var(--space-2) var(--space-4);
+  font-size:     13px;
+  font-weight:   700;
+  font-family:   var(--font-display);
+  cursor:        pointer;
+  transition:    all 0.15s;
+  white-space:   nowrap;
 }
- 
-.btn-cancelar:hover:not(:disabled) { background: var(--melika-warning-bg); }
-.btn-cancelar:disabled { opacity: 0.5; cursor: not-allowed; }
- 
-.btn-eliminar {
-    background:    none;
-    border:        1.5px solid var(--melika-error);
-    border-radius: var(--radius-sm);
-    color:         var(--melika-error);
-    padding:       var(--space-2) var(--space-4);
-    font-size:     13px;
-    font-weight:   700;
-    font-family:   var(--font-display);
-    cursor:        pointer;
-    transition:    all 0.15s;
-    white-space:   nowrap;
+.btn-cancelar-lista:hover:not(:disabled) { background: var(--melika-warning-bg); }
+.btn-cancelar-lista:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-eliminar-lista {
+  background:    none;
+  border:        1.5px solid var(--melika-error);
+  border-radius: var(--radius-sm);
+  color:         var(--melika-error);
+  padding:       var(--space-2) var(--space-4);
+  font-size:     13px;
+  font-weight:   700;
+  font-family:   var(--font-display);
+  cursor:        pointer;
+  transition:    all 0.15s;
+  white-space:   nowrap;
 }
- 
-.btn-eliminar:hover:not(:disabled) { background: var(--melika-error-bg); }
-.btn-eliminar:disabled { opacity: 0.5; cursor: not-allowed; }
- 
-/* Badges (compartidos con Dashboard) */
-.badge-pendiente  { background: var(--melika-warning-bg);  color: var(--melika-warning);      padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; white-space: nowrap; }
-.badge-cancelada  { background: var(--melika-error-bg);    color: var(--melika-error);        padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; white-space: nowrap; }
-.badge-completada { background: var(--melika-success-bg);  color: var(--melika-success);      padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; white-space: nowrap; }
-.badge-confirmada { background: var(--melika-primary-50);  color: var(--melika-primary-600);  padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; white-space: nowrap; }
- 
-/* Modal */
+.btn-eliminar-lista:hover:not(:disabled) { background: var(--melika-error-bg); }
+.btn-eliminar-lista:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Modal ─────────────────────────────────────────────────── */
 .modal-overlay {
-    position:        fixed;
-    inset:           0;
-    background:      rgba(11, 26, 54, 0.45);
-    display:         flex;
-    align-items:     center;
-    justify-content: center;
-    z-index:         300;
-    padding:         var(--space-5);
+  position:        fixed;
+  inset:           0;
+  background:      rgba(11, 26, 54, 0.45);
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  z-index:         300;
+  padding:         var(--space-5);
 }
- 
+
 .modal-card {
-    background:    var(--melika-bg);
-    border-radius: var(--radius-xl);
-    padding:       var(--space-8);
-    max-width:     420px;
-    width:         100%;
-    box-shadow:    var(--shadow-xl);
+  background:    var(--melika-bg);
+  border-radius: var(--radius-xl);
+  padding:       var(--space-8);
+  max-width:     420px;
+  width:         100%;
+  box-shadow:    var(--shadow-xl);
 }
- 
-.modal-card h3 {
-    font-size:     20px;
-    font-weight:   700;
-    color:         var(--melika-text-primary);
-    margin-bottom: var(--space-3);
-}
- 
-.modal-card p {
-    font-size:     15px;
-    color:         var(--melika-text-secondary);
-    line-height:   1.6;
-    margin-bottom: var(--space-6);
-}
- 
-.modal-acciones {
-    display:         flex;
-    justify-content: flex-end;
-    gap:             var(--space-3);
-}
- 
+
+.modal-card h3 { font-size: 20px; font-weight: 700; color: var(--melika-text-primary); margin-bottom: var(--space-3); }
+.modal-card p  { font-size: 15px; color: var(--melika-text-secondary); line-height: 1.6; margin-bottom: var(--space-6); }
+
+.modal-acciones { display: flex; justify-content: flex-end; gap: var(--space-3); }
+
 .btn-secundario {
-    background:    transparent;
-    color:         var(--melika-primary-600);
-    border:        1.5px solid var(--melika-primary-200);
-    border-radius: var(--radius-sm);
-    padding:       var(--space-3) var(--space-6);
-    font-size:     14px;
-    font-weight:   700;
-    font-family:   var(--font-display);
-    cursor:        pointer;
-    transition:    all 0.15s;
+  background:    transparent;
+  color:         var(--melika-primary-600);
+  border:        1.5px solid var(--melika-primary-200);
+  border-radius: var(--radius-sm);
+  padding:       var(--space-3) var(--space-6);
+  font-size:     14px;
+  font-weight:   700;
+  font-family:   var(--font-display);
+  cursor:        pointer;
+  transition:    all 0.15s;
 }
- 
 .btn-secundario:hover:not(:disabled) { background: var(--melika-primary-25); }
 .btn-secundario:disabled { opacity: 0.5; cursor: not-allowed; }
- 
-@keyframes pulso {
-    0%   { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
+
+/* ── Animaciones ───────────────────────────────────────────── */
+@keyframes miscitas-pulso {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
- 
+
+/* ── Responsive ────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .miscitas-grid                { grid-template-columns: 1fr; }
+  .miscitas-detalle-panel       { position: static; }
+}
+
 @media (max-width: 600px) {
-    .cita-card           { flex-direction: column; }
-    .cita-card__acciones { width: 100%; }
-    .btn-cancelar,
-    .btn-eliminar        { width: 100%; text-align: center; }
-    .modal-acciones      { flex-direction: column-reverse; }
+  .miscitas-cabecera            { flex-direction: column; align-items: flex-start; }
+  .cita-card                    { flex-direction: column; }
+  .cita-card__acciones          { flex-direction: row; width: 100%; }
+  .modal-acciones               { flex-direction: column-reverse; }
 }
- 

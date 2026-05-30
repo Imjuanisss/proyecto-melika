@@ -419,3 +419,175 @@
     .tipo-consulta   { flex-direction: column; }
 }
  
+/* ═══════════════════════════════════════════════════════════════
+   EXTENSIONES FULLCALENDAR PARA EL PICKER DE DISPONIBILIDAD
+   Añadir al final de Agendarcita.css
+   ═══════════════════════════════════════════════════════════════ */
+
+.agendar-fc-wrap {
+  background:    var(--melika-bg);
+  border:        1px solid var(--melika-primary-100);
+  border-radius: var(--radius-lg);
+  padding:       var(--space-5);
+  margin-top:    var(--space-4);
+  box-shadow:    var(--shadow-xs);
+}
+
+/* ── FullCalendar base ──────────────────────────────────────── */
+.agendar-fc-wrap .fc { font-family: var(--font-body) !important; }
+
+.agendar-fc-wrap .fc .fc-toolbar-title {
+  font-family: var(--font-display) !important;
+  font-size:   15px !important;
+  font-weight: 700 !important;
+  color:       var(--melika-text-primary) !important;
+}
+
+.agendar-fc-wrap .fc .fc-button {
+  background:     var(--melika-primary-50) !important;
+  border:         1px solid var(--melika-primary-100) !important;
+  color:          var(--melika-primary-600) !important;
+  font-family:    var(--font-display) !important;
+  font-weight:    600 !important;
+  font-size:      12px !important;
+  border-radius:  var(--radius-sm) !important;
+  padding:        5px 10px !important;
+  box-shadow:     none !important;
+  text-transform: none !important;
+}
+
+.agendar-fc-wrap .fc .fc-button:hover {
+  background:   var(--melika-primary-100) !important;
+}
+
+.agendar-fc-wrap .fc .fc-button-primary:not(:disabled).fc-button-active {
+  background:   var(--melika-primary-600) !important;
+  border-color: var(--melika-primary-600) !important;
+  color:        #fff !important;
+}
+
+.agendar-fc-wrap .fc .fc-daygrid-day.fc-day-today {
+  background: var(--melika-primary-25) !important;
+}
+
+/* Días pasados deshabilitados visualmente */
+.agendar-fc-wrap .fc .fc-day-past {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+/* Día seleccionado */
+.agendar-fc-wrap .fc .fc-day--fecha-activa {
+  background: var(--melika-accent-light) !important;
+}
+
+/* Eventos = franjas disponibles */
+.agendar-fc-wrap .fc .fc-event {
+  border-radius: 4px !important;
+  font-size:     11px !important;
+  font-weight:   700 !important;
+  padding:       2px 5px !important;
+  cursor:        pointer !important;
+  border:        none !important;
+  transition:    transform 0.1s, filter 0.1s !important;
+}
+
+.agendar-fc-wrap .fc .fc-event:hover {
+  filter:    brightness(1.12) !important;
+  transform: scale(1.03) !important;
+}
+
+/* Evento seleccionado — clase aplicada via eventClassNames */
+.agendar-fc-wrap .fc .fc-event--seleccionado {
+  background-color: #2351C4 !important;
+  border-color:     #1A3A8F !important;
+  box-shadow:       0 0 0 2px rgba(35, 81, 196, 0.4) !important;
+}
+
+.agendar-fc-wrap .fc .fc-col-header-cell-cushion {
+  font-family:    var(--font-display) !important;
+  font-size:      11px !important;
+  font-weight:    700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  color:          var(--melika-text-muted) !important;
+}
+
+.agendar-fc-wrap .fc .fc-scrollgrid { border-color: var(--melika-primary-100) !important; }
+.agendar-fc-wrap .fc .fc-scrollgrid td,
+.agendar-fc-wrap .fc .fc-scrollgrid th { border-color: var(--melika-primary-50) !important; }
+
+/* ── Leyenda del picker ─────────────────────────────────────── */
+.agendar-fc-leyenda {
+  display:       flex;
+  gap:           var(--space-5);
+  flex-wrap:     wrap;
+  margin-bottom: var(--space-3);
+  font-family:   var(--font-display);
+  font-size:     12px;
+  font-weight:   600;
+  color:         var(--melika-text-secondary);
+  align-items:   center;
+}
+
+.agendar-fc-leyenda__item {
+  display:     flex;
+  align-items: center;
+  gap:         var(--space-2);
+}
+
+.agendar-fc-leyenda__dot {
+  width:         9px;
+  height:        9px;
+  border-radius: 50%;
+  flex-shrink:   0;
+}
+
+/* ── Badge de franja seleccionada ──────────────────────────── */
+.franja-seleccionada-badge {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           var(--space-3);
+  background:    var(--melika-primary-600);
+  color:         #fff;
+  border-radius: var(--radius-full);
+  padding:       var(--space-2) var(--space-5);
+  font-family:   var(--font-display);
+  font-size:     14px;
+  font-weight:   700;
+  margin-top:    var(--space-4);
+  box-shadow:    var(--shadow-sm);
+}
+
+.franja-seleccionada-badge__btn-clear {
+  background:    rgba(255, 255, 255, 0.2);
+  border:        none;
+  border-radius: 50%;
+  width:         20px;
+  height:        20px;
+  font-size:     12px;
+  line-height:   1;
+  cursor:        pointer;
+  display:       flex;
+  align-items:   center;
+  justify-content: center;
+  color:         #fff;
+  transition:    background 0.15s;
+  padding:       0;
+  flex-shrink:   0;
+}
+
+.franja-seleccionada-badge__btn-clear:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+/* ── Aviso sin franjas ─────────────────────────────────────── */
+.agendar-sin-franjas {
+  background:    var(--melika-warning-bg);
+  color:         var(--melika-warning);
+  border:        1px solid #FCD34D;
+  border-radius: var(--radius-sm);
+  padding:       var(--space-3) var(--space-4);
+  font-size:     14px;
+  margin-top:    var(--space-4);
+}
