@@ -11,18 +11,20 @@ import Dashboard from "./pages/dashboard/Dashboard";
 import Agendarcita from "./pages/agendar/Agendarcita";
 import MisCitas from "./pages/miscitas/MisCitas";
 import DashboardMedico from "./pages/dashboard-medico/DashboardMedico";
-import MedicosAdmin from "./pages/admin/MedicosAdmin";
 import ActivarCuenta from "./pages/activar-cuenta/ActivarCuenta";
 import Catalogo from "./pages/catalogo/Catalogo";
-// Importaciones a agregar al inicio:
-import AdminLayout from "./pages/admin/AdminLayout";
-import AdminDashboard from "./pages/admin/AdminDashboard";
-import HorariosAdmin from "./pages/admin/HorariosAdmin";
-import UsuariosAdmin from "./pages/admin/UsuariosAdmin";
-import CitasAdmin from "./pages/admin/CitasAdmin";
-import EspecialidadesAdmin from "./pages/admin/EspecialidadesAdmin";
-import MedicamentosAdmin from "./pages/admin/MedicamentosAdmin";
-// MedicosAdmin ya está importado
+// ─── Imports Admin (nueva estructura de carpetas) ────────────────────────────
+import AdminLayout          from "./pages/admin/AdminLayout";
+import AdminDashboard       from "./pages/admin/dashboard/AdminDashboard";
+import MedicosAdmin         from "./pages/admin/gestionmedicos/MedicosAdmin"; 
+import HorariosAdmin        from "./pages/admin/gestionhorarios/HorariosAdmin";
+import UsuariosAdmin        from "./pages/admin/gestionusuarios/UsuariosAdmin";
+import CitasAdmin           from "./pages/admin/gestioncitas/CitasAdmin";
+import EspecialidadesAdmin  from "./pages/admin/gestionespecialidades/EspecialidadesAdmin";
+import MedicamentosAdmin    from "./pages/admin/gestionmedicamentos/MedicamentosAdmin";
+
+
+
 
 function RutaProtegida({ children }) {
   const { usuario } = useAuth();

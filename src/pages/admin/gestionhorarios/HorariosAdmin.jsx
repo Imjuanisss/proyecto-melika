@@ -1,22 +1,18 @@
-// src/pages/admin/HorariosAdmin.jsx
 import { useState, useEffect, useRef, useCallback } from 'react';
 import FullCalendar      from '@fullcalendar/react';
 import dayGridPlugin     from '@fullcalendar/daygrid';
 import timeGridPlugin    from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import esLocale          from '@fullcalendar/core/locales/es';
-import { api }           from '../../lib/apiClient';
+import { api }           from '../../../lib/apiClient';
 import './HorariosAdmin.css';
-import './admin-shared.css';
+import '../admin-shared.css';
 
 export default function HorariosAdmin() {
   const calendarRef = useRef(null);
 
   const [medicos,      setMedicos]      = useState([]);
   const [filtroMedico, setFiltroMedico] = useState('');
-  // ── FIX: se elimina [error, setError] porque nunca se usaba en el JSX ──
-  // Si en el futuro quieres mostrar errores de carga del calendario,
-  // añade aquí: const [errorCal, setErrorCal] = useState(null);
 
   // Modal nueva franja
   const [modal,    setModal]    = useState(false);

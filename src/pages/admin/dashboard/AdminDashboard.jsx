@@ -1,7 +1,7 @@
 // src/pages/admin/AdminDashboard.jsx
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api } from '../../lib/apiClient';
+import { api } from '../../../lib/apiClient';
 import './AdminDashboard.css';
 
 // Tarjeta de métrica
