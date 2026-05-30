@@ -296,3 +296,20 @@ INSERT INTO franjas_horarias (id_medico, fecha, hora_inicio, hora_fin, disponibl
 INSERT INTO medicamentos (nombre_comercial, principio_activo, laboratorio, categoria, tipo, activo) VALUES
 ('Acetaminofén 500mg', 'Acetaminofén', 'Genfar', 'Analgésicos', 'OTC', true),
 ('Amoxicilina 500mg', 'Amoxicilina', 'MK', 'Antibióticos', 'Rx', true);
+
+-- Ejecutar en PostgreSQL para optimizar las queries de disponibilidad por rango
+-- Archivo: server/scripts/indices_disponibilidad.sql
+
+-- Índice compuesto para búsqueda de franjas por médico + fecha + disponibilidad
+CREATE INDEX IF NOT EXISTS idx_franjas_medico_fecha_disponible
+  ON franjas_horarias (id_medico, fecha, disponible)
+  WHERE disponible = TRUE;
+
+-- Índice para el endpoint de calendario de citas del paciente
+CREATE INDEX IF NOT EXISTS idx_citas_paciente_fecha
+  ON citas (id_paciente, fecha)
+  WHERE estado != 'cancelada';
+
+-- Índice para joins frecuentes en las queries de citas
+CREATE INDEX IF NOT EXISTS idx_citas_medico_fecha
+  ON citas (id_medico, fecha);

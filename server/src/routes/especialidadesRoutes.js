@@ -4,11 +4,14 @@ const {
   listarEspecialidades,
   medicosPorEspecialidad,
   disponibilidad,
+  disponibilidadRango,
 } = require('../controllers/especialidadesController');
 
-// IMPORTANTE: /disponibilidad antes de /:id/medicos
-router.get('/',                listarEspecialidades);
-router.get('/disponibilidad',  disponibilidad);       // ← primero
-router.get('/:id/medicos',     medicosPorEspecialidad); // ← después
+// CRÍTICO: rutas con segmento fijo ANTES de rutas con parámetro (:id)
+// De lo contrario Express interpreta "disponibilidad" como un :id
+router.get('/',                      listarEspecialidades);
+router.get('/disponibilidad',        disponibilidad);          // ← primero
+router.get('/disponibilidad-rango',  disponibilidadRango);     // ← primero
+router.get('/:id/medicos',           medicosPorEspecialidad);  // ← después
 
 module.exports = router;
