@@ -15,6 +15,7 @@ async function crearAdmin() {
   const primer_apellido = 'MELIKA';
   const email           = 'olartemejiajuanesteban@gmail.com';
   const password        = 'Admin';      
+  const numero_documento  = '0000000000'; // Valor dummy para cumplir NOT NULL UNIQUE
 
   try {
     const existe = await pool.query(
@@ -31,16 +32,17 @@ async function crearAdmin() {
 
     const result = await pool.query(
       `INSERT INTO usuarios
-         (nombre, primer_apellido, email, password_hash, rol, activo, verificado)
-       VALUES ($1, $2, $3, $4, 'admin', TRUE, TRUE)
-       RETURNING id, email, rol`,
-      [nombre, primer_apellido, email, hash]
+         (nombre, primer_apellido, email, password_hash, rol, activo, verificado, numero_documento)
+       VALUES ($1, $2, $3, $4, 'admin', TRUE, TRUE, $5)
+       RETURNING id, email, rol, activo, verificado, numero_documento`,
+      [nombre, primer_apellido, email, hash, numero_documento]
     );
 
     console.log('Admin creado exitosamente:');
     console.log('   Email:    ', result.rows[0].email);
     console.log('   Rol:      ', result.rows[0].rol);
     console.log('   Password: ', password);
+    console.log('   Número de Documento: ', result.rows[0].numero_documento);
     console.log('     Cambia la contraseña después del primer login.');
   } catch (err) {
     console.error(' Error al crear admin:', err.message);

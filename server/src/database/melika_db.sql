@@ -32,7 +32,7 @@ CREATE TABLE usuarios (
   genero           VARCHAR(20),
   direccion        VARCHAR(255),
   ciudad           VARCHAR(100),
-  tipo_documento   VARCHAR(20) NOT NULL CHECK DEFAULT 'CC' (tipo_documento IN ('CC','CE','PASAPORTE')),
+  tipo_documento   VARCHAR(20)   NOT NULL  DEFAULT 'CC' CHECK (tipo_documento IN ('CC','CE','PASAPORTE')),
   numero_documento VARCHAR(50)   NOT NULL UNIQUE,
   created_at       TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at       TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -271,31 +271,7 @@ AFTER INSERT OR UPDATE OR DELETE ON citas
 FOR EACH ROW
 EXECUTE FUNCTION fn_sincronizar_franja_horaria();
 
--- =============================================================================
--- 7. INSERCIÓN DE SEMILLAS DE PRUEBA (DATA SEEDING COMPATIBLE)
--- =============================================================================
 
-INSERT INTO usuarios (nombre, primer_apellido, email, password_hash, rol, activo, verificado, numero_documento) VALUES
-('Admin', 'Melika', 'admin@melika.com', '$2b$10$xyz...', 'admin', true, true, '10001'),
-('Carlos', 'Mendoza', 'carlos.medico@melika.com', '$2b$10$xyz...', 'medico', true, true, '20002'),
-('Ana', 'Gomez', 'ana.paciente@gmail.com', '$2b$10$xyz...', 'paciente', true, true, '30003');
-
-INSERT INTO especialidades (nombre, descripcion, precio_base, activa) VALUES
-('Medicina General', 'Atención médica primaria y preventiva.', 70000.00, true),
-('Pediatría', 'Cuidado médico de bebés, niños y adolescentes.', 90000.00, true),
-('Dermatología', 'Diagnóstico y tratamiento de afecciones de la piel.', 110000.00, true);
-
-INSERT INTO medicos (id_usuario, id_especialidad, numero_registro, tarifa, anos_experiencia) VALUES
-(2, 1, 'RM-98765-CO', 75000.00, 8);
-
-INSERT INTO franjas_horarias (id_medico, fecha, hora_inicio, hora_fin, disponible) VALUES
-(1, CURRENT_DATE + 1, '08:00:00', '08:30:00', true),
-(1, CURRENT_DATE + 1, '08:30:00', '09:00:00', true),
-(1, CURRENT_DATE + 1, '09:00:00', '09:30:00', true);
-
-INSERT INTO medicamentos (nombre_comercial, principio_activo, laboratorio, categoria, tipo, activo) VALUES
-('Acetaminofén 500mg', 'Acetaminofén', 'Genfar', 'Analgésicos', 'OTC', true),
-('Amoxicilina 500mg', 'Amoxicilina', 'MK', 'Antibióticos', 'Rx', true);
 
 -- Ejecutar en PostgreSQL para optimizar las queries de disponibilidad por rango
 -- Archivo: server/scripts/indices_disponibilidad.sql
