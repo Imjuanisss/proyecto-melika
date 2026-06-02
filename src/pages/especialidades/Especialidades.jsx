@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-// 1. UBICACIÓN 1: Importar useNavigate al inicio junto a las demás librerías
-import { useNavigate } from 'react-router-dom'; 
-import { especialidadesService } from '../services/especialidadesService';
+import { useNavigate } from "react-router-dom";
+import { api } from '../../lib/apiClient'; // <- Usamos este en lugar del viejo service
 
 export default function Especialidades() {
   // 2. UBICACIÓN 2: Inicializar el hook justo al principio del componente, antes de los useEffect
@@ -15,8 +14,8 @@ export default function Especialidades() {
     const cargarEspecialidades = async () => {
       try {
         setCargando(true);
-        const datos = await especialidadesService.getAll();
-        setEspecialidades(datos);
+        const { data } = await api.get('/especialidades');
+        setEspecialidades(data || []);
       } catch {
         setError('No se pudieron cargar las especialidades. Inténtalo de nuevo más tarde.');
       } finally {
