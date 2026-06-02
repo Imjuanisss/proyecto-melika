@@ -1,17 +1,26 @@
 const express = require('express');
-const router  = express.Router();
+const router = express.Router();
 const {
   listarEspecialidades,
+  listarEspecialidadesAdmin,
+  crearEspecialidad,
+  actualizarEspecialidad,
   medicosPorEspecialidad,
   disponibilidad,
-  disponibilidadRango,
+  disponibilidadRango
 } = require('../controllers/especialidadesController');
 
-// CRÍTICO: rutas con segmento fijo ANTES de rutas con parámetro (:id)
-// De lo contrario Express interpreta "disponibilidad" como un :id
-router.get('/',                      listarEspecialidades);
-router.get('/disponibilidad',        disponibilidad);          // ← primero
-router.get('/disponibilidad-rango',  disponibilidadRango);     // ← primero
-router.get('/:id/medicos',           medicosPorEspecialidad);  // ← después
+// Rutas fijas primero
+router.get('/', listarEspecialidades);
+router.get('/admin', listarEspecialidadesAdmin);
+router.get('/disponibilidad', disponibilidad);
+router.get('/disponibilidad-rango', disponibilidadRango);
+
+// Escritura de datos
+router.post('/', crearEspecialidad);
+router.put('/:id', actualizarEspecialidad);
+
+// Parámetros al final
+router.get('/:id/medicos', medicosPorEspecialidad);
 
 module.exports = router;

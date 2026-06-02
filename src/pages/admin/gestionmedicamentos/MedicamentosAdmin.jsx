@@ -1,4 +1,3 @@
-// src/pages/admin/gestion-medicamentos/MedicamentosAdmin.jsx
 import { useState, useEffect } from 'react';
 import { api } from '../../../lib/apiClient';
 import './MedicamentosAdmin.css';
@@ -7,29 +6,35 @@ import '../admin-shared.css';
 const TIPOS = ['OTC', 'Rx', 'Controlado', 'Biológico', 'Genérico'];
 
 const TIPO_BADGE = {
-  'OTC':        'badge--verde',
-  'Rx':         'badge--azul',
+  'OTC': 'badge--verde',
+  'Rx': 'badge--azul',
   'Controlado': 'badge--rojo',
-  'Biológico':  'badge--morado',
-  'Genérico':   'badge--gris',
+  'Biológico': 'badge--morado',
+  'Genérico': 'badge--gris',
 };
 
 function ModalMedicamento({ modo, medicamento, onGuardar, onCerrar }) {
   const [form, setForm] = useState({
-    nombre:       medicamento?.nombre        ?? '',
-    principio:    medicamento?.principio     ?? '',
-    tipo:         medicamento?.tipo          ?? 'OTC',
-    descripcion:  medicamento?.descripcion   ?? '',
-    presentacion: medicamento?.presentacion  ?? '',
-    activo:       medicamento?.activo        ?? true,
+    nombre: medicamento?.nombre_comercial ?? '',
+    principio: medicamento?.principio_activo ?? '',
+    tipo: medicamento?.tipo ?? 'OTC',
+    descripcion: medicamento?.descripcion ?? '',
+    presentacion: medicamento?.presentaciones ?? '',
+    laboratorio: medicamento?.laboratorio ?? '',
+    categoria: medicamento?.categoria ?? '',
+    activo: medicamento?.activo ?? true,
   });
   const [guardando, setGuardando] = useState(false);
 
-  async function handleSubmit() {
-    if (!form.nombre.trim()) return alert('El nombre es obligatorio.');
+  async function handleSubmit(e) {
+    if (e) e.preventDefault();
+    if (!form.nombre.trim()) return alert('El nombre comercial es obligatorio.');
     setGuardando(true);
     try {
       await onGuardar(form);
+    } catch (err) {
+      console.error(err);
+      alert('Error al procesar el formulario.');
     } finally {
       setGuardando(false);
     }
@@ -37,10 +42,10 @@ function ModalMedicamento({ modo, medicamento, onGuardar, onCerrar }) {
 
   return (
     <div className="admin-modal-overlay" onClick={onCerrar}>
-      <div className="admin-modal" onClick={e => e.stopPropagation()}>
+      <form className="admin-modal" onClick={e => e.stopPropagation()} onSubmit={handleSubmit}>
         <div className="admin-modal__header">
           <h3>{modo === 'crear' ? 'Nuevo medicamento' : 'Editar medicamento'}</h3>
-          <button className="admin-modal__cerrar" onClick={onCerrar}>✕</button>
+          <button type="button" className="admin-modal__cerrar" onClick={onCerrar}>✕</button>
         </div>
 
         <div className="med-modal-grid">
@@ -51,6 +56,7 @@ function ModalMedicamento({ modo, medicamento, onGuardar, onCerrar }) {
               value={form.nombre}
               onChange={e => setForm(prev => ({ ...prev, nombre: e.target.value }))}
               placeholder="Ej: Ibuprofeno 400mg"
+              required
             />
           </div>
           <div className="admin-campo">
@@ -63,7 +69,7 @@ function ModalMedicamento({ modo, medicamento, onGuardar, onCerrar }) {
             />
           </div>
           <div className="admin-campo">
-            <label>Tipo</label>
+            <label>Tipo *</label>
             <select value={form.tipo} onChange={e => setForm(prev => ({ ...prev, tipo: e.target.value }))}>
               {TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
@@ -77,58 +83,91 @@ function ModalMedicamento({ modo, medicamento, onGuardar, onCerrar }) {
               placeholder="Ej: Caja x 20 tabletas"
             />
           </div>
+          <div className="admin-campo">
+            <label>Laboratorio</label>
+            <input
+              type="text"
+              value={form.laboratorio}
+              onChange={e => setForm(prev => ({ ...prev, laboratorio: e.target.value }))}
+              placeholder="Ej: Genfar"
+            />
+          </div>
+          <div className="admin-campo">
+            <label>Categoría</label>
+            <input
+              type="text"
+              value={form.categoria}
+              onChange={e => setForm(prev => ({ ...prev, categoria: e.target.value }))}
+              placeholder="Ej: Analgésicos"
+            />
+          </div>
           <div className="admin-campo admin-campo--full">
             <label>Descripción</label>
             <textarea
               value={form.descripcion}
               onChange={e => setForm(prev => ({ ...prev, descripcion: e.target.value }))}
-              placeholder="Indicaciones, contraindicaciones…"
+              placeholder="Indicaciones o advertencias clínicas…"
               rows={3}
             />
           </div>
         </div>
 
+        {modo === 'editar' && (
+          <div className="admin-campo admin-campo--toggle">
+            <label>Estado</label>
+            <button
+              type="button"
+              className={`toggle-btn ${form.activo ? 'toggle-btn--activo' : ''}`}
+              onClick={() => setForm(prev => ({ ...prev, activo: !prev.activo }))}
+            >
+              <span className="toggle-btn__dot" />
+              {form.activo ? 'Activo' : 'Inactivo'}
+            </button>
+          </div>
+        )}
+
         <div className="admin-modal__acciones">
-          <button className="admin-modal__btn-cancelar" onClick={onCerrar}>Cancelar</button>
-          <button className="admin-modal__btn-guardar" disabled={guardando} onClick={handleSubmit}>
+          <button type="button" className="admin-modal__btn-cancelar" onClick={onCerrar}>Cancelar</button>
+          <button type="submit" className="admin-modal__btn-guardar" disabled={guardando}>
             {guardando ? 'Guardando…' : modo === 'crear' ? 'Crear medicamento' : 'Guardar cambios'}
           </button>
         </div>
-      </div>
+      </form>
     </div>
   );
 }
 
 export default function MedicamentosAdmin() {
-  const [meds,     setMeds]     = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState(null);
-  const [buscar,   setBuscar]   = useState('');
+  const [meds, setMeds] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [buscar, setBuscar] = useState('');
   const [tipoFilt, setTipoFilt] = useState('');
-  const [modal,    setModal]    = useState(null);
+  const [modal, setModal] = useState(null);
 
   useEffect(() => {
-    api.get('/admin/medicamentos')
-      .then(data  => { setMeds(data); setError(null); })
-      .catch(()   => setError('No se pudieron cargar los medicamentos.'))
+    // Apunta exactamente al nuevo endpoint administrativo sin restricciones
+    api.get('/medicamentos/admin')
+      .then(data => { setMeds(data); setError(null); })
+      .catch(() => setError('No se pudieron cargar los medicamentos.'))
       .finally(() => setLoading(false));
   }, []);
 
   async function handleGuardar(form) {
     if (modal.modo === 'crear') {
-      const nuevo = await api.post('/admin/medicamentos', form);
-      setMeds(prev => [nuevo, ...prev]);
+      const respuesta = await api.post('/medicamentos', form);
+      setMeds(prev => [respuesta.medicamento, ...prev]);
     } else {
-      const actualizado = await api.put(`/admin/medicamentos/${modal.med.id}`, form);
-      setMeds(prev => prev.map(m => m.id === modal.med.id ? { ...m, ...actualizado } : m));
+      const respuesta = await api.put(`/medicamentos/${modal.med.id}`, form);
+      setMeds(prev => prev.map(m => m.id === modal.med.id ? respuesta.medicamento : m));
     }
     setModal(null);
   }
 
   const filtrados = meds.filter(m => {
     const coincideBuscar = !buscar ||
-      m.nombre.toLowerCase().includes(buscar.toLowerCase()) ||
-      (m.principio ?? '').toLowerCase().includes(buscar.toLowerCase());
+      (m.nombre_comercial ?? '').toLowerCase().includes(buscar.toLowerCase()) ||
+      (m.principio_activo ?? '').toLowerCase().includes(buscar.toLowerCase());
     const coincideTipo = !tipoFilt || m.tipo === tipoFilt;
     return coincideBuscar && coincideTipo;
   });
@@ -138,7 +177,7 @@ export default function MedicamentosAdmin() {
       <div className="admin-modulo__cabecera">
         <div>
           <h1 className="admin-modulo__titulo">Medicamentos</h1>
-          <p className="admin-modulo__subtitulo">Catálogo de medicamentos del sistema</p>
+          <p className="admin-modulo__subtitulo">Catálogo global de medicamentos del sistema</p>
         </div>
         <button
           className="btn-admin-primario"
@@ -151,7 +190,7 @@ export default function MedicamentosAdmin() {
       <div className="admin-filtros">
         <input
           className="admin-filtros__input"
-          placeholder="🔍  Buscar por nombre o principio activo…"
+          placeholder="Buscar por nombre o principio activo…"
           value={buscar}
           onChange={e => setBuscar(e.target.value)}
         />
@@ -189,41 +228,40 @@ export default function MedicamentosAdmin() {
                 </tr>
               ))
               : filtrados.length === 0
-              ? (
-                <tr>
-                  <td colSpan={6} className="admin-vacio">
-                    <span>💊</span>
-                    <p>No se encontraron medicamentos.</p>
-                  </td>
-                </tr>
-              )
-              : filtrados.map(m => (
-                <tr key={m.id} className={!m.activo ? 'admin-tabla__row--inactivo' : ''}>
-                  <td>
-                    <p className="admin-tabla__nombre">💊 {m.nombre}</p>
-                  </td>
-                  <td className="admin-tabla__meta">{m.principio ?? '—'}</td>
-                  <td>
-                    <span className={`badge ${TIPO_BADGE[m.tipo] ?? 'badge--gris'}`}>
-                      {m.tipo}
-                    </span>
-                  </td>
-                  <td className="admin-tabla__meta">{m.presentacion ?? '—'}</td>
-                  <td>
-                    <span className={`badge ${m.activo ? 'badge--verde' : 'badge--gris'}`}>
-                      {m.activo ? 'Activo' : 'Inactivo'}
-                    </span>
-                  </td>
-                  <td>
-                    <button
-                      className="btn-tabla btn-tabla--editar"
-                      onClick={() => setModal({ modo: 'editar', med: m })}
-                    >
-                      Editar
-                    </button>
-                  </td>
-                </tr>
-              ))
+                ? (
+                  <tr>
+                    <td colSpan={6} className="admin-vacio">
+                      <p>No se encontraron medicamentos registrados.</p>
+                    </td>
+                  </tr>
+                )
+                : filtrados.map(m => (
+                  <tr key={m.id} className={!m.activo ? 'admin-tabla__row--inactivo' : ''}>
+                    <td>
+                      <p className="admin-tabla__nombre">{m.nombre_comercial}</p>
+                    </td>
+                    <td className="admin-tabla__meta">{m.principio_activo ?? '—'}</td>
+                    <td>
+                      <span className={`badge ${TIPO_BADGE[m.tipo] ?? 'badge--gris'}`}>
+                        {m.tipo}
+                      </span>
+                    </td>
+                    <td className="admin-tabla__meta">{m.presentaciones ?? '—'}</td>
+                    <td>
+                      <span className={`badge ${m.activo ? 'badge--verde' : 'badge--gris'}`}>
+                        {m.activo ? 'Activo' : 'Inactivo'}
+                      </span>
+                    </td>
+                    <td>
+                      <button
+                        className="btn-tabla btn-tabla--editar"
+                        onClick={() => setModal({ modo: 'editar', med: m })}
+                      >
+                        Editar
+                      </button>
+                    </td>
+                  </tr>
+                ))
             }
           </tbody>
         </table>
