@@ -1,0 +1,182 @@
+/* ════════════════════════════════════════════════
+   CitasAdmin — Gestión de citas premium
+   ════════════════════════════════════════════════ */
+
+.citas-admin {
+  max-width: 1400px;
+}
+
+/* ── Conteo ── */
+.citas-admin__conteo {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.citas-admin__conteo strong {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--melika-text-primary);
+}
+.citas-admin__conteo span {
+  font-size: 13px;
+  color: var(--melika-text-muted);
+}
+
+/* ── Chips de filtro rápido ── */
+.citas-admin__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.citas-admin__chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--melika-border);
+  background: var(--melika-bg-card);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--melika-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.citas-admin__chip:hover {
+  border-color: var(--melika-primary);
+  color: var(--melika-primary);
+}
+.citas-admin__chip--activo {
+  background: var(--melika-primary);
+  border-color: var(--melika-primary);
+  color: #fff;
+}
+
+.chip__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.chip--pendiente   .chip__dot { background: #F59E0B; }
+.chip--completada  .chip__dot { background: #10B981; }
+.chip--cancelada   .chip__dot { background: #EF4444; }
+.chip--no_asistio  .chip__dot { background: #6B7280; }
+
+.chip--pendiente.citas-admin__chip--activo   .chip__dot,
+.chip--completada.citas-admin__chip--activo  .chip__dot,
+.chip--cancelada.citas-admin__chip--activo   .chip__dot,
+.chip--no_asistio.citas-admin__chip--activo  .chip__dot { background: rgba(255,255,255,0.8); }
+
+.chip__num {
+  background: rgba(0,0,0,0.08);
+  border-radius: 10px;
+  padding: 1px 6px;
+  font-size: 11px;
+}
+.citas-admin__chip--activo .chip__num { background: rgba(255,255,255,0.2); }
+
+/* ── Grupo de fechas ── */
+.admin-filtros__fecha-grupo {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.admin-filtros__fecha-grupo label {
+  font-size: 11px;
+  color: var(--melika-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ── Tabla ── */
+.admin-tabla__id {
+  font-size: 12px;
+  color: var(--melika-text-muted);
+  white-space: nowrap;
+}
+.admin-tabla__nombre {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--melika-text-primary);
+  margin: 0 0 2px;
+}
+.admin-tabla__meta {
+  font-size: 12px;
+  color: var(--melika-text-muted);
+  margin: 0;
+}
+.admin-tabla__fecha {
+  white-space: nowrap;
+}
+
+/* ── Modal header ── */
+.admin-modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-4);
+}
+.admin-modal__header h3 {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--melika-text-primary);
+  margin: 0;
+}
+.admin-modal__id {
+  color: var(--melika-text-muted);
+  font-weight: 400;
+}
+.admin-modal__cerrar {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: var(--melika-text-muted);
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+.admin-modal__cerrar:hover {
+  background: var(--melika-bg-secondary);
+}
+
+/* ── Grid de detalle en modal ── */
+.cita-detalle-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+  background: var(--melika-bg-secondary);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+.cita-detalle-item label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--melika-text-muted);
+  display: block;
+  margin-bottom: 3px;
+}
+.cita-detalle-item p {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--melika-text-primary);
+  margin: 0;
+}
+.cita-detalle-item--full {
+  grid-column: 1 / -1;
+}
+
+/* ── Vacío ── */
+.admin-vacio {
+  text-align: center;
+  padding: var(--space-10) !important;
+  color: var(--melika-text-muted);
+}
+.admin-vacio span { font-size: 32px; display: block; margin-bottom: var(--space-2); }
+.admin-vacio p { margin: 0; font-size: 14px; }

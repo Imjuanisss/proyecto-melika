@@ -11,19 +11,24 @@ import Dashboard from "./pages/dashboard/Dashboard";
 import Agendarcita from "./pages/agendar/Agendarcita";
 import MisCitas from "./pages/miscitas/MisCitas";
 import DashboardMedico from "./pages/dashboard-medico/DashboardMedico";
-import MedicosAdmin from "./pages/admin/MedicosAdmin";
 import ActivarCuenta from "./pages/activar-cuenta/ActivarCuenta";
 import Catalogo from "./pages/catalogo/Catalogo";
-// Importaciones a agregar al inicio:
-import AdminLayout from "./pages/admin/AdminLayout";
-import AdminDashboard from "./pages/admin/AdminDashboard";
-import HorariosAdmin from "./pages/admin/HorariosAdmin";
-import UsuariosAdmin from "./pages/admin/UsuariosAdmin";
-import CitasAdmin from "./pages/admin/CitasAdmin";
-import EspecialidadesAdmin from "./pages/admin/EspecialidadesAdmin";
-import MedicamentosAdmin from "./pages/admin/MedicamentosAdmin";
-// MedicosAdmin ya está importado
 
+// 🩺 IMPORTACIONES DE ESPECIALIDADES (PÚBLICAS)
+import Especialidades from "./pages/especialidades/Especialidades";
+import MedicosEspecialidad from "./pages/especialidades/MedicosEspecialidad";
+
+// ─── Imports Admin (nueva estructura de carpetas) ────────────────────────────
+import AdminLayout          from "./pages/admin/AdminLayout";
+import AdminDashboard       from "./pages/admin/dashboard/AdminDashboard";
+import MedicosAdmin         from "./pages/admin/gestionmedicos/MedicosAdmin"; 
+import HorariosAdmin        from "./pages/admin/gestionhorarios/HorariosAdmin";
+import UsuariosAdmin        from "./pages/admin/gestionusuarios/UsuariosAdmin";
+import CitasAdmin           from "./pages/admin/gestioncitas/CitasAdmin";
+import EspecialidadesAdmin  from "./pages/admin/gestionespecialidades/EspecialidadesAdmin";
+import MedicamentosAdmin    from "./pages/admin/gestionmedicamentos/MedicamentosAdmin";
+
+// ─── Middlewares de Protección de Rutas ──────────────────────────────────────
 function RutaProtegida({ children }) {
   const { usuario } = useAuth();
   if (!usuario) return <Navigate to="/login" replace />;
@@ -44,85 +49,49 @@ function RutaAdmin({ children }) {
   return children;
 }
 
-function AppRoutes() {
-  return (
-    <>
-      <Navbar />
-      <Routes>
-        {/* ── Públicas ────────────────────────────────── */}
-        <Route path="/" element={<Inicio />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/registro" element={<Registro />} />
-        <Route path="/verificar" element={<Verificar />} />
-        <Route path="/recuperar" element={<RecuperarPassword />} />
-        <Route path="/nueva-password" element={<NuevaPassword />} />
-        <Route path="/activar-cuenta" element={<ActivarCuenta />} />
-        <Route path="/catalogo" element={<Catalogo />} />
-        {/* ── Paciente ────────────────────────────────── */}
-        <Route
-          path="/dashboard"
-          element={
-            <RutaProtegida>
-              <Dashboard />
-            </RutaProtegida>
-          }
-        />
-        <Route
-          path="/agendar"
-          element={
-            <RutaProtegida>
-              <Agendarcita />
-            </RutaProtegida>
-          }
-        />
-        <Route
-          path="/mis-citas"
-          element={
-            <RutaProtegida>
-              <MisCitas />
-            </RutaProtegida>
-          }
-        />
-        {/* ── Médico ──────────────────────────────────── */}
-        <Route
-          path="/dashboard-medico"
-          element={
-            <RutaMedico>
-              <DashboardMedico />
-            </RutaMedico>
-          }
-        />
-        // Reemplaza las rutas admin por:
-        {/* ── Admin — layout con sidebar ─────────── */}
-        <Route
-          path="/admin"
-          element={
-            <RutaAdmin>
-              <AdminLayout />
-            </RutaAdmin>
-          }
-        >
-          <Route index element={<AdminDashboard />} />
-          <Route path="medicos" element={<MedicosAdmin />} />
-          <Route path="horarios" element={<HorariosAdmin />} />
-          <Route path="usuarios" element={<UsuariosAdmin />} />
-          <Route path="citas" element={<CitasAdmin />} />
-          <Route path="especialidades" element={<EspecialidadesAdmin />} />
-          <Route path="medicamentos" element={<MedicamentosAdmin />} />
-        </Route>
-        {/* ── Catch-all: siempre al final ─────────────── */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </>
-  );
-}
-
-export default function App() {
+// ─── Componente Principal ────────────────────────────────────────────────────
+function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <AppRoutes />
+        <Navbar />
+        <Routes>
+          {/* 🔓 Rutas Públicas */}
+          <Route path="/" element={<Inicio />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/registro" element={<Registro />} />
+          <Route path="/verificar" element={<Verificar />} />
+          <Route path="/recuperar" element={<RecuperarPassword />} />
+          <Route path="/nueva-password" element={<NuevaPassword />} />
+          <Route path="/catalogo" element={<Catalogo />} />
+
+          {/* 🩺 Catálogo de Especialidades y Médicos (Públicos) */}
+          <Route path="/especialidades" element={<Especialidades />} />
+          <Route path="/especialidades/:id/medicos" element={<MedicosEspecialidad />} />
+
+          {/* 🔒 Rutas de Pacientes Protegidas */}
+          <Route path="/dashboard" element={<RutaProtegida><Dashboard /></RutaProtegida>} />
+          <Route path="/agendar" element={<RutaProtegida><Agendarcita /></RutaProtegida>} />
+          <Route path="/miscitas" element={<RutaProtegida><MisCitas /></RutaProtegida>} />
+
+          {/* 🩺 Rutas de Médicos Protegidas */}
+          <Route path="/dashboard-medico" element={<RutaMedico><DashboardMedico /></RutaMedico>} />
+          <Route path="/activar-cuenta" element={<RutaMedico><ActivarCuenta /></RutaMedico>} />
+
+          {/* 👑 Rutas de Admin Protegidas (Anidadas) */}
+          <Route path="/admin" element={<RutaAdmin><AdminLayout /></RutaAdmin>}>
+            <Route index element={<AdminDashboard />} />
+            <Route path="medicos" element={<MedicosAdmin />} />
+            <Route path="horarios" element={<HorariosAdmin />} />
+            <Route path="usuarios" element={<UsuariosAdmin />} />
+            <Route path="citas" element={<CitasAdmin />} />
+            <Route path="especialidades" element={<EspecialidadesAdmin />} />
+            <Route path="medicamentos" element={<MedicamentosAdmin />} />
+          </Route>
+        </Routes>
       </BrowserRouter>
     </AuthProvider>
   );
 }
+
+export default App;

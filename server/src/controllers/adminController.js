@@ -135,7 +135,7 @@ async function toggleEstadoUsuario(req, res) {
   }
 }
 
-// ─── GET /admin/citas — Lista global de citas (Admin) ─────────────────
+// ─── REEMPLAZAR función listarCitas ───────────────────────────────────────────
 async function listarCitas(req, res) {
   const { estado, fecha_desde, fecha_hasta, buscar } = req.query;
 
@@ -144,7 +144,9 @@ async function listarCitas(req, res) {
     const params = [];
     let idx = 1;
 
-    if (estado && ['pendiente','confirmada','completada','cancelada'].includes(estado)) {
+    // FIX: 'confirmada' no existe en el CHECK del schema.
+    // Valores válidos: 'pendiente' | 'completada' | 'cancelada' | 'no_asistio'
+    if (estado && ['pendiente', 'completada', 'cancelada', 'no_asistio'].includes(estado)) {
       condiciones.push(`c.estado = $${idx++}`);
       params.push(estado);
     }
@@ -165,18 +167,21 @@ async function listarCitas(req, res) {
       idx++;
     }
 
+    // FIX: hora_fin no existe en citas — viene de franjas_horarias via LEFT JOIN
     const resultado = await pool.query(
       `SELECT c.id, c.fecha, c.hora_inicio, c.estado, c.tipo_consulta,
-              c.motivo, c.razon_cancelacion, c.tarifa_cobrada, c.created_at,
+              c.motivo, c.razon_cancelacion, c.tarifa, c.created_at,
+              f.hora_fin,
               up.nombre AS paciente_nombre, up.primer_apellido AS paciente_apellido,
               up.email  AS paciente_email,
               um.nombre AS medico_nombre,  um.primer_apellido AS medico_apellido,
               e.nombre  AS especialidad
        FROM citas c
-       JOIN usuarios up ON c.id_paciente    = up.id
-       JOIN medicos  m  ON c.id_medico      = m.id
-       JOIN usuarios um ON m.id_usuario     = um.id
-       JOIN especialidades e ON c.id_especialidad = e.id
+       JOIN usuarios up        ON c.id_paciente    = up.id
+       JOIN medicos  m         ON c.id_medico      = m.id
+       JOIN usuarios um        ON m.id_usuario     = um.id
+       JOIN especialidades e   ON c.id_especialidad = e.id
+       LEFT JOIN franjas_horarias f ON c.id_franja = f.id
        WHERE ${condiciones.join(' AND ')}
        ORDER BY c.fecha DESC, c.hora_inicio DESC`,
       params
@@ -189,17 +194,21 @@ async function listarCitas(req, res) {
   }
 }
 
-// ─── PATCH /admin/citas/:id/estado — Cambiar estado de una cita ───────
+// ─── REEMPLAZAR función cambiarEstadoCita ─────────────────────────────────────
 async function cambiarEstadoCita(req, res) {
   const { id } = req.params;
   const { estado, razon_cancelacion } = req.body;
 
-  const estadosValidos = ['pendiente','confirmada','completada','cancelada'];
+  // FIX: estados alineados con el CHECK del schema real
+  const estadosValidos = ['pendiente', 'completada', 'cancelada', 'no_asistio'];
   if (!estadosValidos.includes(estado))
     return res.status(400).json({ mensaje: 'Estado no válido.' });
 
   try {
-    const cita = await pool.query('SELECT id, estado, id_franja FROM citas WHERE id = $1', [id]);
+    const cita = await pool.query(
+      'SELECT id, estado, id_franja FROM citas WHERE id = $1',
+      [id]
+    );
     if (cita.rows.length === 0)
       return res.status(404).json({ mensaje: 'Cita no encontrada.' });
 
@@ -208,7 +217,7 @@ async function cambiarEstadoCita(req, res) {
       [estado, razon_cancelacion || null, id]
     );
 
-    // Si se cancela, liberar la franja
+    // Si se cancela, liberar la franja horaria
     if (estado === 'cancelada') {
       await pool.query(
         'UPDATE franjas_horarias SET disponible = TRUE WHERE id = $1',

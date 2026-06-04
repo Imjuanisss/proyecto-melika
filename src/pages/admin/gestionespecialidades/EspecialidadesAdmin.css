@@ -1,0 +1,128 @@
+/* ════════════════════════════════════════════════
+   EspecialidadesAdmin — Catálogo premium
+   ════════════════════════════════════════════════ */
+
+.especialidades-admin { max-width: 1300px; }
+
+/* ── Grid de cards ── */
+.esp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-4);
+}
+
+.esp-card {
+  display: flex;
+  gap: var(--space-4);
+  background: var(--melika-bg-card);
+  border: 1px solid var(--melika-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.esp-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.07);
+}
+.esp-card--inactiva { opacity: 0.55; }
+.esp-card--skeleton { pointer-events: none; }
+
+.esp-card__icono {
+  font-size: 36px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.esp-card__info { flex: 1; min-width: 0; }
+
+.esp-card__nombre {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--melika-text-primary);
+  margin: 0 0 4px;
+}
+
+.esp-card__descripcion {
+  font-size: 12px;
+  color: var(--melika-text-muted);
+  margin: 0 0 6px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.esp-card__precio {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--melika-primary);
+  margin: 0 0 10px;
+}
+
+.esp-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* ── Modal icono selector ── */
+.esp-modal-icono-selector {
+  margin-bottom: var(--space-4);
+}
+.esp-modal-icono-selector label {
+  display: block;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--melika-text-muted);
+  margin-bottom: var(--space-2);
+}
+.esp-iconos-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.esp-icono-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--melika-border);
+  background: var(--melika-bg-secondary);
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.esp-icono-btn:hover { border-color: var(--melika-primary); transform: scale(1.1); }
+.esp-icono-btn--activo {
+  border-color: var(--melika-primary);
+  background: rgba(var(--melika-primary-rgb, 0,0,0), 0.1);
+  box-shadow: 0 0 0 2px var(--melika-primary);
+}
+
+/* ── Toggle estado ── */
+.admin-campo--toggle { flex-direction: row; align-items: center; justify-content: space-between; }
+.toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--melika-border);
+  background: var(--melika-bg-secondary);
+  font-size: 13px;
+  color: var(--melika-text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.toggle-btn--activo {
+  background: rgba(16,185,129,0.1);
+  border-color: #10B981;
+  color: #10B981;
+}
+.toggle-btn__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--melika-text-muted);
+}
+.toggle-btn--activo .toggle-btn__dot { background: #10B981; }

@@ -39,3 +39,13 @@
 }
 
 .horarios-detalle strong { color: var(--melika-text-primary); }
+
+/* ── Fix overflow HorariosAdmin ── */
+.horarios-admin,
+.fc {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+.fc .fc-toolbar-title {
+  font-size: clamp(14px, 1.5vw, 18px);
+}

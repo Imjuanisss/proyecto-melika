@@ -1,0 +1,509 @@
+/* ═══════════════════════════════════════════════════════════════════
+   MELIKA ADMIN — MedicosAdmin.css v2
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ─── Wrapper ────────────────────────────────────────────────────── */
+.medicos-admin-v2 {
+  max-width: 1360px;
+  animation: adm-page-in 0.3s var(--adm-ease-out) both;
+}
+
+@keyframes adm-page-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Contadores ─────────────────────────────────────────────────── */
+.med-counts {
+  display: flex;
+  align-items: center;
+  gap: var(--adm-sp-2);
+  flex-wrap: wrap;
+  margin-top: var(--adm-sp-2);
+}
+
+.med-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--adm-font-ui);
+  font-size: var(--adm-text-xs);
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: var(--adm-r-full);
+}
+
+.med-count__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.med-count--total {
+  background: var(--adm-surface-2);
+  color: var(--adm-ink-600);
+  border: 1px solid var(--adm-border-default);
+}
+.med-count--total .med-count__dot { background: var(--adm-ink-400); }
+
+.med-count--activos {
+  background: var(--adm-green-50);
+  color: var(--adm-green-700);
+  border: 1px solid var(--adm-green-100);
+}
+.med-count--activos .med-count__dot { background: var(--adm-green-500); }
+
+.med-count--inactivos {
+  background: var(--adm-red-50);
+  color: var(--adm-red-700);
+  border: 1px solid var(--adm-red-100);
+}
+.med-count--inactivos .med-count__dot { background: var(--adm-red-500); }
+
+/* ─── Tabs de estado ─────────────────────────────────────────────── */
+.filtro-estado-tabs {
+  display: flex;
+  gap: 3px;
+  background: var(--adm-surface-2);
+  border: 1px solid var(--adm-border-default);
+  border-radius: var(--adm-r-md);
+  padding: 3px;
+}
+
+.filtro-tab {
+  font-family: var(--adm-font-ui);
+  font-size: var(--adm-text-xs);
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: var(--adm-r-sm);
+  border: none;
+  color: var(--adm-ink-400);
+  background: transparent;
+  cursor: pointer;
+  transition: all var(--adm-t-fast) var(--adm-ease);
+  white-space: nowrap;
+}
+.filtro-tab:hover {
+  background: var(--adm-surface-0);
+  color: var(--adm-ink-700);
+}
+.filtro-tab--activo {
+  background: var(--adm-surface-0) !important;
+  color: var(--adm-ink-900) !important;
+  box-shadow: var(--adm-shadow-xs);
+}
+
+/* ─── Error / Éxito en modal ─────────────────────────────────────── */
+.admin-error__reintentar {
+  margin-left: auto;
+  flex-shrink: 0;
+  background: var(--adm-red-700);
+  color: #fff;
+  border: none;
+  border-radius: var(--adm-r-xs);
+  padding: 4px 10px;
+  font-family: var(--adm-font-ui);
+  font-size: var(--adm-text-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--adm-t-fast);
+}
+.admin-error__reintentar:hover { background: var(--adm-red-500); }
+
+/* ─── Tabla médicos ──────────────────────────────────────────────── */
+.medicos-tabla-v2 {
+  table-layout: fixed;
+}
+
+/* Anchos de columna definidos */
+.medicos-tabla-v2 .col-medico    { width: 220px; }
+.medicos-tabla-v2 .col-doc       { width: 140px; }
+.medicos-tabla-v2 .col-esp       { width: 140px; }
+.medicos-tabla-v2 .col-registro  { width: 130px; }
+.medicos-tabla-v2 .col-ciudad    { width: 110px; }
+.medicos-tabla-v2 .col-exp       { width: 80px;  }
+.medicos-tabla-v2 .col-modal     { width: 140px; }
+.medicos-tabla-v2 .col-estado    { width: 90px;  }
+.medicos-tabla-v2 .col-acciones  { width: 140px; }
+
+/* Fila inactiva */
+.fila-inactiva td { opacity: 0.55; }
+.fila-inactiva:hover td { opacity: 0.75; }
+
+/* ─── Celda avatar + nombre ──────────────────────────────────────── */
+.med-avatar-cell {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.med-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--adm-font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+  text-transform: uppercase;
+  background: linear-gradient(135deg, var(--adm-teal-500), var(--adm-teal-700));
+  box-shadow: 0 2px 6px rgba(23, 122, 143, 0.28);
+  border: 2px solid var(--adm-surface-0);
+}
+
+.med-avatar--inactivo {
+  background: linear-gradient(135deg, var(--adm-ink-200), var(--adm-ink-100)) !important;
+  box-shadow: none;
+  color: var(--adm-ink-400);
+}
+
+.med-info { min-width: 0; }
+
+.med-nombre {
+  font-size: var(--adm-text-sm);
+  font-weight: 600;
+  color: var(--adm-ink-900);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+  margin-bottom: 2px;
+}
+
+.med-email {
+  font-size: var(--adm-text-xs);
+  color: var(--adm-ink-300);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ─── Documento ──────────────────────────────────────────────────── */
+.med-doc {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.med-doc__num {
+  font-family: var(--adm-font-mono);
+  font-size: var(--adm-text-xs);
+  color: var(--adm-ink-400);
+}
+
+/* ─── Texto mono genérico ────────────────────────────────────────── */
+.text-mono {
+  font-family: var(--adm-font-mono);
+  font-size: var(--adm-text-xs);
+  color: var(--adm-ink-500, var(--adm-ink-400));
+  letter-spacing: 0.02em;
+}
+
+.text-muted {
+  color: var(--adm-ink-200);
+  font-size: var(--adm-text-xs);
+}
+
+/* ─── Chips de modalidad ─────────────────────────────────────────── */
+.modalidad-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--adm-font-ui);
+  font-size: var(--adm-text-xs);
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: var(--adm-r-full);
+  white-space: nowrap;
+  width: fit-content;
+}
+
+.chip--presencial   {
+  background: var(--adm-teal-50);
+  color: var(--adm-teal-700);
+  border: 1px solid var(--adm-teal-100);
+}
+
+.chip--teleconsulta {
+  background: var(--adm-coral-50);
+  color: var(--adm-coral-600);
+  border: 1px solid var(--adm-coral-100);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   MODAL DE MÉDICOS — diseño ampliado
+   ═══════════════════════════════════════════════════════════════════ */
+.medicos-modal {
+  max-width: 680px !important;
+  max-height: 92vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--adm-ink-100) transparent;
+  padding: 0 !important; /* override del .admin-modal */
+}
+.medicos-modal::-webkit-scrollbar { width: 4px; }
+.medicos-modal::-webkit-scrollbar-thumb { background: var(--adm-ink-100); border-radius: 2px; }
+
+/* ─── Header del modal ───────────────────────────────────────────── */
+.medicos-modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--adm-sp-4);
+  padding: var(--adm-sp-8) var(--adm-sp-8) var(--adm-sp-5);
+  border-bottom: 1px solid var(--adm-border-subtle);
+  background: var(--adm-surface-1);
+  border-radius: var(--adm-r-2xl) var(--adm-r-2xl) 0 0;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.medicos-modal__header-info { min-width: 0; }
+
+.medicos-modal__header h3 {
+  font-size: var(--adm-text-xl);
+  font-weight: 700;
+  color: var(--adm-ink-900);
+  letter-spacing: -0.02em;
+  margin-bottom: 4px;
+}
+
+.medicos-modal__sub {
+  font-size: var(--adm-text-sm);
+  color: var(--adm-ink-400);
+  line-height: 1.4;
+}
+
+.modal-close-btn {
+  background: transparent;
+  border: 1px solid var(--adm-border-default);
+  border-radius: var(--adm-r-sm);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: var(--adm-ink-400);
+  cursor: pointer;
+  transition: all var(--adm-t-fast) var(--adm-ease);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.modal-close-btn:hover {
+  background: var(--adm-red-50);
+  border-color: var(--adm-red-100);
+  color: var(--adm-red-700);
+}
+
+/* ─── Cuerpo del modal (padding, secciones) ──────────────────────── */
+.medicos-modal__body {
+  padding: var(--adm-sp-6) var(--adm-sp-8);
+}
+
+.medicos-modal__footer {
+  padding: var(--adm-sp-5) var(--adm-sp-8) var(--adm-sp-6);
+  border-top: 1px solid var(--adm-border-subtle);
+  background: var(--adm-surface-1);
+  border-radius: 0 0 var(--adm-r-2xl) var(--adm-r-2xl);
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+}
+
+/* ─── Secciones del formulario ───────────────────────────────────── */
+.form-seccion {
+  margin-bottom: var(--adm-sp-6);
+}
+
+.form-seccion:last-of-type { margin-bottom: 0; }
+
+.form-seccion__titulo {
+  display: flex;
+  align-items: center;
+  gap: var(--adm-sp-3);
+  margin-bottom: var(--adm-sp-4);
+  padding-bottom: var(--adm-sp-3);
+  border-bottom: 1px solid var(--adm-border-subtle);
+}
+
+.form-seccion__num {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--adm-teal-600);
+  color: #fff;
+  font-family: var(--adm-font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.form-seccion__label {
+  font-family: var(--adm-font-ui);
+  font-size: var(--adm-text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: var(--adm-ink-400);
+}
+
+/* Labels con req y hints */
+.req { color: var(--adm-coral-500); margin-left: 2px; }
+
+.campo-hint {
+  font-size: var(--adm-text-xs);
+  color: var(--adm-ink-300);
+  font-weight: 400;
+  margin-left: 4px;
+}
+
+.campo-warning {
+  display: block;
+  font-size: var(--adm-text-xs);
+  color: var(--adm-amber-500);
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+.campo-contador {
+  display: block;
+  text-align: right;
+  font-size: var(--adm-text-xs);
+  color: var(--adm-ink-300);
+  margin-top: 3px;
+}
+
+.input-disabled {
+  background: var(--adm-surface-2) !important;
+  color: var(--adm-ink-300) !important;
+  cursor: not-allowed !important;
+  border-color: var(--adm-border-subtle) !important;
+}
+
+/* ─── Toggles de modalidad ───────────────────────────────────────── */
+.modalidades-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--adm-sp-3);
+}
+
+.modalidad-toggle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--adm-sp-3);
+  padding: var(--adm-sp-4);
+  border: 1.5px solid var(--adm-border-default);
+  border-radius: var(--adm-r-md);
+  cursor: pointer;
+  transition: all var(--adm-t-base) var(--adm-ease);
+  background: var(--adm-surface-1);
+  user-select: none;
+}
+
+.modalidad-toggle input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0; height: 0;
+}
+
+.modalidad-toggle:hover {
+  border-color: var(--adm-teal-300);
+  background: var(--adm-teal-50);
+}
+
+.modalidad-toggle--activo {
+  border-color: var(--adm-teal-400) !important;
+  background: var(--adm-teal-50) !important;
+  box-shadow: 0 0 0 3px var(--adm-teal-50);
+}
+
+.modalidad-toggle__icon {
+  font-size: 20px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.modalidad-toggle__content { flex: 1; min-width: 0; }
+
+.modalidad-toggle__label {
+  display: block;
+  font-family: var(--adm-font-ui);
+  font-size: var(--adm-text-sm);
+  font-weight: 600;
+  color: var(--adm-ink-800);
+  margin-bottom: 2px;
+}
+
+.modalidad-toggle__desc {
+  display: block;
+  font-size: var(--adm-text-xs);
+  color: var(--adm-ink-400);
+}
+
+.modalidad-toggle__check {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--adm-border-default);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: transparent;
+  flex-shrink: 0;
+  transition: all var(--adm-t-base) var(--adm-ease-spring);
+}
+
+.modalidad-toggle--activo .modalidad-toggle__check {
+  background: var(--adm-teal-600);
+  border-color: var(--adm-teal-600);
+  color: #fff;
+  transform: scale(1.08);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════════════════════════════════ */
+@media (max-width: 1100px) {
+  .medicos-tabla-v2 .col-ciudad,
+  .medicos-tabla-v2 th:nth-child(5),
+  .medicos-tabla-v2 td:nth-child(5) { display: none; }
+}
+
+@media (max-width: 900px) {
+  .medicos-tabla-v2 .col-registro,
+  .medicos-tabla-v2 th:nth-child(4),
+  .medicos-tabla-v2 td:nth-child(4),
+  .medicos-tabla-v2 .col-exp,
+  .medicos-tabla-v2 th:nth-child(6),
+  .medicos-tabla-v2 td:nth-child(6) { display: none; }
+  .modalidades-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 680px) {
+  .medicos-modal { max-width: 100% !important; border-radius: var(--adm-r-xl) !important; }
+  .medicos-modal__header,
+  .medicos-modal__body,
+  .medicos-modal__footer { padding-left: var(--adm-sp-5); padding-right: var(--adm-sp-5); }
+  .filtro-estado-tabs { flex-wrap: wrap; }
+  .admin-form-grid { grid-template-columns: 1fr !important; }
+}

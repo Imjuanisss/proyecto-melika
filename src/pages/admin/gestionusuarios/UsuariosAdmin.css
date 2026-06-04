@@ -1,0 +1,152 @@
+/* ════════════════════════════════════════════════
+   UsuariosAdmin — Gestión de usuarios premium
+   ════════════════════════════════════════════════ */
+
+.usuarios-admin {
+  max-width: 1400px;
+}
+
+.usuarios-admin__total {
+  font-size: 14px;
+  color: var(--melika-text-muted);
+}
+.usuarios-admin__total span {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--melika-text-primary);
+  margin-right: 4px;
+}
+
+/* ── Chips ── */
+.usuarios-admin__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+.usuarios-admin__chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--melika-border);
+  background: var(--melika-bg-card);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--melika-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.usuarios-admin__chip:hover { border-color: var(--melika-primary); color: var(--melika-primary); }
+.usuarios-admin__chip--activo {
+  background: var(--melika-primary);
+  border-color: var(--melika-primary);
+  color: #fff;
+}
+.usuarios-admin__chip--activo .chip__num { background: rgba(255,255,255,0.2); }
+
+/* ── Grid tarjetas ── */
+.usuarios-admin__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-3);
+}
+
+.usuario-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  background: var(--melika-bg-card);
+  border: 1px solid var(--melika-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+}
+.usuario-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.07);
+  border-color: var(--melika-primary);
+}
+.usuario-card--inactivo { opacity: 0.6; }
+.usuario-card--skeleton { pointer-events: none; }
+
+.usuario-card__avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 15px;
+  color: #fff;
+  flex-shrink: 0;
+}
+.usuario-card__info { flex: 1; min-width: 0; }
+.usuario-card__nombre {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--melika-text-primary);
+  margin: 0 0 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.usuario-card__email {
+  font-size: 12px;
+  color: var(--melika-text-muted);
+  margin: 0 0 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.usuario-card__badges { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* ── Modal perfil ── */
+.usuario-modal-perfil {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--melika-bg-secondary);
+  border-radius: var(--radius-md);
+}
+.usuario-modal-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 20px;
+  color: #fff;
+  flex-shrink: 0;
+}
+.usuario-modal-nombre {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--melika-text-primary);
+  margin: 0 0 4px;
+}
+.usuario-modal-email {
+  font-size: 13px;
+  color: var(--melika-text-muted);
+  margin: 0;
+}
+
+.btn--danger { background: #EF4444 !important; }
+.btn--danger:hover { background: #DC2626 !important; }
+
+.admin-vacio-full {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: var(--space-10);
+  color: var(--melika-text-muted);
+}
+.admin-vacio-full span { font-size: 36px; display: block; margin-bottom: var(--space-2); }
+.admin-vacio-full p { margin: 0; font-size: 14px; }

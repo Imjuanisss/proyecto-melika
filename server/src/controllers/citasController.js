@@ -86,9 +86,7 @@ async function crearCita(req, res) {
   }
 }
 
-// =============================================================================
-// GET /citas/mis-citas — Citas del paciente autenticado (vista lista)
-// =============================================================================
+// function misCitas: GET /citas/mis-citas — Listar citas del paciente (con datos de médico y especialidad)
 async function misCitas(req, res) {
   const id_paciente = req.usuario.id;
 
@@ -98,20 +96,21 @@ async function misCitas(req, res) {
          c.id,
          c.fecha,
          c.hora_inicio,
-         c.hora_fin,
+         f.hora_fin,           -- FIX: viene de franjas_horarias, no de citas
          c.estado,
          c.tipo_consulta,
          c.motivo,
-         c.tarifa          AS tarifa_cobrada,
+         c.tarifa              AS tarifa_cobrada,
          c.razon_cancelacion,
          c.created_at,
-         u.nombre          AS medico_nombre,
-         u.primer_apellido AS medico_apellido,
-         e.nombre          AS especialidad
+         u.nombre              AS medico_nombre,
+         u.primer_apellido     AS medico_apellido,
+         e.nombre              AS especialidad
        FROM citas c
-       JOIN medicos       m  ON c.id_medico      = m.id
-       JOIN usuarios      u  ON m.id_usuario     = u.id
-       JOIN especialidades e ON c.id_especialidad = e.id
+       JOIN medicos        m  ON c.id_medico       = m.id
+       JOIN usuarios       u  ON m.id_usuario      = u.id
+       JOIN especialidades e  ON c.id_especialidad = e.id
+       LEFT JOIN franjas_horarias f ON c.id_franja = f.id  -- FIX: join agregado
        WHERE c.id_paciente = $1
        ORDER BY c.fecha DESC, c.hora_inicio DESC`,
       [id_paciente]
