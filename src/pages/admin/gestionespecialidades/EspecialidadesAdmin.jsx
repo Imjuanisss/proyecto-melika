@@ -4,19 +4,18 @@ import { api } from '../../../lib/apiClient';
 import './EspecialidadesAdmin.css';
 import '../admin-shared.css';
 
-const ICONOS_PREDEFINIDOS = ['🔬', '🫀', '🧠', '🦷', '👶', '👁️', '🦴', '🩺', '💉', '🫁', '🤰', '🦻', '🩻', '💊', '🏋️'];
-
 function ModalEspecialidad({ modo, especialidad, onGuardar, onCerrar }) {
   const [form, setForm] = useState({
-    nombre:      especialidad?.nombre      ?? '',
+    nombre: especialidad?.nombre ?? '',
     descripcion: especialidad?.descripcion ?? '',
     precio_base: especialidad?.precio_base ?? '',
-    icono:       especialidad?.icono       ?? '🔬',
-    activa:      especialidad?.activa      ?? true,
+    icono: especialidad?.imagen_url ?? '', // Tu backend recibe 'icono' y guarda en 'imagen_url'
+    activa: especialidad?.activa ?? true,
   });
   const [guardando, setGuardando] = useState(false);
 
-  async function handleSubmit() {
+  async function handleSubmit(e) {
+    if (e) e.preventDefault();
     if (!form.nombre.trim()) return alert('El nombre es obligatorio.');
     setGuardando(true);
     try {
@@ -28,25 +27,10 @@ function ModalEspecialidad({ modo, especialidad, onGuardar, onCerrar }) {
 
   return (
     <div className="admin-modal-overlay" onClick={onCerrar}>
-      <div className="admin-modal" onClick={e => e.stopPropagation()}>
+      <form className="admin-modal" onClick={e => e.stopPropagation()} onSubmit={handleSubmit}>
         <div className="admin-modal__header">
           <h3>{modo === 'crear' ? 'Nueva especialidad' : 'Editar especialidad'}</h3>
-          <button className="admin-modal__cerrar" onClick={onCerrar}>✕</button>
-        </div>
-
-        <div className="esp-modal-icono-selector">
-          <label>Ícono</label>
-          <div className="esp-iconos-grid">
-            {ICONOS_PREDEFINIDOS.map(ic => (
-              <button
-                key={ic}
-                className={`esp-icono-btn ${form.icono === ic ? 'esp-icono-btn--activo' : ''}`}
-                onClick={() => setForm(prev => ({ ...prev, icono: ic }))}
-              >
-                {ic}
-              </button>
-            ))}
-          </div>
+          <button type="button" className="admin-modal__cerrar" onClick={onCerrar}>✕</button>
         </div>
 
         <div className="admin-campo">
@@ -56,6 +40,7 @@ function ModalEspecialidad({ modo, especialidad, onGuardar, onCerrar }) {
             value={form.nombre}
             onChange={e => setForm(prev => ({ ...prev, nombre: e.target.value }))}
             placeholder="Ej: Cardiología"
+            required
           />
         </div>
 
@@ -66,6 +51,16 @@ function ModalEspecialidad({ modo, especialidad, onGuardar, onCerrar }) {
             onChange={e => setForm(prev => ({ ...prev, descripcion: e.target.value }))}
             placeholder="Breve descripción de la especialidad…"
             rows={3}
+          />
+        </div>
+
+        <div className="admin-campo">
+          <label>URL de la Imagen o Ícono</label>
+          <input
+            type="text"
+            value={form.icono}
+            onChange={e => setForm(prev => ({ ...prev, icono: e.target.value }))}
+            placeholder="Ej: /assets/icons/cardio.svg"
           />
         </div>
 
@@ -84,6 +79,7 @@ function ModalEspecialidad({ modo, especialidad, onGuardar, onCerrar }) {
           <div className="admin-campo admin-campo--toggle">
             <label>Estado</label>
             <button
+              type="button"
               className={`toggle-btn ${form.activa ? 'toggle-btn--activo' : ''}`}
               onClick={() => setForm(prev => ({ ...prev, activa: !prev.activa }))}
             >
@@ -94,38 +90,40 @@ function ModalEspecialidad({ modo, especialidad, onGuardar, onCerrar }) {
         )}
 
         <div className="admin-modal__acciones">
-          <button className="admin-modal__btn-cancelar" onClick={onCerrar}>Cancelar</button>
-          <button className="admin-modal__btn-guardar" disabled={guardando} onClick={handleSubmit}>
+          <button type="button" className="admin-modal__btn-cancelar" onClick={onCerrar}>Cancelar</button>
+          <button type="submit" className="admin-modal__btn-guardar" disabled={guardando}>
             {guardando ? 'Guardando…' : modo === 'crear' ? 'Crear especialidad' : 'Guardar cambios'}
           </button>
         </div>
-      </div>
+      </form>
     </div>
   );
 }
 
 export default function EspecialidadesAdmin() {
   const [especialidades, setEspecialidades] = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState(null);
-  const [buscar,   setBuscar]   = useState('');
-  const [modal,    setModal]    = useState(null); // null | { modo: 'crear'|'editar', esp: null|{} }
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [buscar, setBuscar] = useState('');
+  const [modal, setModal] = useState(null);
 
   useEffect(() => {
-    api.get('/admin/especialidades')
-      .then(data  => { setEspecialidades(data); setError(null); })
-      .catch(()   => setError('No se pudieron cargar las especialidades.'))
+    // Apunta exactamente al endpoint administrativo de tu controlador
+    api.get('/especialidades/admin')
+      .then(data => { setEspecialidades(data); setError(null); })
+      .catch(() => setError('No se pudieron cargar las especialidades.'))
       .finally(() => setLoading(false));
   }, []);
 
   async function handleGuardar(form) {
     if (modal.modo === 'crear') {
-      const nueva = await api.post('/admin/especialidades', form);
-      setEspecialidades(prev => [...prev, nueva]);
+      const respuesta = await api.post('/especialidades', form);
+      // Sincroniza con el formato de respuesta del backend: { mensaje, especialidad }
+      setEspecialidades(prev => [respuesta.especialidad, ...prev]);
     } else {
-      const actualizada = await api.put(`/admin/especialidades/${modal.esp.id}`, form);
+      const respuesta = await api.put(`/especialidades/${modal.esp.id}`, form);
       setEspecialidades(prev =>
-        prev.map(e => e.id === modal.esp.id ? { ...e, ...actualizada } : e)
+        prev.map(e => e.id === modal.esp.id ? respuesta.especialidad : e)
       );
     }
     setModal(null);
@@ -153,7 +151,7 @@ export default function EspecialidadesAdmin() {
       <div className="admin-filtros">
         <input
           className="admin-filtros__input"
-          placeholder="🔍  Buscar especialidad…"
+          placeholder="Buscar especialidad…"
           value={buscar}
           onChange={e => setBuscar(e.target.value)}
         />
@@ -173,37 +171,40 @@ export default function EspecialidadesAdmin() {
             </div>
           ))
           : filtradas.length === 0
-          ? (
-            <div className="admin-vacio-full">
-              <span>🔬</span>
-              <p>No se encontraron especialidades.</p>
-            </div>
-          )
-          : filtradas.map(e => (
-            <div key={e.id} className={`esp-card ${!e.activa ? 'esp-card--inactiva' : ''}`}>
-              <div className="esp-card__icono">{e.icono ?? '🔬'}</div>
-              <div className="esp-card__info">
-                <h3 className="esp-card__nombre">{e.nombre}</h3>
-                {e.descripcion && <p className="esp-card__descripcion">{e.descripcion}</p>}
-                {e.precio_base && (
-                  <p className="esp-card__precio">
-                    ${Number(e.precio_base).toLocaleString('es-CO')} COP
-                  </p>
+            ? (
+              <div className="admin-vacio-full">
+                <p>No se encontraron especialidades.</p>
+              </div>
+            )
+            : filtradas.map(e => (
+              <div key={e.id} className={`esp-card ${!e.activa ? 'esp-card--inactiva' : ''}`}>
+                {e.imagen_url && (
+                  <div className="esp-card__icono">
+                    <img src={e.imagen_url} alt={e.nombre} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                  </div>
                 )}
-                <div className="esp-card__footer">
-                  <span className={`badge ${e.activa ? 'badge--verde' : 'badge--gris'}`}>
-                    {e.activa ? 'Activa' : 'Inactiva'}
-                  </span>
-                  <button
-                    className="btn-tabla btn-tabla--editar"
-                    onClick={() => setModal({ modo: 'editar', esp: e })}
-                  >
-                    Editar
-                  </button>
+                <div className="esp-card__info">
+                  <h3 className="esp-card__nombre">{e.nombre}</h3>
+                  {e.descripcion && <p className="esp-card__descripcion">{e.descripcion}</p>}
+                  {e.precio_base && (
+                    <p className="esp-card__precio">
+                      ${Number(e.precio_base).toLocaleString('es-CO')} COP
+                    </p>
+                  )}
+                  <div className="esp-card__footer">
+                    <span className={`badge ${e.activa ? 'badge--verde' : 'badge--gris'}`}>
+                      {e.activa ? 'Activa' : 'Inactiva'}
+                    </span>
+                    <button
+                      className="btn-tabla btn-tabla--editar"
+                      onClick={() => setModal({ modo: 'editar', esp: e })}
+                    >
+                      Editar
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))
+            ))
         }
       </div>
 
