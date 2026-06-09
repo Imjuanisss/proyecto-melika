@@ -71,9 +71,9 @@ export default function MisCitas() {
     const idNum = Number(id); // normalizar a number para comparar con c.id
 
     try {
-      await api.patch(`/citas/${id}`, {
-        razon_cancelacion: 'Cancelada por el paciente',
-      });
+      await api.patch(`/citas/${modal.id}/cancelar`, { 
+  razon_cancelacion: razonCancelacion  // <-- Se envía en el body al controlador
+});
 
       // Actualizar lista local — c.id es number en PostgreSQL
       setCitas((prev) =>

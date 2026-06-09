@@ -207,8 +207,8 @@ export default function UsuariosAdmin() {
                   <p>{new Date(modal.fecha_nacimiento + 'T00:00:00').toLocaleDateString('es-CO')}</p>
                 </div>
               )}
-              {modal.created_at && (
-                <div className="cita-detalle-item">
+              {modal.d_at && (
+                <div className="ccreateita-detalle-item">
                   <label>Registrado</label>
                   <p>{new Date(modal.created_at).toLocaleDateString('es-CO')}</p>
                 </div>

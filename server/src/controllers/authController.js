@@ -4,11 +4,6 @@ const jwt    = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 
 // ─── Configuración de correo ─────────────────────────────────────────────────
-// Las credenciales van en server/.env:
-//   EMAIL_USER=tu_correo@gmail.com
-//   EMAIL_PASS=tu_app_password_gmail
-//   EMAIL_FROM=MELIKA Salud <tu_correo@gmail.com>
-
 function crearTransporter() {
   return nodemailer.createTransport({
     service: 'gmail',
@@ -94,42 +89,56 @@ function templateRecuperacion(nombre, codigo) {
   `;
 }
 
-// ─── REGISTRO ────────────────────────────────────────────────────────────────
+// ─── REGISTRO (CORREGIDO) ────────────────────────────────────────────────────
 
 async function register(req, res) {
-  const { nombre, primer_apellido, email, password } = req.body;
+  // 1. Extraer los nuevos campos enviados por el frontend
+  const { nombre, primer_apellido, email, password, tipo_documento, numero_documento } = req.body;
 
-  if (!nombre || !primer_apellido || !email || !password) {
-    return res.status(400).json({ mensaje: 'Todos los campos son obligatorios.' });
+  // 2. Validar que no lleguen vacíos
+  if (!nombre || !primer_apellido || !email || !password || !tipo_documento || !numero_documento) {
+    return res.status(400).json({ mensaje: 'Todos los campos son obligatorios, incluyendo identificación.' });
   }
 
   if (password.length < 6) {
     return res.status(400).json({ mensaje: 'La contraseña debe tener mínimo 6 caracteres.' });
   }
 
-  try {
-    const existe = await pool.query(
-      'SELECT id FROM usuarios WHERE email = $1',
-      [email]
-    );
+  // 3. Validar consistencia del tipo de documento antes de tocar la DB
+  const tiposValidos = ['CC', 'CE', 'PASAPORTE'];
+  if (!tiposValidos.includes(tipo_documento)) {
+    return res.status(400).json({ mensaje: 'Tipo de documento inválido. Use CC, CE o PASAPORTE.' });
+  }
 
-    if (existe.rows.length > 0) {
+  try {
+    // 4. Verificar duplicados de Email y Documento en paralelo (Maximiza rendimiento)
+    const [emailExiste, docExiste] = await Promise.all([
+      pool.query('SELECT id FROM usuarios WHERE email = $1', [email]),
+      pool.query('SELECT id FROM usuarios WHERE numero_documento = $1', [numero_documento]),
+    ]);
+
+    if (emailExiste.rows.length > 0) {
       return res.status(409).json({ mensaje: 'Este correo ya está registrado.' });
+    }
+
+    if (docExiste.rows.length > 0) {
+      return res.status(409).json({ mensaje: 'Este número de documento ya está registrado.' });
     }
 
     const hash = await bcrypt.hash(password, 10);
 
+    // 5. Insertar incluyendo las nuevas columnas para evitar la restricción de No Nulo
     await pool.query(
-      `INSERT INTO usuarios (nombre, primer_apellido, email, password_hash, rol, activo, verificado)
-       VALUES ($1, $2, $3, $4, 'paciente', FALSE, FALSE)`,
-      [nombre, primer_apellido, email, hash]
+      `INSERT INTO usuarios 
+         (nombre, primer_apellido, email, password_hash, rol, activo, verificado, tipo_documento, numero_documento)
+       VALUES ($1, $2, $3, $4, 'paciente', FALSE, FALSE, $5, $6)`,
+      [nombre, primer_apellido, email, hash, tipo_documento, numero_documento]
     );
 
     // Generar y guardar código de verificación
     const codigo = generarCodigo();
     const expira = new Date(Date.now() + 15 * 60 * 1000); // 15 minutos
 
-    // Eliminar códigos previos del mismo email + tipo
     await pool.query(
       'DELETE FROM codigos_verificacion WHERE email = $1 AND tipo = $2',
       [email, 'registro']
@@ -152,13 +161,11 @@ async function register(req, res) {
       });
     } catch (emailError) {
       console.error('Error enviando correo:', emailError.message);
-      // No bloqueamos el registro si falla el correo,
-      // pero lo informamos en dev. En prod se debería reintentar.
     }
 
     res.status(201).json({
       mensaje: 'Cuenta creada. Revisa tu correo para obtener el código de verificación.',
-      email, // para pre-llenar la pantalla de verificación
+      email,
     });
   } catch (error) {
     console.error('Error en register:', error.message);
@@ -260,13 +267,11 @@ async function verifyCode(req, res) {
       });
     }
 
-    // Activar cuenta
     await pool.query(
       'UPDATE usuarios SET activo = TRUE, verificado = TRUE WHERE email = $1',
       [email]
     );
 
-    // Eliminar código usado
     await pool.query(
       'DELETE FROM codigos_verificacion WHERE id = $1',
       [registro.id]
@@ -355,7 +360,6 @@ async function solicitarRecuperacion(req, res) {
       [email]
     );
 
-    // Siempre responder igual por seguridad (no revelar si el email existe)
     if (usuario.rows.length === 0) {
       return res.json({
         mensaje: 'Si el correo está registrado, recibirás un código en breve.',

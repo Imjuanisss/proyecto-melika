@@ -45,9 +45,6 @@ async function crearCita(req, res) {
 
     const tarifa = medicoQuery.rows[0].tarifa;
 
-    // El trigger trg_seguridad_reserva_critica valida disponibilidad ANTES del INSERT
-    // El trigger trg_sincronizacion_automatica_franja marca disponible=FALSE DESPUÉS
-    // El trigger trg_auditoria_citas registra el INSERT en logs_citas automáticamente
     const nuevaCita = await pool.query(
       `INSERT INTO citas (
          id_paciente, id_medico, id_especialidad, id_franja,
@@ -65,7 +62,6 @@ async function crearCita(req, res) {
       cita:    nuevaCita.rows[0],
     });
   } catch (error) {
-    // Errores lanzados por los triggers PL/pgSQL
     if (error.code === '45002') {
       return res.status(409).json({
         error:   'CONCURRENCY_CONFLICT',
@@ -86,7 +82,9 @@ async function crearCita(req, res) {
   }
 }
 
-// function misCitas: GET /citas/mis-citas — Listar citas del paciente (con datos de médico y especialidad)
+// =============================================================================
+// GET /citas/mis-citas — Listar citas del paciente (con datos de médico y especialidad)
+// =============================================================================
 async function misCitas(req, res) {
   const id_paciente = req.usuario.id;
 
@@ -96,12 +94,12 @@ async function misCitas(req, res) {
          c.id,
          c.fecha,
          c.hora_inicio,
-         f.hora_fin,           -- FIX: viene de franjas_horarias, no de citas
+         f.hora_fin,
          c.estado,
          c.tipo_consulta,
          c.motivo,
          c.tarifa              AS tarifa_cobrada,
-         c.razon_cancelacion,
+         c.razon_cancelacion,  -- 🌟 Ahora funcionará perfectamente al existir la columna
          c.created_at,
          u.nombre              AS medico_nombre,
          u.primer_apellido     AS medico_apellido,
@@ -110,7 +108,7 @@ async function misCitas(req, res) {
        JOIN medicos        m  ON c.id_medico       = m.id
        JOIN usuarios       u  ON m.id_usuario      = u.id
        JOIN especialidades e  ON c.id_especialidad = e.id
-       LEFT JOIN franjas_horarias f ON c.id_franja = f.id  -- FIX: join agregado
+       LEFT JOIN franjas_horarias f ON c.id_franja = f.id
        WHERE c.id_paciente = $1
        ORDER BY c.fecha DESC, c.hora_inicio DESC`,
       [id_paciente]
@@ -126,17 +124,27 @@ async function misCitas(req, res) {
 // =============================================================================
 // GET /citas/calendario?inicio=&fin= — Citas del paciente para FullCalendar
 // =============================================================================
+// =============================================================================
+// GET /citas/calendario?inicio=&fin= — Citas del paciente para FullCalendar
+// =============================================================================
 async function citasCalendario(req, res) {
   const id_paciente = req.usuario.id;
-  const { inicio, fin } = req.query;
+  
+  // 🌟 CORRECCIÓN: Soporta tanto 'inicio/fin' como 'start/end' (nativo de FullCalendar)
+  let fechaInicio = req.query.inicio || req.query.start;
+  let fechaFin    = req.query.fin || req.query.end;
 
-  if (!inicio || !fin) {
+  if (!fechaInicio || !fechaFin) {
     return res
       .status(400)
-      .json({ mensaje: 'Se requieren los parámetros inicio y fin.' });
+      .json({ mensaje: 'Se requieren los parámetros de rango (inicio/fin o start/end).' });
   }
 
   try {
+    // Limpiar las cadenas en caso de que FullCalendar envíe ISOs completos (ej: 2026-06-01T00:00:00-05:00)
+    fechaInicio = fechaInicio.split('T')[0];
+    fechaFin    = fechaFin.split('T')[0];
+
     const resultado = await pool.query(
       `SELECT
          c.id,
@@ -157,7 +165,7 @@ async function citasCalendario(req, res) {
          AND c.fecha BETWEEN $2 AND $3
          AND c.estado != 'cancelada'
        ORDER BY c.fecha, c.hora_inicio`,
-      [id_paciente, inicio, fin]
+      [id_paciente, fechaInicio, fechaFin]
     );
 
     const COLOR_ESTADO = {
@@ -196,14 +204,21 @@ async function citasCalendario(req, res) {
 }
 
 // =============================================================================
-// PATCH /citas/:id — Cancelar cita
-// El trigger trg_sincronizacion_automatica_franja libera la franja automáticamente
-// El trigger trg_auditoria_citas registra el cambio de estado en logs_citas
+// PATCH /citas/:id/cancelar — Cancelar cita (Con registro de motivo)
 // =============================================================================
 async function cancelarCita(req, res) {
-  const { id }          = req.params;
-  const id_usuario_auth = req.usuario.id;
-  const rol_usuario     = req.usuario.rol;
+  const { id }              = req.params;
+  const { razon_cancelacion } = req.body; // 🌟 Capturamos el motivo enviado desde el frontend
+  const id_usuario_auth     = req.usuario.id;
+  const rol_usuario         = req.usuario.rol;
+
+  // Validación: Exigir el motivo de cancelación
+  if (!razon_cancelacion || !razon_cancelacion.trim()) {
+    return res.status(400).json({
+      error:   'BAD_REQUEST',
+      mensaje: 'Es obligatorio proporcionar el motivo o razón de la cancelación.',
+    });
+  }
 
   try {
     const citaRes = await pool.query(
@@ -219,7 +234,6 @@ async function cancelarCita(req, res) {
 
     const cita = citaRes.rows[0];
 
-    // Solo el paciente dueño puede cancelar (admin y médico tienen su propio endpoint)
     if (rol_usuario === 'paciente' && cita.id_paciente !== id_usuario_auth) {
       return res.status(403).json({
         error:   'FORBIDDEN',
@@ -239,12 +253,13 @@ async function cancelarCita(req, res) {
         .json({ error: 'BAD_REQUEST', mensaje: 'No se puede cancelar una cita ya completada.' });
     }
 
+    // Actualizamos el estado e inyectamos la razón detallada
     const resultado = await pool.query(
       `UPDATE citas
-       SET estado = 'cancelada', updated_at = NOW()
-       WHERE id = $1
+       SET estado = 'cancelada', razon_cancelacion = $1, updated_at = NOW()
+       WHERE id = $2
        RETURNING *`,
-      [id]
+      [razon_cancelacion.trim(), id]
     );
 
     return res.json({

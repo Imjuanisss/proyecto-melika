@@ -245,15 +245,17 @@
    MODAL DE MÉDICOS — diseño ampliado
    ═══════════════════════════════════════════════════════════════════ */
 .medicos-modal {
+  position: fixed;
+  top: 0px;
+  left: center;
+  transform: translate(-50%, -50%);
   max-width: 680px !important;
   max-height: 92vh;
-  overflow-y: auto;
+  overflow-y: auto; 
   scrollbar-width: thin;
   scrollbar-color: var(--adm-ink-100) transparent;
-  padding: 0 !important; /* override del .admin-modal */
+  padding: 0 !important;
 }
-.medicos-modal::-webkit-scrollbar { width: 4px; }
-.medicos-modal::-webkit-scrollbar-thumb { background: var(--adm-ink-100); border-radius: 2px; }
 
 /* ─── Header del modal ───────────────────────────────────────────── */
 .medicos-modal__header {

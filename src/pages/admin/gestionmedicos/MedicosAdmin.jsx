@@ -3,9 +3,10 @@
 // modal de secciones, toggles de modalidad, filtros avanzados.
 
 import { useState, useEffect, useCallback } from 'react';
-import { api } from '../../lib/apiClient';
+import { api } from '../../../lib/apiClient';
 import './MedicosAdmin.css';
-import './admin-shared.css';
+import '../admin-shared.css';
+
 
 // ─── Formulario inicial ───────────────────────────────────────────
 const FORM_INICIAL = {

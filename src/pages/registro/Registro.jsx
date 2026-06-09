@@ -6,8 +6,14 @@ import '../login/Login.css';
 export default function Registro() {
   const navigate = useNavigate();
 
+  // Se añaden tipo_documento (con el default de la DB) y numero_documento al estado inicial
   const [form, setForm] = useState({
-    nombre: '', primer_apellido: '', email: '', password: '',
+    nombre: '', 
+    primer_apellido: '', 
+    email: '', 
+    password: '',
+    tipo_documento: 'CC',
+    numero_documento: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState(null);
@@ -57,6 +63,29 @@ export default function Registro() {
             <input
               type="text" name="primer_apellido" value={form.primer_apellido}
               onChange={handleChange} placeholder="Tu apellido" required
+            />
+          </div>
+
+          {/* Nuevos campos alineados con las restricciones de la Base de Datos */}
+          <div className="auth-campo">
+            <label>Tipo de documento</label>
+            <select 
+              name="tipo_documento" 
+              value={form.tipo_documento} 
+              onChange={handleChange} 
+              required
+            >
+              <option value="CC">Cédula de Ciudadanía (CC)</option>
+              <option value="CE">Cédula de Extranjería (CE)</option>
+              <option value="PASAPORTE">Pasaporte</option>
+            </select>
+          </div>
+
+          <div className="auth-campo">
+            <label>Número de documento</label>
+            <input
+              type="text" name="numero_documento" value={form.numero_documento}
+              onChange={handleChange} placeholder="Ej: 1234567890" required
             />
           </div>
 

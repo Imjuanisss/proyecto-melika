@@ -123,6 +123,10 @@ CREATE TABLE franjas_horarias (
 -- 4. TABLA CORE DEL SISTEMA: CITAS
 -- =============================================================================
 
+-- =============================================================================
+-- 4. TABLA CORE DEL SISTEMA: CITAS (ACTUALIZADA)
+-- =============================================================================
+
 CREATE TABLE citas (
   id              SERIAL        PRIMARY KEY,
   id_paciente     INT           NOT NULL REFERENCES usuarios(id),
@@ -134,6 +138,7 @@ CREATE TABLE citas (
   tipo_consulta   VARCHAR(20)   NOT NULL DEFAULT 'presencial' CHECK (tipo_consulta IN ('presencial','teleconsulta')),
   estado          VARCHAR(20)   NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente','completada','cancelada','no_asistio')),
   motivo          TEXT,
+  razon_cancelacion TEXT,        
   tarifa          NUMERIC(10,2) NOT NULL,
   notas_medicas   TEXT,
   created_at      TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
