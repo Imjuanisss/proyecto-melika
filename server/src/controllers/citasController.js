@@ -1,14 +1,20 @@
 const pool = require('../config/db');
 
-// ── Utilidad: normalizar fecha que puede llegar como Date o string ─────────
+// ── Utilidad de normalización ultra-segura para fechas entrantes ─────────
 function normalizarFecha(fecha) {
   if (!fecha) return null;
-  if (fecha instanceof Date) return fecha.toISOString().split('T')[0];
+  if (fecha instanceof Date) {
+    // Extraer componentes UTC para evitar alteraciones de zona horaria local
+    const yyyy = fecha.getUTCFullYear();
+    const mm = String(fecha.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(fecha.getUTCDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
   return String(fecha).split('T')[0];
 }
 
 // =============================================================================
-// POST /citas — Crear cita (el trigger PL/pgSQL valida concurrencia en la BD)
+// POST /citas — Crear cita
 // =============================================================================
 async function crearCita(req, res) {
   const {
@@ -83,7 +89,7 @@ async function crearCita(req, res) {
 }
 
 // =============================================================================
-// GET /citas/mis-citas — Listar citas del paciente (con datos de médico y especialidad)
+// GET /citas/mis-citas — Listar citas del paciente (Estandarizado con TO_CHAR)
 // =============================================================================
 async function misCitas(req, res) {
   const id_paciente = req.usuario.id;
@@ -92,14 +98,14 @@ async function misCitas(req, res) {
     const resultado = await pool.query(
       `SELECT
          c.id,
-         c.fecha,
+         TO_CHAR(c.fecha, 'YYYY-MM-DD') AS fecha, -- 🌟 Inmune a desfases de JS
          c.hora_inicio,
          f.hora_fin,
          c.estado,
          c.tipo_consulta,
          c.motivo,
          c.tarifa              AS tarifa_cobrada,
-         c.razon_cancelacion,  -- 🌟 Ahora funcionará perfectamente al existir la columna
+         c.razon_cancelacion,
          c.created_at,
          u.nombre              AS medico_nombre,
          u.primer_apellido     AS medico_apellido,
@@ -122,33 +128,29 @@ async function misCitas(req, res) {
 }
 
 // =============================================================================
-// GET /citas/calendario?inicio=&fin= — Citas del paciente para FullCalendar
-// =============================================================================
-// =============================================================================
-// GET /citas/calendario?inicio=&fin= — Citas del paciente para FullCalendar
+// GET /citas/calendario — Citas para FullCalendar (Con Fallback Seguro y TO_CHAR)
 // =============================================================================
 async function citasCalendario(req, res) {
   const id_paciente = req.usuario.id;
   
-  // 🌟 CORRECCIÓN: Soporta tanto 'inicio/fin' como 'start/end' (nativo de FullCalendar)
   let fechaInicio = req.query.inicio || req.query.start;
   let fechaFin    = req.query.fin || req.query.end;
 
+  // 🌟 FALLBACK: Si FullCalendar monta antes de enviar fechas, calcula rango automático del mes actual
   if (!fechaInicio || !fechaFin) {
-    return res
-      .status(400)
-      .json({ mensaje: 'Se requieren los parámetros de rango (inicio/fin o start/end).' });
+    const hoy = new Date();
+    fechaInicio = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-01`;
+    fechaFin    = `${hoy.getFullYear()}-${String(hoy.getMonth() + 2).padStart(2, '0')}-28`;
+  } else {
+    fechaInicio = String(fechaInicio).split('T')[0];
+    fechaFin    = String(fechaFin).split('T')[0];
   }
 
   try {
-    // Limpiar las cadenas en caso de que FullCalendar envíe ISOs completos (ej: 2026-06-01T00:00:00-05:00)
-    fechaInicio = fechaInicio.split('T')[0];
-    fechaFin    = fechaFin.split('T')[0];
-
     const resultado = await pool.query(
       `SELECT
          c.id,
-         c.fecha,
+         TO_CHAR(c.fecha, 'YYYY-MM-DD') AS fecha_str, -- 🌟 Texto plano directo desde la BD
          c.hora_inicio,
          c.estado,
          c.tipo_consulta,
@@ -175,13 +177,12 @@ async function citasCalendario(req, res) {
     };
 
     const eventos = resultado.rows.map((c) => {
-      const fechaStr    = normalizarFecha(c.fecha);
-      const colores     = COLOR_ESTADO[c.estado] || { bg: '#8A9BBE', border: '#6B7FA6' };
+      const colores = COLOR_ESTADO[c.estado] || { bg: '#8A9BBE', border: '#6B7FA6' };
 
       return {
         id:              String(c.id),
         title:           `${c.especialidad}`,
-        start:           `${fechaStr}T${c.hora_inicio}`,
+        start:           `${c.fecha_str}T${c.hora_inicio}`, // 🌟 Combinación de strings perfecta sin desfases
         backgroundColor: colores.bg,
         borderColor:     colores.border,
         textColor:       '#fff',
@@ -204,15 +205,14 @@ async function citasCalendario(req, res) {
 }
 
 // =============================================================================
-// PATCH /citas/:id/cancelar — Cancelar cita (Con registro de motivo)
+// PATCH /citas/:id/cancelar — Cancelar cita
 // =============================================================================
 async function cancelarCita(req, res) {
   const { id }              = req.params;
-  const { razon_cancelacion } = req.body; // 🌟 Capturamos el motivo enviado desde el frontend
+  const { razon_cancelacion } = req.body; 
   const id_usuario_auth     = req.usuario.id;
   const rol_usuario         = req.usuario.rol;
 
-  // Validación: Exigir el motivo de cancelación
   if (!razon_cancelacion || !razon_cancelacion.trim()) {
     return res.status(400).json({
       error:   'BAD_REQUEST',
@@ -253,7 +253,6 @@ async function cancelarCita(req, res) {
         .json({ error: 'BAD_REQUEST', mensaje: 'No se puede cancelar una cita ya completada.' });
     }
 
-    // Actualizamos el estado e inyectamos la razón detallada
     const resultado = await pool.query(
       `UPDATE citas
        SET estado = 'cancelada', razon_cancelacion = $1, updated_at = NOW()
@@ -276,7 +275,7 @@ async function cancelarCita(req, res) {
 }
 
 // =============================================================================
-// DELETE /citas/:id — Eliminar cita (solo si está cancelada)
+// DELETE /citas/:id — Eliminar cita
 // =============================================================================
 async function eliminarCita(req, res) {
   const { id }          = req.params;

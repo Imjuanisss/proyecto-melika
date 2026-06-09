@@ -65,6 +65,9 @@ function App() {
           <Route path="/nueva-password" element={<NuevaPassword />} />
           <Route path="/catalogo" element={<Catalogo />} />
 
+           {/* ruta de activación de cuenta (para médicos) */}
+          <Route path="/activar-cuenta" element={<ActivarCuenta />} />
+
           {/* 🩺 Catálogo de Especialidades y Médicos (Públicos) */}
           <Route path="/especialidades" element={<Especialidades />} />
           <Route path="/especialidades/:id/medicos" element={<MedicosEspecialidad />} />
@@ -72,11 +75,11 @@ function App() {
           {/* 🔒 Rutas de Pacientes Protegidas */}
           <Route path="/dashboard" element={<RutaProtegida><Dashboard /></RutaProtegida>} />
           <Route path="/agendar" element={<RutaProtegida><Agendarcita /></RutaProtegida>} />
-          <Route path="/miscitas" element={<RutaProtegida><MisCitas /></RutaProtegida>} />
+          <Route path="/mis-citas" element={<RutaProtegida><MisCitas /></RutaProtegida>} />
 
           {/* 🩺 Rutas de Médicos Protegidas */}
           <Route path="/dashboard-medico" element={<RutaMedico><DashboardMedico /></RutaMedico>} />
-          <Route path="/activar-cuenta" element={<RutaMedico><ActivarCuenta /></RutaMedico>} />
+          
 
           {/* 👑 Rutas de Admin Protegidas (Anidadas) */}
           <Route path="/admin" element={<RutaAdmin><AdminLayout /></RutaAdmin>}>
