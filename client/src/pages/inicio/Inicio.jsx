@@ -185,11 +185,11 @@ export default function Inicio() {
             <h2 className="seccion-titulo">Especialidades disponibles</h2>
             <p className="seccion-desc">Profesionales certificados listos para atenderte.</p>
           </div>
+          
           <div className="esp-grid">
             {especialidades.slice(0, 6).map((esp, i) => (
-              <Link
+              <div
                 key={esp.nombre}
-                to="/agendar"
                 className="esp-card aos"
                 style={{ transitionDelay: `${i * 0.07}s` }}
               >
@@ -203,15 +203,38 @@ export default function Inicio() {
                     }}
                   />
                 </div>
+                
                 <div className="esp-card__body">
                   <h3 className="esp-card__nombre">{esp.nombre}</h3>
+                  {/* Aquí se renderiza tu linda descripción */}
                   <p className="esp-card__desc">{esp.descripcion}</p>
+                  
                   <div className="esp-card__footer">
                     <span className="esp-card__precio">Desde ${esp.precio} COP</span>
-                    <span className="esp-card__cta">Agendar →</span>
+                    
+                    {/* Botón estilizado que redirige a la ventana de todas las especialidades */}
+                    <button 
+                      onClick={() => navigate('/especialidades')}
+                      className="esp-card__cta-btn"
+                      style={{
+                        background: '#f97316',
+                        color: 'white',
+                        border: 'none',
+                        padding: '0.5rem 1rem',
+                        borderRadius: '0.5rem',
+                        fontWeight: '600',
+                        fontSize: '0.85rem',
+                        cursor: 'pointer',
+                        transition: 'background 0.2s'
+                      }}
+                      onMouseOver={e => e.target.style.background = '#ea580c'}
+                      onMouseOut={e => e.target.style.background = '#f97316'}
+                    >
+                      Ver médicos →
+                    </button>
                   </div>
                 </div>
-              </Link>
+              </div>
             ))}
           </div>
         </div>

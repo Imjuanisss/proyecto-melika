@@ -70,7 +70,8 @@ function App() {
 
           {/* 🩺 Catálogo de Especialidades y Médicos (Públicos) */}
           <Route path="/especialidades" element={<Especialidades />} />
-          <Route path="/especialidades/:id/medicos" element={<MedicosEspecialidad />} />
+          <Route path="/especialidades/:id/medicos" element={<MedicosEspecialidad />} />         
+          <Route path="/medico/:id/agenda" element={<RutaProtegida><Agendarcita /></RutaProtegida>} />
 
           {/* 🔒 Rutas de Pacientes Protegidas */}
           <Route path="/dashboard" element={<RutaProtegida><Dashboard /></RutaProtegida>} />
