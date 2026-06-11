@@ -1,23 +1,51 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from "react-router-dom";
-import { api } from '../../lib/apiClient'; // <- Usamos este en lugar del viejo service
+import { api } from '../../lib/apiClient';
+import './Especialidades.css'; // <- Vinculamos tus estilos nativos personalizados
+
+const especialidadesMock = [
+  {
+    id: 1,
+    nombre: 'Cardiología',
+    descripcion: 'Salud cardiovascular y prevención.',
+    precio_base: 80000,
+    imagen_url: '' 
+  },
+  {
+    id: 2,
+    nombre: 'Dermatología',
+    descripcion: 'Cuidado integral de la piel.',
+    precio_base: 70000,
+    imagen_url: ''
+  },
+  {
+    id: 3,
+    nombre: 'Pediatría',
+    descripcion: 'Atención especializada en niños.',
+    precio_base: 65000,
+    imagen_url: ''
+  }
+];
 
 export default function Especialidades() {
-  // 2. UBICACIÓN 2: Inicializar el hook justo al principio del componente, antes de los useEffect
   const navigate = useNavigate(); 
-
   const [especialidades, setEspecialidades] = useState([]);
   const [cargando, setCargando] = useState(true);
-  const [error, setError] = useState(null);
 
- useEffect(() => {
+  useEffect(() => {
     const cargarEspecialidades = async () => {
       try {
         setCargando(true);
         const { data } = await api.get('/especialidades');
-        setEspecialidades(data || []);
-      } catch {
-        setError('No se pudieron cargar las especialidades. Inténtalo de nuevo más tarde.');
+        
+        if (data && data.length > 0) {
+          setEspecialidades(data);
+        } else {
+          setEspecialidades(especialidadesMock);
+        }
+      } catch (err) {
+        console.error("Error al cargar especialidades, usando respaldo:", err);
+        setEspecialidades(especialidadesMock);
       } finally {
         setCargando(false);
       }
@@ -26,64 +54,63 @@ export default function Especialidades() {
     cargarEspecialidades();
   }, []);
 
-
-
   if (cargando) {
-    return <div className="text-center py-10 font-medium">Cargando catálogo de especialidades...</div>;
-  }
-
-  if (error) {
-    return <div className="text-center py-10 text-red-500 font-medium">{error}</div>;
+    return (
+      <div className="spinner-container">
+        <div className="spinner"></div>
+        <p style={{ color: '#666', fontWeight: '500' }}>Cargando catálogo...</p>
+      </div>
+    );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-gray-800 mb-2 text-center">Nuestras Especialidades Médicas</h1>
-      <p className="text-gray-600 text-center mb-8">Selecciona la especialidad que necesitas para conocer a nuestros profesionales disponibles.</p>
+    <div className="especialidades-container">
+      
+      {/* Encabezado */}
+      <div className="especialidades-header">
+        <span className="esp-tag">Red Médica</span>
+        <h1 className="esp-title">Especialidades disponibles</h1>
+        <p className="esp-subtitle">Profesionales certificados listos para atenderte.</p>
+      </div>
 
-      {especialidades.length === 0 ? (
-        <p className="text-center text-gray-500">No hay especialidades disponibles en este momento.</p>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {especialidades.map((esp) => (
-            <div key={esp.id} className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 hover:shadow-lg transition-shadow duration-300 flex flex-col">
-              
-              {/* Imagen de la Especialidad */}
-              <div className="h-48 bg-gray-200 overflow-hidden relative">
+      {/* Grid de Tarjetas */}
+      <div className="especialidades-grid">
+        {especialidades.map((esp) => (
+          <div key={esp.id} className="especialidad-card">
+            
+            <div>
+              {/* Contenedor de Imagen */}
+              <div className="esp-image-container">
                 <img 
                   src={esp.imagen_url || 'https://via.placeholder.com/400x300?text=Melika+Medicina'} 
                   alt={esp.nombre}
-                  className="w-full h-full object-cover"
+                  className="esp-card-img"
                 />
               </div>
 
-              {/* Contenido de la Tarjeta */}
-              <div className="p-5 flex flex-col flex-grow">
-                <h3 className="text-xl font-bold text-gray-900 mb-2">{esp.nombre}</h3>
-                <p className="text-gray-600 text-sm mb-4 line-clamp-3 flex-grow">{esp.descripcion}</p>
-                
-                <div className="border-t pt-4 mt-auto flex items-center justify-between">
-                  <div>
-                    <span className="text-xs text-gray-500 block">Precio Base</span>
-                    <span className="text-lg font-bold text-emerald-600">
-                      ${Number(esp.precio_base).toLocaleString('es-CO')}
-                    </span>
-                  </div>
-                  
-                  {/* 3. UBICACIÓN 3: El botón modificado dentro del ciclo .map */}
-                  <button 
-                    onClick={() => navigate(`/especialidades/${esp.id}/medicos`)}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors duration-200"
-                  >
-                    Ver Médicos
-                  </button>
-                </div>
-              </div>
-
+              {/* Título y Descripción */}
+              <h3 className="esp-card-title">{esp.nombre}</h3>
+              <p className="esp-card-desc">{esp.descripcion}</p>
             </div>
-          ))}
-        </div>
-      )}
+            
+            {/* Footer de la tarjeta */}
+            <div className="esp-card-footer">
+              <div className="esp-price">
+                Desde <span>${Number(esp.precio_base).toLocaleString('es-CO')} COP</span>
+              </div>
+              
+              <button 
+                onClick={() => navigate(`/especialidades/${esp.id}/medicos`)}
+                className="esp-agendar-btn"
+              >
+                Agendar →
+              </button>
+            </div>
+
+          </div>
+        ))}
+      </div>
+
     </div>
   );
 }
