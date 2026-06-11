@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../lib/apiClient'; // Cliente unificado
+import './MedicosEspecialidad.css';
 
 // Médicos de respaldo mapeados por el ID de la especialidad (1: Cardio, 2: Derma, 3: Pedia)
 // Esto asegura que tu flujo de navegación funcione perfecto en desarrollo

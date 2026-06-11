@@ -1,0 +1,207 @@
+/* ==========================================
+   CONTENEDOR PRINCIPAL Y LAYOUT
+   ========================================== */
+.min-h-screen {
+    background-color: #f8fafc !important; /* Un gris pizarra muy claro y limpio */
+    padding-top: 100px !important; /* Espacio perfecto debajo del Navbar */
+    padding-bottom: 80px !important;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+.container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+}
+
+/* Botón Volver */
+.text-orange-500 {
+    background: none;
+    border: none;
+    color: #f97316 !important;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.text-orange-500:hover {
+    color: #ea580c !important;
+    transform: translateX(-3px); /* Pequeño efecto dinámico */
+}
+
+/* Encabezado */
+h2.text-3xl {
+    font-size: 2.25rem !important;
+    font-weight: 800 !important;
+    color: #0f172a !important; /* Slate 900 */
+    margin: 0 0 0.5rem 0;
+    letter-spacing: -0.025em;
+}
+
+.text-slate-500 {
+    color: #64748b !important; /* Slate 500 */
+    font-size: 1rem !important;
+    margin: 0 0 2.5rem 0;
+}
+
+/* ==========================================
+   GRID Y TARJETAS DE MÉDICOS
+   ========================================== */
+.grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)) !important; /* Dos columnas perfectas */
+    gap: 2rem !important;
+}
+
+/* Si la pantalla es pequeña, se vuelve una sola columna */
+@media (max-width: 768px) {
+    .grid {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+.bg-white {
+    background-color: #ffffff !important;
+    border: 1px solid #e2e8f0 !important; /* Slate 200 */
+    border-radius: 1.25rem !important; /* Bordes más suaves */
+    padding: 2rem !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.bg-white:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+    border-color: #cbd5e1 !important;
+}
+
+/* Cabecera de la Tarjeta */
+.flex.justify-between.items-start {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+    margin-bottom: 0.5rem;
+}
+
+h3.text-xl {
+    font-size: 1.35rem !important;
+    font-weight: 700 !important;
+    color: #0f172a !important;
+    margin: 0 !important;
+}
+
+/* Badge de Calificación ⭐ */
+.bg-amber-50 {
+    background-color: #fef3c7 !important; /* Amber 100 */
+    color: #d97706 !important; /* Amber 600 */
+    font-size: 0.8rem !important;
+    padding: 0.35rem 0.75rem !important;
+    border-radius: 9999px !important;
+    font-weight: 700 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.25rem;
+}
+
+/* Años de Experiencia */
+.text-slate-400 {
+    color: #94a3b8 !important; /* Slate 400 */
+    font-size: 0.75rem !important;
+    font-weight: 700 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 1rem;
+}
+
+/* Biografía (Caja de texto) */
+.text-slate-600 {
+    color: #334155 !important; /* Slate 700 */
+    font-size: 0.925rem !important;
+    line-height: 1.5 !important;
+    background-color: #f8fafc !important; /* Fondo suave */
+    padding: 1rem 1.25rem !important;
+    border-radius: 0.75rem !important;
+    border-left: 4px solid #cbd5e1 !important; /* Detalle elegante a la izquierda */
+    font-style: italic;
+    margin: 1.25rem 0 !important;
+}
+
+/* Badges de Modalidad (Presencial / Teleconsulta) */
+.flex.gap-2.mt-4 {
+    display: flex !important;
+    gap: 0.5rem !important;
+    margin-top: 1rem !important;
+}
+
+.bg-blue-50 {
+    background-color: #eff6ff !important;
+    color: #2563eb !important;
+    font-size: 0.8rem !important;
+    padding: 0.4rem 0.75rem !important;
+    border-radius: 0.5rem !important;
+    font-weight: 600 !important;
+}
+
+.bg-purple-50 {
+    background-color: #faf5ff !important;
+    color: #7c3aed !important;
+    font-size: 0.8rem !important;
+    padding: 0.4rem 0.75rem !important;
+    border-radius: 0.5rem !important;
+    font-weight: 600 !important;
+}
+
+/* ==========================================
+   FOOTER DE LA TARJETA (Tarifa y Botón)
+   ========================================== */
+.border-t {
+    border-top: 1px solid #f1f5f9 !important;
+    padding-top: 1.25rem !important;
+    margin-top: 1.5rem !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+}
+
+.text-slate-400.block {
+    color: #94a3b8 !important;
+    font-size: 0.7rem !important;
+    font-weight: 700 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.text-lg.font-extrabold {
+    font-size: 1.4rem !important;
+    font-weight: 800 !important;
+    color: #0f172a !important;
+    display: block;
+    margin-top: 0.15rem;
+}
+
+/* Botón Agendar Cita */
+.bg-orange-500 {
+    background-color: #f97316 !important;
+    color: white !important;
+    font-size: 0.9rem !important;
+    font-weight: 700 !important;
+    padding: 0.75rem 1.5rem !important;
+    border-radius: 0.75rem !important;
+    border: none !important;
+    cursor: pointer !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
+    transition: all 0.2s ease !important;
+}
+
+.bg-orange-500:hover {
+    background-color: #ea580c !important;
+    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.2) !important;
+}
