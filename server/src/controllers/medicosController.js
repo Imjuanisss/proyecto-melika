@@ -80,8 +80,8 @@ async function crearMedico(req, res) {
          (nombre, primer_apellido, email, password_hash,
           rol, activo, verificado,
           tipo_documento, numero_documento, ciudad)
-       VALUES ($1, $2, $3, $4, 'medico', TRUE, TRUE, $5, $6, $7)
-       RETURNING id`,
+       VALUES ($1, $2, $3, $4, 'medico', TRUE, TRUE, $5, $6, $7) 
+       RETURNING id`, // ¡Cambiamos a TRUE!
       [
         nombre,
         primer_apellido,
