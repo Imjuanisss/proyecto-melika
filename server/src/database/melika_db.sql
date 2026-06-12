@@ -294,3 +294,31 @@ CREATE INDEX IF NOT EXISTS idx_citas_paciente_fecha
 -- Índice para joins frecuentes en las queries de citas
 CREATE INDEX IF NOT EXISTS idx_citas_medico_fecha
   ON citas (id_medico, fecha);
+
+  -- 1. Asegurarnos de que exista la especialidad de Cardiología (ID = 1)
+INSERT INTO especialidades (id, nombre, descripcion, precio_base, activa)
+VALUES (1, 'Cardiología', 'Especialidad médica encargada del estudio, diagnóstico y tratamiento de las enfermedades del corazón.', 0.00, TRUE)
+ON CONFLICT (id) DO NOTHING;
+-- Nota: Si el ID 1 ya existe, el 'DO NOTHING' evitará un error.
+
+-- 2. Crear el Usuario para el Médico
+-- Necesitamos cumplir con los campos NOT NULL (como tipo_documento y numero_documento)
+INSERT INTO usuarios (nombre, primer_apellido, email, password_hash, rol, activo, verificado, tipo_documento, numero_documento) 
+VALUES ('Alejandro', 'Gómez', 'dr.gomez@melika.com', 'hash_simulado_123', 'medico', TRUE, TRUE, 'CC', '1020304050')
+RETURNING id; 
+-- ⚠️ ATENCIÓN: Mira qué ID devuelve esta consulta. Supongamos que devuelve el ID 1.
+
+-- 3. Crear el Perfil Médico
+-- Reemplaza el "1" en id_usuario por el número que te devolvió el paso anterior.
+INSERT INTO medicos (id_usuario, id_especialidad, numero_registro, tarifa, calificacion, acepta_teleconsulta, acepta_presencial, biografia, anos_experiencia, activo)
+VALUES (1, 1, 'RM-778899', 150000.00, 4.9, TRUE, TRUE, 'Cardiólogo clínico con enfoque en prevención y tratamiento de arritmias.', 12, TRUE)
+RETURNING id;
+-- ⚠️ ATENCIÓN: Mira qué ID devuelve esta consulta. Supongamos que devuelve el ID 1.
+
+-- 4. Crear Franjas Horarias Disponibles (Para que podamos probar el agendamiento luego)
+-- Reemplaza el "1" en id_medico por el número que te devolvió el paso 3.
+INSERT INTO franjas_horarias (id_medico, fecha, hora_inicio, hora_fin, disponible)
+VALUES 
+(1, CURRENT_DATE + INTERVAL '1 day', '08:00:00', '08:30:00', TRUE),
+(1, CURRENT_DATE + INTERVAL '1 day', '08:30:00', '09:00:00', TRUE),
+(1, CURRENT_DATE + INTERVAL '1 day', '09:00:00', '09:30:00', TRUE);
