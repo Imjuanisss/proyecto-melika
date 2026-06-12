@@ -1,17 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Boton from '../../components/ui/Boton';
-import { api } from '../../lib/apiClient';
-import './Inicio.css';
 
-const especialidadesDefault = [
-  { nombre: 'Cardiología',      precio: '80.000', imagen: '/imagenes/especialidades/cardiologia.jpg',      descripcion: 'Salud cardiovascular y prevención' },
-  { nombre: 'Dermatología',     precio: '70.000', imagen: '/imagenes/especialidades/dermatologia.jpg',     descripcion: 'Cuidado integral de la piel' },
-  { nombre: 'Pediatría',        precio: '65.000', imagen: '/imagenes/especialidades/pediatria.jpg',        descripcion: 'Atención especializada en niños' },
-  { nombre: 'Neurología',       precio: '90.000', imagen: '/imagenes/especialidades/neurologia.jpg',       descripcion: 'Sistema nervioso y cerebro' },
-  { nombre: 'Ginecología',      precio: '75.000', imagen: '/imagenes/especialidades/ginecologia.jpg',      descripcion: 'Salud femenina integral' },
-  { nombre: 'Medicina General', precio: '45.000', imagen: '/imagenes/especialidades/medicina-general.jpg', descripcion: 'Tu primer punto de atención' },
-];
+import './Inicio.css';
 
 const sugerencias = [
   'Cardiología', 'Dermatología', 'Pediatría', 'Neurología',
@@ -34,7 +25,6 @@ const razones = [
 ];
 
 export default function Inicio() {
-  const [especialidades, setEspecialidades]    = useState(especialidadesDefault);
   const [busqueda, setBusqueda]                = useState('');
   const [sugerenciasFiltradas, setSugerencias] = useState([]);
   const [mostrarSugerencias, setMostrar]       = useState(false);
@@ -47,12 +37,6 @@ export default function Inicio() {
     );
     document.querySelectorAll('.aos').forEach(el => observer.observe(el));
     return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    api.get('/especialidades')
-      .then(data => { if (data?.length) setEspecialidades(data); })
-      .catch(() => {});
   }, []);
 
   function handleBusqueda(e) {
@@ -177,65 +161,88 @@ export default function Inicio() {
 
       </section>
 
-      {/* ── ESPECIALIDADES ───────────────────── */}
-      <section className="especialidades">
-        <div className="contenedor">
-          <div className="seccion-encabezado aos">
-            <span className="seccion-etiqueta">Red médica</span>
-            <h2 className="seccion-titulo">Especialidades disponibles</h2>
-            <p className="seccion-desc">Profesionales certificados listos para atenderte.</p>
-          </div>
-          
-          <div className="esp-grid">
-            {especialidades.slice(0, 6).map((esp, i) => (
-              <div
-                key={esp.nombre}
-                className="esp-card aos"
-                style={{ transitionDelay: `${i * 0.07}s` }}
-              >
-                <div className="esp-card__img-wrap">
-                  <img
-                    src={esp.imagen}
-                    alt={esp.nombre}
-                    loading="lazy"
-                    onError={e => {
-                      e.target.closest('.esp-card__img-wrap').classList.add('esp-card__img-wrap--error');
-                    }}
-                  />
-                </div>
-                
-                <div className="esp-card__body">
-                  <h3 className="esp-card__nombre">{esp.nombre}</h3>
-                  {/* Aquí se renderiza tu linda descripción */}
-                  <p className="esp-card__desc">{esp.descripcion}</p>
-                  
-                  <div className="esp-card__footer">
-                    <span className="esp-card__precio">Desde ${esp.precio} COP</span>
-                    
-                    {/* Botón estilizado que redirige a la ventana de todas las especialidades */}
-                    <button 
-                      onClick={() => navigate('/especialidades')}
-                      className="esp-card__cta-btn"
-                      style={{
-                        background: '#f97316',
-                        color: 'white',
-                        border: 'none',
-                        padding: '0.5rem 1rem',
-                        borderRadius: '0.5rem',
-                        fontWeight: '600',
-                        fontSize: '0.85rem',
-                        cursor: 'pointer',
-                        transition: 'background 0.2s'
-                      }}
-                      onMouseOver={e => e.target.style.background = '#ea580c'}
-                      onMouseOut={e => e.target.style.background = '#f97316'}
-                    >
-                      Ver médicos →
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
+      {/* ── NUEVA SECCIÓN ÚNICA DE ESPECIALIDADES ───────────────────── */}
+      <section className="especialidades-banner-unico" style={{
+        padding: '5rem 0',
+        backgroundColor: '#ffffff',
+        borderBottom: '1px solid #f1f5f9'
+      }}>
+        <div className="contenedor" style={{
+          maxWidth: '800px',
+          margin: '0 auto',
+          textAlign: 'center',
+          padding: '0 1.5rem'
+        }}>
+          <div className="aos">
+            <span className="seccion-etiqueta" style={{
+              color: '#f97316',
+              textTransform: 'uppercase',
+              fontWeight: '700',
+              fontSize: '0.85rem',
+              letterSpacing: '0.05em',
+              display: 'block',
+              marginBottom: '0.75rem'
+            }}>
+              Nuestra Red Médica
+            </span>
+            
+            <h2 className="seccion-titulo" style={{
+              fontSize: '2.25rem',
+              fontWeight: '800',
+              color: '#0f172a',
+              marginBottom: '1.25rem',
+              letterSpacing: '-0.025em'
+            }}>
+              Especialidades Médicas
+            </h2>
+            
+            <p className="seccion-desc" style={{
+              fontSize: '1.1rem',
+              color: '#475569',
+              lineHeight: '1.7',
+              marginBottom: '2.5rem',
+              maxWidth: '650px',
+              margin: '0 auto 2.5rem auto'
+            }}>
+              En <strong>MELIKA</strong> contamos con una red de profesionales de la salud 
+              altamente calificados y certificados en Colombia. Explora nuestro catálogo completo 
+              de especialidades, conoce los perfiles de nuestros médicos, consulta tarifas transparentes 
+              y agenda tu cita presencial o virtual en cuestión de minutos.
+            </p>
+            
+            <button 
+              onClick={() => navigate('/especialidades')}
+              style={{
+                background: '#f97316',
+                color: 'white',
+                border: 'none',
+                padding: '0.85rem 2rem',
+                borderRadius: '0.75rem',
+                fontWeight: '700',
+                fontSize: '1rem',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                boxShadow: '0 4px 6px -1px rgba(249, 115, 22, 0.15), 0 2px 4px -1px rgba(249, 115, 22, 0.1)',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseOver={e => {
+                e.target.style.background = '#ea580c';
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 10px 15px -3px rgba(249, 115, 22, 0.3)';
+              }}
+              onMouseOut={e => {
+                e.target.style.background = '#f97316';
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = '0 4px 6px -1px rgba(249, 115, 22, 0.15)';
+              }}
+            >
+              Ver especialidades
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12h14M12 5l7 7-7 7" />
+              </svg>
+            </button>
           </div>
         </div>
       </section>
@@ -287,11 +294,6 @@ export default function Inicio() {
               </Link>
             </div>
             <div className="catalogo-banner__visual">
-              {/*
-                Imagen en: public/imagenes/medicamentos-banner.jpg
-                Foto de medicamentos organizados, farmacia moderna
-                Tamaño: 800x600px · Fuente: unsplash.com
-              */}
               <img
                 src="/imagenes/medicamentos-banner.jpg"
                 alt="Catálogo de medicamentos MELIKA"
