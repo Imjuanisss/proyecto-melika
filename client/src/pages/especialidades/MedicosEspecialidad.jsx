@@ -26,11 +26,16 @@ export default function MedicosEspecialidad() {
         setCargando(true);
         setError(null);
         
-        // Petición directa al endpoint del backend
-        const { data } = await api.get(`/especialidades/${id}/medicos`);
+        // Petición al endpoint del backend (sin las llaves { data })
+        const response = await api.get(`/especialidades/${id}/medicos`);
         
-        // Asignamos directamente los registros que vienen de pool.query
-        setMedicos(data || []);
+        // Hacemos que sea a prueba de balas: 
+        // Si viene dentro de 'data' (Axios estándar) lo saca, si viene directo (Fetch/Interceptor) lo usa directo.
+        const dataArray = response?.data ? response.data : response;
+        
+        // Asignamos asegurándonos de que sea un arreglo
+        setMedicos(Array.isArray(dataArray) ? dataArray : []);
+        
       } catch (error) {
         console.error("Error al cargar médicos desde la base de datos:", error);
         setError("Ocurrió un error al conectar con el servidor. Inténtalo de nuevo más tarde.");
@@ -41,7 +46,6 @@ export default function MedicosEspecialidad() {
 
     cargarMedicos();
   }, [id]);
-
   if (cargando) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50/50">
