@@ -3,49 +3,47 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../lib/apiClient'; // Cliente unificado
 import './MedicosEspecialidad.css';
 
-// Diccionario local para renderizar el nombre de la especialidad en el título del banner
-const nombresEspecialidades = {
-  1: 'Cardiología', 2: 'Dermatología', 3: 'Pediatría', 4: 'Neurología',
-  5: 'Ginecología', 6: 'Medicina General', 7: 'Ortopedia y Traumatología',
-  8: 'Oftalmología', 9: 'Psiquiatría', 10: 'Otorrinolaringología',
-  11: 'Urología', 12: 'Nutrición y Dietética'
-};
-
 export default function MedicosEspecialidad() {
   const { id } = useParams(); 
   const navigate = useNavigate();
   const [medicos, setMedicos] = useState([]);
+  const [especialidadNombre, setEspecialidadNombre] = useState('Especialistas'); // Estado dinámico para el título
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
 
-  const especialidadNombre = nombresEspecialidades[id] || 'Especialistas';
-
   useEffect(() => {
-    const cargarMedicos = async () => {
+    const cargarDatos = async () => {
       try {
         setCargando(true);
         setError(null);
         
-        // Petición al endpoint del backend (sin las llaves { data })
-        const response = await api.get(`/especialidades/${id}/medicos`);
-        
-        // Hacemos que sea a prueba de balas: 
-        // Si viene dentro de 'data' (Axios estándar) lo saca, si viene directo (Fetch/Interceptor) lo usa directo.
-        const dataArray = response?.data ? response.data : response;
-        
-        // Asignamos asegurándonos de que sea un arreglo
+        // 1. Petición para obtener los médicos de esta especialidad
+        const responseMedicos = await api.get(`/especialidades/${id}/medicos`);
+        const dataArray = responseMedicos?.data ? responseMedicos.data : responseMedicos;
         setMedicos(Array.isArray(dataArray) ? dataArray : []);
         
+        // 2. Petición para traer el catálogo completo y extraer el nombre real de la especialidad
+        const responseEsp = await api.get('/especialidades');
+        const dataEspecialidades = responseEsp?.data ? responseEsp.data : responseEsp;
+        
+        if (Array.isArray(dataEspecialidades)) {
+          const especialidadActual = dataEspecialidades.find((esp) => String(esp.id) === String(id));
+          if (especialidadActual) {
+            setEspecialidadNombre(especialidadActual.nombre);
+          }
+        }
+        
       } catch (error) {
-        console.error("Error al cargar médicos desde la base de datos:", error);
+        console.error("Error al cargar datos desde la base de datos:", error);
         setError("Ocurrió un error al conectar con el servidor. Inténtalo de nuevo más tarde.");
       } finally {
         setCargando(false);
       }
     };
 
-    cargarMedicos();
+    cargarDatos();
   }, [id]);
+
   if (cargando) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50/50">
@@ -69,7 +67,7 @@ export default function MedicosEspecialidad() {
 
         {/* Encabezado dinámico */}
         <div className="mb-8">
-          <h2 className="text-3xl font-extrabold text-slate-900">
+          <h2 className="text-3xl font-extrabold text-slate-900" style={{ textTransform: 'capitalize' }}>
             Especialistas en {especialidadNombre}
           </h2>
           <p className="text-slate-500 text-sm mt-1">
