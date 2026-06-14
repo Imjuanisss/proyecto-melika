@@ -1,12 +1,11 @@
 // src/pages/admin/MedicosAdmin.jsx  — v2
 // Rediseño completo: tabla con avatares, badges de estado premium,
-// modal de secciones, toggles de modalidad, filtros avanzados.
+// modal de secciones, toggles de modalidad, filtros avanzados y FOTO DE PERFIL.
 
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../../../lib/apiClient';
 import './MedicosAdmin.css';
 import '../admin-shared.css';
-
 
 // ─── Formulario inicial ───────────────────────────────────────────
 const FORM_INICIAL = {
@@ -19,6 +18,7 @@ const FORM_INICIAL = {
   numero_registro:     '',
   id_especialidad:     '',
   anos_experiencia:    0,
+  foto_url:            '', // <-- Nuevo campo para la foto
   biografia:           '',
   acepta_teleconsulta: true,
   acepta_presencial:   true,
@@ -121,10 +121,11 @@ export default function MedicosAdmin() {
       email:               medico.email,
       tipo_documento:      medico.tipo_documento  || 'CC',
       numero_documento:    medico.numero_documento || '',
-      ciudad:              medico.ciudad           || '',
+      ciudad:              medico.ciudad          || '',
       numero_registro:     medico.numero_registro,
       id_especialidad:     medico.id_especialidad,
       anos_experiencia:    medico.anos_experiencia || 0,
+      foto_url:            medico.foto_url         || '', // <-- Cargamos la foto existente
       biografia:           medico.biografia        || '',
       acepta_teleconsulta: medico.acepta_teleconsulta,
       acepta_presencial:   medico.acepta_presencial,
@@ -173,6 +174,7 @@ export default function MedicosAdmin() {
               id_especialidad:     form.id_especialidad,
               especialidad:        especialidades.find(e => String(e.id) === String(form.id_especialidad))?.nombre || m.especialidad,
               anos_experiencia:    form.anos_experiencia,
+              foto_url:            form.foto_url, // <-- Guardamos la foto en el estado local
               biografia:           form.biografia,
               acepta_teleconsulta: form.acepta_teleconsulta,
               acepta_presencial:   form.acepta_presencial,
@@ -557,6 +559,19 @@ export default function MedicosAdmin() {
                         min="0"
                         max="60"
                         placeholder="0"
+                      />
+                    </div>
+
+                    {/* ¡AQUÍ ESTÁ EL CAMPO NUEVO PARA LA FOTO! */}
+                    <div className="admin-campo admin-form-grid--full">
+                      <label>URL de la foto de perfil <span className="campo-hint">(opcional)</span></label>
+                      <input
+                        type="text"
+                        name="foto_url"
+                        value={form.foto_url}
+                        onChange={handleChange}
+                        placeholder="Ej: /imagenes/medicos/dr-perez.jpg"
+                        autoComplete="off"
                       />
                     </div>
 

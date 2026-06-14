@@ -112,8 +112,31 @@
 .admin-error__reintentar:hover { background: var(--adm-red-500); }
 
 /* ─── Tabla médicos ──────────────────────────────────────────────── */
+/* Contenedor de la tabla: permite deslizar a los lados si la pantalla es pequeña */
+.admin-tabla-wrap {
+  width: 100%;
+  overflow-x: auto; 
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+}
+
+/* Evita que las columnas se aplasten y el texto se vuelva pequeño */
 .medicos-tabla-v2 {
+  min-width: 1100px; /* Si la pantalla es menor a esto, aparece el scroll */
+  width: 100%;
+  border-collapse: collapse;
   table-layout: fixed;
+}
+
+/* Opcional: Hacer que la columna de acciones siempre se quede pegada a la derecha */
+.medicos-tabla-v2 th:last-child,
+.medicos-tabla-v2 td:last-child {
+  position: sticky;
+  right: 0;
+  background-color: #ffffff;
+  box-shadow: -4px 0 10px rgba(0,0,0,0.02);
+  z-index: 2;
 }
 
 /* Anchos de columna definidos */
@@ -485,19 +508,7 @@
 /* ═══════════════════════════════════════════════════════════════════
    RESPONSIVE
    ═══════════════════════════════════════════════════════════════════ */
-@media (max-width: 1100px) {
-  .medicos-tabla-v2 .col-ciudad,
-  .medicos-tabla-v2 th:nth-child(5),
-  .medicos-tabla-v2 td:nth-child(5) { display: none; }
-}
-
 @media (max-width: 900px) {
-  .medicos-tabla-v2 .col-registro,
-  .medicos-tabla-v2 th:nth-child(4),
-  .medicos-tabla-v2 td:nth-child(4),
-  .medicos-tabla-v2 .col-exp,
-  .medicos-tabla-v2 th:nth-child(6),
-  .medicos-tabla-v2 td:nth-child(6) { display: none; }
   .modalidades-grid { grid-template-columns: 1fr; }
 }
 

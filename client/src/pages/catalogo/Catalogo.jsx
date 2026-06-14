@@ -3,9 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../../lib/apiClient';
 import './Catalogo.css';
 
-// ── TUS ESPECIALIDADES MÉDICAS (FIJAS EN FRONTEND) ─────────────────────────
-const misEspecialidades = ['Todos', 'Cardiología', 'Dermatología', 'Pediatría', 'Neurología', 'Ginecología', 'Medicina General'];
-
 function MedicamentoSkeleton() {
   return (
     <div className="medicamento-card medicamento-card--skeleton">
@@ -33,74 +30,49 @@ export default function Catalogo() {
 
   // ── Estados ──────────────────────────────────────────────────────────────
   const [medicamentos, setMedicamentos]   = useState([]);
+  const [especialidades, setEspecialidades] = useState([]); // <-- Extrae las reales de la BD
   const [loading,      setLoading]        = useState(true);
   const [error,        setError]          = useState(null);
 
-  const [categoriaActiva, setCategoriaActiva] = useState('Todos'); // Filtrará por tu lista médica
+  const [especialidadActiva, setEspecialidadActiva] = useState(''); // '' = Todos
   const [tipoActivo,      setTipoActivo]      = useState('Todos'); 
   const [buscar,          setBuscar]          = useState('');
   const [buscarInput,     setBuscarInput]     = useState('');   
 
   const [selectedMed, setSelectedMed] = useState(null);
 
-  // ─── Función inteligente para mapear medicamentos a especialidades ────────
-  const asignarEspecialidadAutomatica = (med) => {
-    // Si el backend de tu compañero llega a traer una columna "especialidad", la usamos
-    if (med.especialidad) return med.especialidad;
-    
-    const nombre = med.nombre_comercial?.toLowerCase() || '';
-    const principio = med.principio_activo?.toLowerCase() || '';
-    const catOriginal = med.categoria?.toLowerCase() || ''; // Por si viene de su tabla farmacéutica
+  // ─── Cargar especialidades al iniciar la página ──────────────────────────
+  useEffect(() => {
+    api.get('/especialidades')
+      .then(res => {
+        const data = res.data ? res.data : res;
+        setEspecialidades(Array.isArray(data) ? data : []);
+      })
+      .catch(err => console.error("Error cargando especialidades:", err));
+  }, []);
 
-    // Mapeo inteligente por palabras clave
-    if (nombre.includes('losartán') || principio.includes('enalapril') || principio.includes('atorvastatina') || catOriginal.includes('cardio')) {
-      return 'Cardiología';
-    }
-    if (nombre.includes('crema') || principio.includes('betametasona') || nombre.includes('gel') || catOriginal.includes('derma')) {
-      return 'Dermatología';
-    }
-    if (nombre.includes('jarabe') || nombre.includes('pediátrico') || principio.includes('acetaminofén') || catOriginal.includes('pedia')) {
-      return 'Pediatría';
-    }
-    if (nombre.includes('ácido') || principio.includes('ibuprofeno')) {
-      return 'Medicina General';
-    }
-    
-    // De respaldo si no coincide con ninguna
-    return 'Medicina General';
-  };
-
-  // ─── Cargar medicamentos filtrados ───────────────────────────────────────
+  // ─── Cargar medicamentos filtrados usando consultas reales a PostgreSQL ──
   const cargarMedicamentos = useCallback(() => {
     setLoading(true);
     setError(null);
 
-    // Le pedimos todos los medicamentos al backend de tu compañero sin el filtro de categorías de él
     const params = new URLSearchParams();
     if (tipoActivo !== 'Todos') params.set('tipo', tipoActivo);
     if (buscar.trim())          params.set('buscar', buscar.trim());
+    
+    // Le mandamos el ID numérico al backend para que haga el trabajo pesado
+    if (especialidadActiva)     params.set('id_especialidad', especialidadActiva); 
 
     const query = params.toString() ? `?${params.toString()}` : '';
 
     api.get(`/medicamentos${query}`)
-      .then(data => {
-        const listaNormalizada = (data || []).map(med => ({
-          ...med,
-          // Le inyectamos tu especialidad médica de forma dinámica al objeto
-          categoriaMedica: asignarEspecialidadAutomatica(med)
-        }));
-
-        // Aplicamos tu filtro por especialidades en el Frontend
-        if (categoriaActiva !== 'Todos') {
-          const filtrados = listaNormalizada.filter(m => m.categoriaMedica === categoriaActiva);
-          setMedicamentos(filtrados);
-        } else {
-          setMedicamentos(listaNormalizada);
-        }
+      .then(res => {
+        const data = res.data ? res.data : res;
+        setMedicamentos(Array.isArray(data) ? data : []);
       })
       .catch(() => setError('No se pudo conectar al servidor de Melika.'))
       .finally(() => setLoading(false));
-  }, [categoriaActiva, tipoActivo, buscar]);
+  }, [especialidadActiva, tipoActivo, buscar]);
 
   useEffect(() => {
     cargarMedicamentos();
@@ -112,13 +84,19 @@ export default function Catalogo() {
   }, [buscarInput]);
 
   function limpiarFiltros() {
-    setCategoriaActiva('Todos');
+    setEspecialidadActiva('');
     setTipoActivo('Todos');
     setBuscarInput('');
     setBuscar('');
   }
 
-  const hayFiltrosActivos = categoriaActiva !== 'Todos' || tipoActivo !== 'Todos' || buscar.trim().length > 0;
+  const hayFiltrosActivos = especialidadActiva !== '' || tipoActivo !== 'Todos' || buscar.trim().length > 0;
+
+  // Busca el nombre de la especialidad para pintar la etiqueta azul en la tarjeta
+  const obtenerNombreEspecialidad = (id_esp) => {
+    const esp = especialidades.find(e => e.id === id_esp);
+    return esp ? esp.nombre : 'Medicina General';
+  };
 
   return (
     <div className="catalogo-page">
@@ -156,15 +134,21 @@ export default function Catalogo() {
         ))}
       </div>
 
-      {/* TUS BOTONES DE ESPECIALIDADES MÉDICAS DEFINITIVOS */}
+      {/* BOTONES DE ESPECIALIDADES DINÁMICOS CONECTADOS A LA BD */}
       <div className="filtros-container">
-        {misEspecialidades.map(cat => (
+        <button
+          className={`filtro-btn ${especialidadActiva === '' ? 'activo' : ''}`}
+          onClick={() => setEspecialidadActiva('')}
+        >
+          Todos
+        </button>
+        {especialidades.map(esp => (
           <button
-            key={cat}
-            className={`filtro-btn ${categoriaActiva === cat ? 'activo' : ''}`}
-            onClick={() => setCategoriaActiva(cat)}
+            key={esp.id}
+            className={`filtro-btn ${especialidadActiva === esp.id ? 'activo' : ''}`}
+            onClick={() => setEspecialidadActiva(esp.id)}
           >
-            {cat}
+            {esp.nombre}
           </button>
         ))}
       </div>
@@ -205,8 +189,10 @@ export default function Catalogo() {
               </div>
 
               <div className="medicamento-detalles">
-                {/* Mostramos tu categoría médica inyectada */}
-                <span className="badge-especialidad">{med.categoriaMedica}</span>
+                {/* Imprimimos el nombre de la especialidad buscándolo por su ID */}
+                <span className="badge-especialidad">
+                  {obtenerNombreEspecialidad(med.id_especialidad)}
+                </span>
                 <TipoBadge tipo={med.tipo} />
 
                 <h3 className="medicamento-nombre">{med.nombre_comercial}</h3>
@@ -231,28 +217,60 @@ export default function Catalogo() {
         }
       </div>
 
-      {/* MODAL */}
+      {/* MODAL FICHA TÉCNICA */}
       {selectedMed && (
         <div className="modal-overlay" onClick={() => setSelectedMed(null)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <button className="modal-close" onClick={() => setSelectedMed(null)}>&times;</button>
             <div className="modal-body">
               <div className="modal-header-info">
-                <span className="modal-badge">{selectedMed.categoriaMedica}</span>
-                <h2>{selectedMed.nombre_comercial}</h2>
+                <span className="modal-badge">{obtenerNombreEspecialidad(selectedMed.id_especialidad)}</span>
+                <h2 style={{ marginBottom: '8px' }}>{selectedMed.nombre_comercial}</h2>
+                <TipoBadge tipo={selectedMed.tipo} />
               </div>
+
+              {/* AQUÍ AGREGAMOS LA DESCRIPCIÓN */}
+              {selectedMed.descripcion && (
+                <div style={{ margin: '20px 0', padding: '15px', backgroundColor: '#f8fafc', borderRadius: '8px', borderLeft: '4px solid #3b82f6' }}>
+                  <h4 style={{ fontSize: '12px', textTransform: 'uppercase', color: '#64748b', marginBottom: '8px', letterSpacing: '0.5px' }}>
+                    Indicaciones / Descripción
+                  </h4>
+                  <p style={{ color: '#334155', lineHeight: '1.6', margin: 0, fontSize: '15px' }}>
+                    {selectedMed.descripcion}
+                  </p>
+                </div>
+              )}
+
               <div className="modal-grid-info">
                 <div className="info-block">
                   <h4>Principio activo</h4>
                   <p>{selectedMed.principio_activo}</p>
                 </div>
+                
                 <div className="info-block">
                   <h4>Laboratorio</h4>
                   <p>{selectedMed.laboratorio || 'No especificado'}</p>
                 </div>
+
+                {/* AQUÍ AGREGAMOS LA PRESENTACIÓN (Ej: Caja x 30) */}
+                {selectedMed.presentaciones && (
+                  <div className="info-block">
+                    <h4>Presentación</h4>
+                    <p>{selectedMed.presentaciones}</p>
+                  </div>
+                )}
               </div>
+              
               <div className="modal-footer">
-                <button className="modal-agendar-btn" onClick={() => { setSelectedMed(null); navigate('/agendar'); }}>Solicitar cita médica →</button>
+                <button 
+                  className="modal-agendar-btn" 
+                  onClick={() => { 
+                    setSelectedMed(null); 
+                    navigate('/agendar'); 
+                  }}
+                >
+                  Solicitar cita médica →
+                </button>
               </div>
             </div>
           </div>

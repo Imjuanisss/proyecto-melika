@@ -7,7 +7,7 @@ export default function MedicosEspecialidad() {
   const { id } = useParams(); 
   const navigate = useNavigate();
   const [medicos, setMedicos] = useState([]);
-  const [especialidadNombre, setEspecialidadNombre] = useState('Especialistas'); // Estado dinámico para el título
+  const [especialidadNombre, setEspecialidadNombre] = useState('Especialistas'); 
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
 
@@ -97,20 +97,40 @@ export default function MedicosEspecialidad() {
                 className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition-all duration-300"
               >
                 <div>
-                  <div className="flex justify-between items-start">
-                    <h3 className="text-xl font-bold text-slate-900">
-                      Dr. {medico.nombre} {medico.primer_apellido}
-                    </h3>
-                    <span className="bg-amber-50 text-amber-700 text-xs px-2.5 py-1 rounded-full font-bold flex items-center gap-1">
-                      ⭐ {medico.calificacion || '5.0'}
-                    </span>
+                  {/* ─── NUEVO ENCABEZADO CON FOTO ─── */}
+                  <div className="flex gap-4 items-center mb-4">
+                    {/* Contenedor de la foto */}
+                    <div className="w-16 h-16 shrink-0 rounded-full overflow-hidden border-2 border-slate-100 bg-slate-50 flex items-center justify-center shadow-sm">
+                      <img 
+                        src={medico.foto_url || '/imagenes/medicos/perfil-defecto.png'} 
+                        alt={`Dr(a). ${medico.nombre} ${medico.primer_apellido}`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          // Si falla la imagen, genera iniciales automáticamente
+                          const iniciales = `${medico.nombre.charAt(0)}${medico.primer_apellido.charAt(0)}`.toUpperCase();
+                          e.target.src = `https://placehold.co/150x150/f8fafc/64748b?text=${iniciales}`;
+                        }}
+                      />
+                    </div>
+                    
+                    {/* Información del nombre y experiencia */}
+                    <div className="flex-1">
+                      <div className="flex justify-between items-start">
+                        <h3 className="text-xl font-bold text-slate-900 leading-tight">
+                          Dr(a). {medico.nombre} {medico.primer_apellido}
+                        </h3>
+                        <span className="bg-amber-50 text-amber-700 text-xs px-2.5 py-1 rounded-full font-bold flex items-center gap-1 shrink-0 ml-2">
+                          ⭐ {medico.calificacion || '5.0'}
+                        </span>
+                      </div>
+                      <p className="text-slate-400 text-xs font-semibold mt-1 uppercase tracking-wider">
+                        {medico.anos_experiencia || 0} años de experiencia
+                      </p>
+                    </div>
                   </div>
+                  {/* ─── FIN NUEVO ENCABEZADO ─── */}
                   
-                  <p className="text-slate-400 text-xs font-semibold mt-1 uppercase tracking-wider">
-                    {medico.anos_experiencia || 0} años de experiencia
-                  </p>
-                  
-                  <p className="text-slate-600 text-sm mt-4 bg-slate-50 p-3 rounded-xl italic border border-slate-50">
+                  <p className="text-slate-600 text-sm bg-slate-50 p-3 rounded-xl italic border border-slate-50">
                     "{medico.biografia || 'Sin biografía disponible.'}"
                   </p>
                   
@@ -125,7 +145,7 @@ export default function MedicosEspecialidad() {
                   </div>
                 </div>
 
-                {/* Footer limpio alineado a la derecha sin campos de tarifa redundantes */}
+                {/* Footer limpio alineado a la derecha */}
                 <div className="border-t border-slate-100 pt-4 mt-6 flex items-center justify-end">
                   <button 
                     onClick={() => navigate(`/medico/${medico.id}/agenda`)}

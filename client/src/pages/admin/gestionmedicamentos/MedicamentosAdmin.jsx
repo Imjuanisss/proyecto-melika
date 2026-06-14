@@ -21,10 +21,23 @@ function ModalMedicamento({ modo, medicamento, onGuardar, onCerrar }) {
     descripcion: medicamento?.descripcion ?? '',
     presentacion: medicamento?.presentaciones ?? '',
     laboratorio: medicamento?.laboratorio ?? '',
-    categoria: medicamento?.categoria ?? '',
+    id_especialidad: medicamento?.id_especialidad ?? '', // <-- Ahora usamos Especialidad
+    imagen_url: medicamento?.imagen_url ?? '',
     activo: medicamento?.activo ?? true,
   });
+  
   const [guardando, setGuardando] = useState(false);
+  const [especialidades, setEspecialidades] = useState([]); // Para cargar el desplegable
+
+  // Cargamos las especialidades apenas se abre la ventanita
+  useEffect(() => {
+    api.get('/especialidades')
+      .then(res => {
+        const data = res.data ? res.data : res;
+        setEspecialidades(Array.isArray(data) ? data : []);
+      })
+      .catch(err => console.error("Error cargando especialidades:", err));
+  }, []);
 
   async function handleSubmit(e) {
     if (e) e.preventDefault();
@@ -92,15 +105,47 @@ function ModalMedicamento({ modo, medicamento, onGuardar, onCerrar }) {
               placeholder="Ej: Genfar"
             />
           </div>
+          
+          {/* --- AQUÍ ESTÁ EL CAMBIO: El menú desplegable de Especialidad --- */}
           <div className="admin-campo">
-            <label>Categoría</label>
+            <label>Especialidad</label>
+            <select 
+              value={form.id_especialidad} 
+              onChange={e => setForm(prev => ({ ...prev, id_especialidad: e.target.value }))}
+              style={{
+                width: '100%',
+                padding: '10px 14px',
+                border: '1px solid #D9E4F7',
+                borderRadius: '8px',
+                outline: 'none',
+                color: '#0B1A36',
+                backgroundColor: '#fff'
+              }}
+            >
+              <option value="">Seleccione especialidad...</option>
+              {especialidades.map(esp => (
+                <option key={esp.id} value={esp.id}>{esp.nombre}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="admin-campo admin-campo--full">
+            <label>URL de la imagen o ícono</label>
             <input
               type="text"
-              value={form.categoria}
-              onChange={e => setForm(prev => ({ ...prev, categoria: e.target.value }))}
-              placeholder="Ej: Analgésicos"
+              value={form.imagen_url}
+              onChange={e => setForm(prev => ({ ...prev, imagen_url: e.target.value }))}
+              placeholder="Ej: /imagenes/medicamentos/ibuprofeno.jpg"
+              style={{
+                width: '100%',
+                padding: '10px 14px',
+                border: '1px solid #D9E4F7',
+                borderRadius: '8px',
+                outline: 'none'
+              }}
             />
           </div>
+
           <div className="admin-campo admin-campo--full">
             <label>Descripción</label>
             <textarea
@@ -146,20 +191,25 @@ export default function MedicamentosAdmin() {
   const [modal, setModal] = useState(null);
 
   useEffect(() => {
-    // Apunta exactamente al nuevo endpoint administrativo sin restricciones
     api.get('/medicamentos/admin')
-      .then(data => { setMeds(data); setError(null); })
+      .then(res => { 
+        const data = res.data ? res.data : res;
+        setMeds(Array.isArray(data) ? data : []); 
+        setError(null); 
+      })
       .catch(() => setError('No se pudieron cargar los medicamentos.'))
       .finally(() => setLoading(false));
   }, []);
 
   async function handleGuardar(form) {
     if (modal.modo === 'crear') {
-      const respuesta = await api.post('/medicamentos', form);
-      setMeds(prev => [respuesta.medicamento, ...prev]);
+      const res = await api.post('/medicamentos', form);
+      const data = res.data ? res.data : res;
+      setMeds(prev => [data.medicamento, ...prev]);
     } else {
-      const respuesta = await api.put(`/medicamentos/${modal.med.id}`, form);
-      setMeds(prev => prev.map(m => m.id === modal.med.id ? respuesta.medicamento : m));
+      const res = await api.put(`/medicamentos/${modal.med.id}`, form);
+      const data = res.data ? res.data : res;
+      setMeds(prev => prev.map(m => m.id === modal.med.id ? data.medicamento : m));
     }
     setModal(null);
   }
