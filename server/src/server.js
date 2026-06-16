@@ -12,7 +12,16 @@ const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
 
+ develop
 app.use(cors({}));
+
+
+app.get('/', (req, res) => {
+  res.json({ status: "ok", message: "Servidor MELIKA funcionando correctamente" });
+});
+
+app.use(cors({ origin: process.env.FRONTEND_URL }));
+ main
 app.use(express.json());
 
 // ── Autenticación ──────────────────────────────────────────────────────────
@@ -35,6 +44,7 @@ app.use('/medicos', medicosRoutes);
 app.use('/medico',  medicosRoutes);
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Servidor MELIKA en http://localhost:${PORT}`);
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Servidor MELIKA listo y escuchando en el puerto ${PORT}`);
 });
