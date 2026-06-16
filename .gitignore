@@ -1,0 +1,24 @@
+# Dependencias
+node_modules/
+server/node_modules/
+client/node_modules/
+
+# Variables de entorno
+.env
+server/.env
+client/.env
+
+
+# Coberturas de pruebas
+sever/coverage/
+
+# Archivos que no van al repo
+*.docx
+*.sql
+
+# Uploads
+server/uploads/
+
+# Logs
+*.log
+npm-debug.log*
