@@ -35,6 +35,7 @@ app.use('/medicos', medicosRoutes);
 app.use('/medico',  medicosRoutes);
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Servidor MELIKA en http://localhost:${PORT}`);
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Servidor MELIKA listo y escuchando en el puerto ${PORT}`);
 });
