@@ -1,0 +1,291 @@
+/* ═══════════════════════════════════════════════════════════════════
+   MELIKA — Navbar.css
+   Regla de oro: nunca alterar la altura del navbar ni romper el
+   flexbox principal. Todos los bloques condicionales viven dentro
+   de .navbar__acciones y no afectan la estructura exterior.
+   ═══════════════════════════════════════════════════════════════════ */
+
+.navbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  padding: var(--space-4) 0;
+  transition: all var(--duration-base) var(--ease-smooth);
+}
+
+.navbar--scrolled {
+  background: rgba(255,255,255,0.97);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 1px 0 var(--melika-primary-100), var(--shadow-sm);
+  padding: var(--space-3) 0;
+}
+
+/* ─── Contenedor interno: flex rígido de 3 zonas ─────────────────── */
+.navbar__inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 var(--space-6);
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  /* Altura fija implícita: los hijos deben usar align-items: center
+     y nunca sobrepasar ~48px de bloque */
+}
+
+/* ─── Logo ───────────────────────────────────────────────────────── */
+.navbar__logo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.25rem;
+  letter-spacing: -0.04em;
+  color: var(--melika-text-primary);
+  flex-shrink: 0;
+}
+
+.navbar__logo-mark {
+  width: 30px; height: 30px;
+  background: var(--melika-accent);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.9375rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+/* ─── Links de navegación ────────────────────────────────────────── */
+.navbar__links {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+}
+
+.navbar__link {
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--melika-text-secondary);
+  transition: color var(--duration-fast);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.navbar__link:hover { color: var(--melika-text-primary); }
+
+.navbar__link--activo {
+  color: var(--melika-accent) !important;
+  font-weight: 600;
+}
+
+/* ─── Zona de acciones (extremo derecho) ─────────────────────────── */
+.navbar__acciones {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+  /* height = implícita por align-items: center del padre.
+     Nunca fijar height explícita aquí para no romper el layout. */
+}
+
+/* ─── Bloque unificado para usuarios autenticados ────────────────── */
+/* Encapsula saludo + botón de panel + botón salir sin layout shifts */
+.navbar__acciones-auth {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* ─── Saludo textual (decorativo, NO es botón) ───────────────────── */
+.navbar__saludo-texto {
+  font-family: var(--font-display);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--melika-text-muted);
+  white-space: nowrap;
+  /* aria-hidden en el JSX: es decorativo, no interactivo */
+}
+
+/* ─── Botones de panel por rol ───────────────────────────────────── */
+/* Base compartida — mismas proporciones, misma transición */
+.navbar__btn-panel {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-family: var(--font-display);
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-4);
+  white-space: nowrap;
+  text-decoration: none;
+  transition: all 0.2s var(--ease-smooth);
+  border: 1.5px solid transparent;
+  letter-spacing: -0.01em;
+}
+
+/* Paciente — tono azul primario sutil */
+.navbar__btn-panel--paciente {
+  background: var(--melika-primary-50);
+  color: var(--melika-primary-600);
+  border-color: var(--melika-primary-100);
+}
+.navbar__btn-panel--paciente:hover {
+  background: var(--melika-primary-100);
+  border-color: var(--melika-primary-200);
+  color: var(--melika-primary-700);
+}
+
+/* Médico — tono verde clínico para diferenciarlo del paciente */
+.navbar__btn-panel--medico {
+  background: var(--melika-success-bg);
+  color: var(--melika-success);
+  border-color: #B2DDC9;
+}
+.navbar__btn-panel--medico:hover {
+  background: #D0EFE0;
+  border-color: var(--melika-success);
+}
+
+/* Admin — tono coral/acento para máxima diferenciación */
+.navbar__btn-panel--admin {
+  background: var(--melika-accent-light);
+  color: var(--melika-accent-dark);
+  border-color: var(--melika-accent-medium);
+}
+.navbar__btn-panel--admin:hover {
+  background: #F4D0C5;
+  border-color: var(--melika-accent);
+}
+
+/* ─── Botón de cerrar sesión ─────────────────────────────────────── */
+.navbar__logout-btn {
+  font-family: var(--font-display);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--melika-text-muted);
+  background: none;
+  border: 1.5px solid var(--melika-primary-100);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-4);
+  cursor: pointer;
+  transition: all var(--duration-fast);
+  white-space: nowrap;
+}
+
+.navbar__logout-btn:hover {
+  border-color: var(--melika-error);
+  color: var(--melika-error);
+}
+
+/* ─── Hamburger mobile ───────────────────────────────────────────── */
+.navbar__hamburger {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  padding: var(--space-2);
+  margin-left: auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.navbar__hamburger span {
+  display: block;
+  width: 22px; height: 2px;
+  background: var(--melika-text-secondary);
+  border-radius: 2px;
+  transition: all var(--duration-base) var(--ease-smooth);
+}
+
+.navbar__hamburger--abierto span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.navbar__hamburger--abierto span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+.navbar__hamburger--abierto span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+/* ─── Overlay y drawer mobile ────────────────────────────────────── */
+.navbar__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(11,26,54,0.4);
+  backdrop-filter: blur(4px);
+  z-index: 199;
+}
+
+.navbar__drawer {
+  position: fixed;
+  top: 0; right: -100%; bottom: 0;
+  width: 300px;
+  background: #fff;
+  z-index: 200;
+  padding: var(--space-16) var(--space-6) var(--space-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  transition: right var(--duration-slow) var(--ease-smooth);
+  box-shadow: var(--shadow-xl);
+  border-left: 1px solid var(--melika-primary-100);
+}
+
+.navbar__drawer--abierto { right: 0; }
+
+.navbar__drawer-links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.navbar__drawer-link {
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  font-weight: 500;
+  color: var(--melika-text-secondary);
+  padding: var(--space-3) var(--space-3);
+  border-radius: var(--radius-md);
+  transition: all var(--duration-fast);
+  text-decoration: none;
+}
+
+.navbar__drawer-link:hover {
+  background: var(--melika-primary-25);
+  color: var(--melika-text-primary);
+  padding-left: var(--space-4);
+}
+
+.navbar__drawer-link--activo {
+  color: var(--melika-accent);
+  font-weight: 600;
+}
+
+/* Enlace de panel en drawer — visualmente destacado */
+.navbar__drawer-link--panel {
+  font-weight: 700;
+  color: var(--melika-primary-600);
+  background: var(--melika-primary-25);
+  border: 1px solid var(--melika-primary-100);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-2);
+}
+
+.navbar__drawer-link--panel:hover {
+  background: var(--melika-primary-50);
+  border-color: var(--melika-primary-200);
+  padding-left: var(--space-4); /* no desplazar — ya tiene padding propio */
+}
+
+.navbar__drawer-acciones {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: auto;
+}
+
+/* ─── Responsive ─────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .navbar__links,
+  .navbar__acciones { display: none; }
+  .navbar__hamburger { display: flex; }
+}

@@ -109,9 +109,11 @@ async function actualizarEspecialidad(req, res) {
 async function medicosPorEspecialidad(req, res) {
   const { id } = req.params;
   try {
+    // ¡AQUÍ ESTÁ LA MAGIA! Agregamos m.foto_url al SELECT
     const resultado = await pool.query(
       `SELECT m.id, u.nombre, u.primer_apellido, m.tarifa, m.calificacion,
-              m.acepta_teleconsulta, m.acepta_presencial, m.biografia, m.anos_experiencia
+              m.acepta_teleconsulta, m.acepta_presencial, m.biografia, m.anos_experiencia,
+              m.foto_url
        FROM medicos m
        JOIN usuarios u ON m.id_usuario = u.id
        WHERE m.id_especialidad = $1 AND m.activo = TRUE AND u.activo = TRUE
