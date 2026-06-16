@@ -12,6 +12,11 @@ const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
 
+
+app.get('/', (req, res) => {
+  res.json({ status: "ok", message: "Servidor MELIKA funcionando correctamente" });
+});
+
 app.use(cors({ origin: process.env.FRONTEND_URL }));
 app.use(express.json());
 
