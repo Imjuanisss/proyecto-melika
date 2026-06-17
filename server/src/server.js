@@ -11,7 +11,6 @@ const medicamentosRoutes  = require('./routes/medicamentosRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
-
 app.use(cors({ origin: process.env.FRONTEND_URL }));
 app.use(express.json());
 
