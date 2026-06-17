@@ -11,17 +11,7 @@ const medicamentosRoutes  = require('./routes/medicamentosRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
-
- develop
-app.use(cors({}));
-
-
-app.get('/', (req, res) => {
-  res.json({ status: "ok", message: "Servidor MELIKA funcionando correctamente" });
-});
-
 app.use(cors({ origin: process.env.FRONTEND_URL }));
- main
 app.use(express.json());
 
 // ── Autenticación ──────────────────────────────────────────────────────────
