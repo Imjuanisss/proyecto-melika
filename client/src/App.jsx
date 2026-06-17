@@ -56,7 +56,7 @@ function App() {
       <BrowserRouter>
         <Navbar />
         <Routes>
-          {/* 🔓 Rutas Públicas */}
+          {/*  Rutas Públicas */}
           <Route path="/" element={<Inicio />} />
           <Route path="/login" element={<Login />} />
           <Route path="/registro" element={<Registro />} />
@@ -68,21 +68,21 @@ function App() {
            {/* ruta de activación de cuenta (para médicos) */}
           <Route path="/activar-cuenta" element={<ActivarCuenta />} />
 
-          {/* 🩺 Catálogo de Especialidades y Médicos (Públicos) */}
+          {/*  Catálogo de Especialidades y Médicos (Públicos) */}
           <Route path="/especialidades" element={<Especialidades />} />
           <Route path="/especialidades/:id/medicos" element={<MedicosEspecialidad />} />         
           <Route path="/medico/:id/agenda" element={<RutaProtegida><Agendarcita /></RutaProtegida>} />
 
-          {/* 🔒 Rutas de Pacientes Protegidas */}
+          {/*  Rutas de Pacientes Protegidas */}
           <Route path="/dashboard" element={<RutaProtegida><Dashboard /></RutaProtegida>} />
           <Route path="/agendar" element={<RutaProtegida><Agendarcita /></RutaProtegida>} />
           <Route path="/mis-citas" element={<RutaProtegida><MisCitas /></RutaProtegida>} />
 
-          {/* 🩺 Rutas de Médicos Protegidas */}
+          {/*  Rutas de Médicos Protegidas */}
           <Route path="/dashboard-medico" element={<RutaMedico><DashboardMedico /></RutaMedico>} />
           
 
-          {/* 👑 Rutas de Admin Protegidas (Anidadas) */}
+          {/*  Rutas de Admin Protegidas (Anidadas) */}
           <Route path="/admin" element={<RutaAdmin><AdminLayout /></RutaAdmin>}>
             <Route index element={<AdminDashboard />} />
             <Route path="medicos" element={<MedicosAdmin />} />

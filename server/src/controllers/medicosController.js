@@ -1,3 +1,5 @@
+
+
 // server/src/controllers/medicosController.js
 // ─── REESCRITURA COMPLETA — todos los bugs de schema corregidos ────────────────
 // Bugs corregidos:
