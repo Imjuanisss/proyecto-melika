@@ -1,3 +1,5 @@
+
+
 // server/src/controllers/medicosController.js
 // ─── REESCRITURA COMPLETA — todos los bugs de schema corregidos ────────────────
 // Bugs corregidos:
@@ -5,6 +7,7 @@
 // 2. usuarios requiere numero_documento NOT NULL UNIQUE → ahora se recibe del form
 // 3. tarifa NOT NULL en medicos → se guarda como 0 (el admin no la gestiona públicamente)
 // 4. listarMedicos incluye todos los campos nuevos del JOIN y el campo foto_url
+// 5. CORRECCIÓN SQL: Sintaxis válida para la inserción de ciudad en PostgreSQL
 
 const pool       = require('../config/db');
 const bcrypt     = require('bcrypt');
@@ -79,8 +82,8 @@ async function crearMedico(req, res) {
       `INSERT INTO usuarios
          (nombre, primer_apellido, email, password_hash,
           rol, activo, verificado,
-          tipo_documento, numero_documento, city = ciudad) -- ciudad mapeado correctamente
-       VALUES ($1, $2, $3, $4, 'medico', TRUE, TRUE, $5, $6, $7) 
+          tipo_documento, numero_documento, ciudad) 
+       VALUES ($1, $2, $3, $4, 'medico', FALSE, TRUE, $5, $6, $7) 
        RETURNING id`,
       [
         nombre,
