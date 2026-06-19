@@ -4,15 +4,58 @@ const jwt    = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 
 // ─── Configuración de correo ─────────────────────────────────────────────────
+//
+// Por qué NO usamos service:'gmail':
+//   Nodemailer resuelve 'gmail' a una lista de hosts que incluye IPv6.
+//   Railway bloquea conexiones IPv6 salientes → error ENETUNREACH.
+//
+// Solución: configurar el SMTP de Gmail de forma explícita con:
+//   - host fijo 'smtp.gmail.com' (resuelto solo por IPv4 con family:4)
+//   - port 465 + secure:true  →  TLS desde el inicio (más estable que STARTTLS)
+//   - family:4                →  fuerza IPv4, elimina el ENETUNREACH de Railway
+//   - pool:true               →  reutiliza la conexión SMTP entre envíos
+//                                en lugar de abrir/cerrar una por correo
+//   - maxConnections:3        →  límite seguro para no saturar Gmail
+//   - socketTimeout/greetingTimeout →  falla rápido si hay un problema de red
+//                                      en lugar de colgar el request del usuario
+
 function crearTransporter() {
-  return nodemailer.createTransport({
-    service: 'gmail',
+  const transporter = nodemailer.createTransport({
+    host:    'smtp.gmail.com',
+    port:    465,
+    secure:  true,
+    family:  4,
+    pool:    true,
+    maxConnections: 3,
+    socketTimeout:  10000,
+    greetingTimeout: 10000,
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
     },
   });
+
+  return transporter;
 }
+
+// Verifica la conexión SMTP al arrancar el servidor.
+// Si las credenciales son incorrectas o Gmail rechaza la conexión,
+// el error aparece en los logs de Railway inmediatamente, no cuando
+// el primer usuario intenta registrarse.
+function verificarConexionEmail() {
+  const transporter = crearTransporter();
+  transporter.verify((error) => {
+    if (error) {
+      console.error('⚠️  SMTP Gmail no disponible:', error.message);
+      console.error('   Verifica EMAIL_USER y EMAIL_PASS en las variables de Railway.');
+    } else {
+      console.log('✅ Conexión SMTP Gmail verificada correctamente.');
+    }
+  });
+}
+
+// Se ejecuta una sola vez al cargar el módulo
+verificarConexionEmail();
 
 function generarCodigo() {
   return Math.floor(100000 + Math.random() * 900000).toString();
