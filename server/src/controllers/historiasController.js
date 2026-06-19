@@ -44,6 +44,17 @@ async function crearHistoria(req, res) {
 
     const id_paciente = cita.rows[0].id_paciente;
 
+    // ─── BLINDAJE PARA EL TIPO JSONB ───
+    // Convierte el valor a un string JSON válido o a null si viene vacío
+    let medicamentosFormateados = null;
+    if (medicamentos_recetados) {
+      if (typeof medicamentos_recetados === 'object') {
+        medicamentosFormateados = JSON.stringify(medicamentos_recetados);
+      } else if (typeof medicamentos_recetados === 'string' && medicamentos_recetados.trim() !== '') {
+        medicamentosFormateados = medicamentos_recetados;
+      }
+    }
+
     const nueva = await pool.query(
       `INSERT INTO historias_clinicas
          (id_cita, id_paciente, id_medico, motivo_consulta, anamnesis,
@@ -52,13 +63,16 @@ async function crearHistoria(req, res) {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
        RETURNING *`,
       [
-        id_cita, id_paciente, id_medico, motivo_consulta,
+        id_cita, 
+        id_paciente, 
+        id_medico, 
+        motivo_consulta,
         anamnesis || null,
         examen_fisico || null,
         diagnostico_cie10 || null,
         descripcion_diagnostico || null,
         plan_tratamiento || null,
-        medicamentos_recetados || null,
+        medicamentosFormateados, // Pasa la variable blindada aquí
         observaciones || null,
       ]
     );
@@ -109,6 +123,16 @@ async function actualizarHistoria(req, res) {
     if (historia.rows[0].id_medico !== id_medico)
       return res.status(403).json({ mensaje: 'No puedes editar una historia ajena.' });
 
+    // ─── BLINDAJE PARA EL TIPO JSONB ───
+    let medicamentosFormateados = null;
+    if (medicamentos_recetados) {
+      if (typeof medicamentos_recetados === 'object') {
+        medicamentosFormateados = JSON.stringify(medicamentos_recetados);
+      } else if (typeof medicamentos_recetados === 'string' && medicamentos_recetados.trim() !== '') {
+        medicamentosFormateados = medicamentos_recetados;
+      }
+    }
+
     const actualizada = await pool.query(
       `UPDATE historias_clinicas SET
          motivo_consulta=$1, anamnesis=$2, examen_fisico=$3,
@@ -117,9 +141,15 @@ async function actualizarHistoria(req, res) {
          observaciones=$8, updated_at=NOW()
        WHERE id=$9 RETURNING *`,
       [
-        motivo_consulta, anamnesis, examen_fisico,
-        diagnostico_cie10, descripcion_diagnostico,
-        plan_tratamiento, medicamentos_recetados, observaciones, id,
+        motivo_consulta, 
+        anamnesis || null, 
+        examen_fisico || null,
+        diagnostico_cie10 || null, 
+        descripcion_diagnostico || null,
+        plan_tratamiento || null, 
+        medicamentosFormateados, // Pasa la variable blindada aquí
+        observaciones || null, 
+        id,
       ]
     );
 
@@ -152,7 +182,6 @@ async function historialPaciente(req, res) {
   const id_usuario_auth = req.usuario.id;
   const { id_paciente } = req.params;
 
-  // Solo el mismo paciente o un médico puede ver el historial
   if (
     req.usuario.rol === 'paciente' &&
     parseInt(id_paciente) !== id_usuario_auth
