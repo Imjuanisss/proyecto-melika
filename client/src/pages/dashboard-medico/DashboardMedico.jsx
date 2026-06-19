@@ -6,7 +6,7 @@ import interactionPlugin from '@fullcalendar/interaction';
 import esLocale          from '@fullcalendar/core/locales/es';
 import { useAuth }       from '../../context/AuthContext';
 import { api }           from '../../lib/apiClient';
-import './Dashboardmedico.css';
+import './DashboardMedico.css';
 
 // ── Valor inicial del formulario de historia ────────────────────────────
 const HISTORIA_INICIAL = {

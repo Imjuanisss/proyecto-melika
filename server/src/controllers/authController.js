@@ -1,24 +1,13 @@
 const pool   = require('../config/db');
 const bcrypt = require('bcrypt');
 const jwt    = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
-
-// ─── Configuración de correo ─────────────────────────────────────────────────
-function crearTransporter() {
-  return nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-  });
-}
+const { enviarCorreo } = require('../services/emailService');
 
 function generarCodigo() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// ─── Templates de correo ─────────────────────────────────────────────────────
+// ─── TEMPLATES DE CORREO ─────────────────────────────────────────────────────
 
 function templateVerificacion(nombre, codigo) {
   return `
@@ -29,29 +18,29 @@ function templateVerificacion(nombre, codigo) {
         </h1>
         <p style="color: #4A5978; margin: 8px 0 0;">Tu salud, sin esperas ni papeleo</p>
       </div>
-      
+
       <div style="background: #fff; border-radius: 12px; padding: 32px; border: 1px solid #D9E4F7;">
         <h2 style="color: #0B1A36; margin: 0 0 16px;">¡Hola, ${nombre}! 👋</h2>
         <p style="color: #4A5978; line-height: 1.6;">
-          Gracias por registrarte en MELIKA. Para activar tu cuenta, 
+          Gracias por registrarte en MELIKA. Para activar tu cuenta,
           ingresa el siguiente código en la aplicación:
         </p>
-        
+
         <div style="background: #F6F9FF; border: 2px solid #3B6EE8; border-radius: 12px; padding: 24px; text-align: center; margin: 24px 0;">
           <p style="margin: 0 0 8px; color: #4A5978; font-size: 14px;">Tu código de verificación</p>
           <div style="font-size: 42px; font-weight: 800; color: #0B1A36; letter-spacing: 12px;">
             ${codigo}
           </div>
         </div>
-        
+
         <p style="color: #8A9BBE; font-size: 14px; margin: 16px 0 0;">
           ⏱ Este código expira en <strong>15 minutos</strong>.<br>
           Si no creaste esta cuenta, puedes ignorar este correo.
         </p>
       </div>
-      
+
       <p style="text-align: center; color: #8A9BBE; font-size: 12px; margin-top: 24px;">
-        © 2025 MELIKA — Plataforma de Salud Digital Colombia
+        © 2026 MELIKA — Plataforma de Salud Digital Colombia
       </p>
     </div>
   `;
@@ -65,21 +54,21 @@ function templateRecuperacion(nombre, codigo) {
           <span style="color: #E8856A;">M</span>ELIKA
         </h1>
       </div>
-      
+
       <div style="background: #fff; border-radius: 12px; padding: 32px; border: 1px solid #D9E4F7;">
         <h2 style="color: #0B1A36; margin: 0 0 16px;">Recuperación de contraseña</h2>
         <p style="color: #4A5978; line-height: 1.6;">
-          Hola <strong>${nombre}</strong>, recibimos una solicitud para restablecer 
+          Hola <strong>${nombre}</strong>, recibimos una solicitud para restablecer
           la contraseña de tu cuenta en MELIKA.
         </p>
-        
+
         <div style="background: #FEF3C7; border: 2px solid #B45309; border-radius: 12px; padding: 24px; text-align: center; margin: 24px 0;">
           <p style="margin: 0 0 8px; color: #B45309; font-size: 14px;">Código de recuperación</p>
           <div style="font-size: 42px; font-weight: 800; color: #0B1A36; letter-spacing: 12px;">
             ${codigo}
           </div>
         </div>
-        
+
         <p style="color: #8A9BBE; font-size: 14px;">
           ⏱ Este código expira en <strong>15 minutos</strong>.<br>
           Si no solicitaste este cambio, ignora este correo. Tu contraseña no cambiará.
@@ -89,13 +78,11 @@ function templateRecuperacion(nombre, codigo) {
   `;
 }
 
-// ─── REGISTRO (CORREGIDO) ────────────────────────────────────────────────────
+// ─── REGISTRO ─────────────────────────────────────────────────────────────
 
 async function register(req, res) {
-  // 1. Extraer los nuevos campos enviados por el frontend
   const { nombre, primer_apellido, email, password, tipo_documento, numero_documento } = req.body;
 
-  // 2. Validar que no lleguen vacíos
   if (!nombre || !primer_apellido || !email || !password || !tipo_documento || !numero_documento) {
     return res.status(400).json({ mensaje: 'Todos los campos son obligatorios, incluyendo identificación.' });
   }
@@ -104,14 +91,12 @@ async function register(req, res) {
     return res.status(400).json({ mensaje: 'La contraseña debe tener mínimo 6 caracteres.' });
   }
 
-  // 3. Validar consistencia del tipo de documento antes de tocar la DB
   const tiposValidos = ['CC', 'CE', 'PASAPORTE'];
   if (!tiposValidos.includes(tipo_documento)) {
     return res.status(400).json({ mensaje: 'Tipo de documento inválido. Use CC, CE o PASAPORTE.' });
   }
 
   try {
-    // 4. Verificar duplicados de Email y Documento en paralelo (Maximiza rendimiento)
     const [emailExiste, docExiste] = await Promise.all([
       pool.query('SELECT id FROM usuarios WHERE email = $1', [email]),
       pool.query('SELECT id FROM usuarios WHERE numero_documento = $1', [numero_documento]),
@@ -127,17 +112,15 @@ async function register(req, res) {
 
     const hash = await bcrypt.hash(password, 10);
 
-    // 5. Insertar incluyendo las nuevas columnas para evitar la restricción de No Nulo
     await pool.query(
-      `INSERT INTO usuarios 
+      `INSERT INTO usuarios
          (nombre, primer_apellido, email, password_hash, rol, activo, verificado, tipo_documento, numero_documento)
        VALUES ($1, $2, $3, $4, 'paciente', FALSE, FALSE, $5, $6)`,
       [nombre, primer_apellido, email, hash, tipo_documento, numero_documento]
     );
 
-    // Generar y guardar código de verificación
     const codigo = generarCodigo();
-    const expira = new Date(Date.now() + 15 * 60 * 1000); // 15 minutos
+    const expira = new Date(Date.now() + 15 * 60 * 1000);
 
     await pool.query(
       'DELETE FROM codigos_verificacion WHERE email = $1 AND tipo = $2',
@@ -150,26 +133,33 @@ async function register(req, res) {
       [email, codigo, expira]
     );
 
-    // Enviar correo
+    // Envío vía Gmail API (HTTPS). Se espera (await): la API responde en
+    // milisegundos, sin riesgo de quedarse colgada como el socket SMTP
+    // contra un firewall que descarta los paquetes en silencio.
+    let correoEnviado = true;
     try {
-      const transporter = crearTransporter();
-      await transporter.sendMail({
-        from: process.env.EMAIL_FROM || `MELIKA Salud <${process.env.EMAIL_USER}>`,
+      await enviarCorreo({
         to: email,
         subject: `${codigo} — Tu código de verificación MELIKA`,
         html: templateVerificacion(nombre, codigo),
       });
+      console.log(`✅ [Gmail API] Código de registro enviado a ${email}`);
     } catch (emailError) {
-      console.error('Error enviando correo:', emailError.message);
+      correoEnviado = false;
+      console.error(`❌ [Gmail API] Error enviando a ${email}:`, emailError.message);
     }
 
-    res.status(201).json({
-      mensaje: 'Cuenta creada. Revisa tu correo para obtener el código de verificación.',
+    return res.status(201).json({
+      mensaje: correoEnviado
+        ? 'Cuenta creada. Revisa tu correo para obtener el código de verificación.'
+        : 'Cuenta creada, pero no pudimos enviar el correo. Usa "Reenviar código" en unos segundos.',
       email,
+      correoEnviado,
     });
+
   } catch (error) {
     console.error('Error en register:', error.message);
-    res.status(500).json({ mensaje: 'Error al crear la cuenta.' });
+    return res.status(500).json({ mensaje: 'Error al crear la cuenta.' });
   }
 }
 
@@ -210,26 +200,33 @@ async function reenviarCodigo(req, res) {
       [email, codigo, tipo, expira]
     );
 
-    try {
-      const transporter = crearTransporter();
-      const html = tipo === 'registro'
-        ? templateVerificacion(usuario.rows[0].nombre, codigo)
-        : templateRecuperacion(usuario.rows[0].nombre, codigo);
+    const html = tipo === 'registro'
+      ? templateVerificacion(usuario.rows[0].nombre, codigo)
+      : templateRecuperacion(usuario.rows[0].nombre, codigo);
 
-      await transporter.sendMail({
-        from: process.env.EMAIL_FROM || `MELIKA Salud <${process.env.EMAIL_USER}>`,
+    let correoEnviado = true;
+    try {
+      await enviarCorreo({
         to: email,
         subject: `${codigo} — Tu código MELIKA`,
         html,
       });
+      console.log(`✅ [Gmail API] Código reenviado a ${email}`);
     } catch (emailError) {
-      console.error('Error reenviando correo:', emailError.message);
+      correoEnviado = false;
+      console.error(`❌ [Gmail API] Error reenviando a ${email}:`, emailError.message);
     }
 
-    res.json({ mensaje: 'Código reenviado. Revisa tu correo.' });
+    return res.json({
+      mensaje: correoEnviado
+        ? 'Código reenviado. Revisa tu correo.'
+        : 'No pudimos enviar el correo en este momento. Intenta de nuevo en unos segundos.',
+      correoEnviado,
+    });
+
   } catch (error) {
     console.error('Error en reenviarCodigo:', error.message);
-    res.status(500).json({ mensaje: 'Error al reenviar el código.' });
+    return res.status(500).json({ mensaje: 'Error al reenviar el código.' });
   }
 }
 
@@ -257,10 +254,7 @@ async function verifyCode(req, res) {
     const registro = resultado.rows[0];
 
     if (new Date() > new Date(registro.expira_en)) {
-      await pool.query(
-        'DELETE FROM codigos_verificacion WHERE id = $1',
-        [registro.id]
-      );
+      await pool.query('DELETE FROM codigos_verificacion WHERE id = $1', [registro.id]);
       return res.status(400).json({
         mensaje: 'El código expiró. Solicita uno nuevo.',
         expirado: true,
@@ -272,15 +266,12 @@ async function verifyCode(req, res) {
       [email]
     );
 
-    await pool.query(
-      'DELETE FROM codigos_verificacion WHERE id = $1',
-      [registro.id]
-    );
+    await pool.query('DELETE FROM codigos_verificacion WHERE id = $1', [registro.id]);
 
-    res.json({ mensaje: 'Cuenta verificada correctamente. Ya puedes iniciar sesión.' });
+    return res.json({ mensaje: 'Cuenta verificada correctamente. Ya puedes iniciar sesión.' });
   } catch (error) {
     console.error('Error en verifyCode:', error.message);
-    res.status(500).json({ mensaje: 'Error al verificar el código.' });
+    return res.status(500).json({ mensaje: 'Error al verificar el código.' });
   }
 }
 
@@ -329,7 +320,7 @@ async function login(req, res) {
       { expiresIn: '8h' }
     );
 
-    res.json({
+    return res.json({
       token,
       usuario: {
         id:              usuario.id,
@@ -341,11 +332,11 @@ async function login(req, res) {
     });
   } catch (error) {
     console.error('Error en login:', error.message);
-    res.status(500).json({ mensaje: 'Error al iniciar sesión.' });
+    return res.status(500).json({ mensaje: 'Error al iniciar sesión.' });
   }
 }
 
-// ─── SOLICITAR RECUPERACIÓN DE CONTRASEÑA ────────────────────────────────────
+// ─── SOLICITAR RECUPERACIÓN DE CONTRASEÑA ─────────────────────────────────────
 
 async function solicitarRecuperacion(req, res) {
   const { email } = req.body;
@@ -381,21 +372,21 @@ async function solicitarRecuperacion(req, res) {
     );
 
     try {
-      const transporter = crearTransporter();
-      await transporter.sendMail({
-        from: process.env.EMAIL_FROM || `MELIKA Salud <${process.env.EMAIL_USER}>`,
+      await enviarCorreo({
         to: email,
         subject: `${codigo} — Recupera tu contraseña MELIKA`,
         html: templateRecuperacion(usuario.rows[0].nombre, codigo),
       });
+      console.log(`✅ [Gmail API] Recuperación enviada a ${email}`);
     } catch (emailError) {
-      console.error('Error enviando correo recuperación:', emailError.message);
+      console.error(`❌ [Gmail API] Error enviando recuperación a ${email}:`, emailError.message);
     }
 
-    res.json({ mensaje: 'Si el correo está registrado, recibirás un código en breve.' });
+    // Respuesta siempre genérica por seguridad (no revela si el correo existe o no).
+    return res.json({ mensaje: 'Si el correo está registrado, recibirás un código en breve.' });
   } catch (error) {
     console.error('Error en solicitarRecuperacion:', error.message);
-    res.status(500).json({ mensaje: 'Error al procesar la solicitud.' });
+    return res.status(500).json({ mensaje: 'Error al procesar la solicitud.' });
   }
 }
 
@@ -443,10 +434,10 @@ async function cambiarPassword(req, res) {
 
     await pool.query('DELETE FROM codigos_verificacion WHERE id = $1', [registro.id]);
 
-    res.json({ mensaje: 'Contraseña actualizada correctamente. Ya puedes iniciar sesión.' });
+    return res.json({ mensaje: 'Contraseña actualizada correctamente. Ya puedes iniciar sesión.' });
   } catch (error) {
     console.error('Error en cambiarPassword:', error.message);
-    res.status(500).json({ mensaje: 'Error al cambiar la contraseña.' });
+    return res.status(500).json({ mensaje: 'Error al cambiar la contraseña.' });
   }
 }
 
