@@ -3,65 +3,41 @@ const bcrypt = require('bcrypt');
 const jwt    = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 
-// ─── Configuración de correo ─────────────────────────────────────────────────
-//
-// Por qué NO usamos service:'gmail':
-//   Nodemailer resuelve 'gmail' a una lista de hosts que incluye IPv6.
-//   Railway bloquea conexiones IPv6 salientes → error ENETUNREACH.
-//
-// Solución: configurar el SMTP de Gmail de forma explícita con:
-//   - host fijo 'smtp.gmail.com' (resuelto solo por IPv4 con family:4)
-//   - port 465 + secure:true  →  TLS desde el inicio (más estable que STARTTLS)
-//   - family:4                →  fuerza IPv4, elimina el ENETUNREACH de Railway
-//   - pool:true               →  reutiliza la conexión SMTP entre envíos
-//                                en lugar de abrir/cerrar una por correo
-//   - maxConnections:3        →  límite seguro para no saturar Gmail
-//   - socketTimeout/greetingTimeout →  falla rápido si hay un problema de red
-//                                      en lugar de colgar el request del usuario
+// ─── CONFIGURACIÓN DE CORREO (ARQUITECTURA DE CONEXIÓN PERSISTENTE) ──────────
+// Optimizada para entornos Cloud (Railway) evitando problemas de IPv6 y bloqueos de puertos.
+// Instanciamos el transporter una sola vez para que 'pool: true' reutilice eficazmente los sockets.
+const transporter = nodemailer.createTransport({
+  host: 'smtp.gmail.com',
+  port: 587,             // Puerto 587 (STARTTLS) es el más estable y compatible con firewalls cloud
+  secure: false,         // false para puerto 587; sube a TLS automáticamente vía comando STARTTLS
+  family: 4,             // Fuerza resolución IPv4. Railway bloquea IPv6 saliente, previniendo ENETUNREACH
+  pool: true,            // Mantiene sockets TCP abiertos para reutilizarlos en múltiples envíos de correos
+  maxConnections: 3,     // Límite seguro para no saturar las políticas de concurrencia de Gmail
+  socketTimeout: 30000,  // 30 segundos de margen para tolerar la latencia de red inicial de la nube
+  greetingTimeout: 30000,// Tiempo de espera para la respuesta de cortesía del servidor de Google
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+  tls: {
+    rejectUnauthorized: true // Garantiza la validación estricta de certificados SSL/TLS en producción
+  }
+});
 
-function crearTransporter() {
-  const transporter = nodemailer.createTransport({
-    host:    'smtp.gmail.com',
-    port:    465,
-    secure:  true,
-    family:  4,
-    pool:    true,
-    maxConnections: 3,
-    socketTimeout:  10000,
-    greetingTimeout: 10000,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-  });
-
-  return transporter;
-}
-
-// Verifica la conexión SMTP al arrancar el servidor.
-// Si las credenciales son incorrectas o Gmail rechaza la conexión,
-// el error aparece en los logs de Railway inmediatamente, no cuando
-// el primer usuario intenta registrarse.
-function verificarConexionEmail() {
-  const transporter = crearTransporter();
-  transporter.verify((error) => {
-    if (error) {
-      console.error('⚠️  SMTP Gmail no disponible:', error.message);
-      console.error('   Verifica EMAIL_USER y EMAIL_PASS en las variables de Railway.');
-    } else {
-      console.log('✅ Conexión SMTP Gmail verificada correctamente.');
-    }
-  });
-}
-
-// Se ejecuta una sola vez al cargar el módulo
-verificarConexionEmail();
+// Verificación asíncrona del canal SMTP al arrancar el backend (Diagnóstico limpio)
+transporter.verify((error) => {
+  if (error) {
+    console.error('❌ [SMTP] Error de comunicación con Gmail:', error.message);
+  } else {
+    console.log('✅ [SMTP] Canal de comunicación optimizado listo con smtp.gmail.com.');
+  }
+});
 
 function generarCodigo() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// ─── Templates de correo ─────────────────────────────────────────────────────
+// ─── TEMPLATES DE CORREO ─────────────────────────────────────────────────────
 
 function templateVerificacion(nombre, codigo) {
   return `
@@ -94,7 +70,7 @@ function templateVerificacion(nombre, codigo) {
       </div>
       
       <p style="text-align: center; color: #8A9BBE; font-size: 12px; margin-top: 24px;">
-        © 2025 MELIKA — Plataforma de Salud Digital Colombia
+        © 2026 MELIKA — Plataforma de Salud Digital Colombia
       </p>
     </div>
   `;
@@ -132,13 +108,11 @@ function templateRecuperacion(nombre, codigo) {
   `;
 }
 
-// ─── REGISTRO (CORREGIDO) ────────────────────────────────────────────────────
+// ─── REGISTRO ────────────────────────────────────────────────────────────────
 
 async function register(req, res) {
-  // 1. Extraer los nuevos campos enviados por el frontend
   const { nombre, primer_apellido, email, password, tipo_documento, numero_documento } = req.body;
 
-  // 2. Validar que no lleguen vacíos
   if (!nombre || !primer_apellido || !email || !password || !tipo_documento || !numero_documento) {
     return res.status(400).json({ mensaje: 'Todos los campos son obligatorios, incluyendo identificación.' });
   }
@@ -147,14 +121,12 @@ async function register(req, res) {
     return res.status(400).json({ mensaje: 'La contraseña debe tener mínimo 6 caracteres.' });
   }
 
-  // 3. Validar consistencia del tipo de documento antes de tocar la DB
   const tiposValidos = ['CC', 'CE', 'PASAPORTE'];
   if (!tiposValidos.includes(tipo_documento)) {
     return res.status(400).json({ mensaje: 'Tipo de documento inválido. Use CC, CE o PASAPORTE.' });
   }
 
   try {
-    // 4. Verificar duplicados de Email y Documento en paralelo (Maximiza rendimiento)
     const [emailExiste, docExiste] = await Promise.all([
       pool.query('SELECT id FROM usuarios WHERE email = $1', [email]),
       pool.query('SELECT id FROM usuarios WHERE numero_documento = $1', [numero_documento]),
@@ -170,7 +142,6 @@ async function register(req, res) {
 
     const hash = await bcrypt.hash(password, 10);
 
-    // 5. Insertar incluyendo las nuevas columnas para evitar la restricción de No Nulo
     await pool.query(
       `INSERT INTO usuarios 
          (nombre, primer_apellido, email, password_hash, rol, activo, verificado, tipo_documento, numero_documento)
@@ -178,9 +149,8 @@ async function register(req, res) {
       [nombre, primer_apellido, email, hash, tipo_documento, numero_documento]
     );
 
-    // Generar y guardar código de verificación
     const codigo = generarCodigo();
-    const expira = new Date(Date.now() + 15 * 60 * 1000); // 15 minutos
+    const expira = new Date(Date.now() + 15 * 60 * 1000);
 
     await pool.query(
       'DELETE FROM codigos_verificacion WHERE email = $1 AND tipo = $2',
@@ -193,9 +163,8 @@ async function register(req, res) {
       [email, codigo, expira]
     );
 
-    // Enviar correo
+    // Enviar correo (Utilizando la instancia compartida y optimizada)
     try {
-      const transporter = crearTransporter();
       await transporter.sendMail({
         from: process.env.EMAIL_FROM || `MELIKA Salud <${process.env.EMAIL_USER}>`,
         to: email,
@@ -203,7 +172,8 @@ async function register(req, res) {
         html: templateVerificacion(nombre, codigo),
       });
     } catch (emailError) {
-      console.error('Error enviando correo:', emailError.message);
+      // Observabilidad Correcta: Muestra la razón real devuelta por el protocolo SMTP
+      console.error(`❌ [Email Error - Register] No se pudo despachar el correo a ${email}:`, emailError.message);
     }
 
     res.status(201).json({
@@ -253,8 +223,8 @@ async function reenviarCodigo(req, res) {
       [email, codigo, tipo, expira]
     );
 
+    // Enviar correo (Utilizando la instancia compartida y optimizada)
     try {
-      const transporter = crearTransporter();
       const html = tipo === 'registro'
         ? templateVerificacion(usuario.rows[0].nombre, codigo)
         : templateRecuperacion(usuario.rows[0].nombre, codigo);
@@ -266,7 +236,7 @@ async function reenviarCodigo(req, res) {
         html,
       });
     } catch (emailError) {
-      console.error('Error reenviando correo:', emailError.message);
+      console.error(`❌ [Email Error - Reenviar] Error en infraestructura de transporte para ${email}:`, emailError.message);
     }
 
     res.json({ mensaje: 'Código reenviado. Revisa tu correo.' });
@@ -300,10 +270,7 @@ async function verifyCode(req, res) {
     const registro = resultado.rows[0];
 
     if (new Date() > new Date(registro.expira_en)) {
-      await pool.query(
-        'DELETE FROM codigos_verificacion WHERE id = $1',
-        [registro.id]
-      );
+      await pool.query('DELETE FROM codigos_verificacion WHERE id = $1', [registro.id]);
       return res.status(400).json({
         mensaje: 'El código expiró. Solicita uno nuevo.',
         expirado: true,
@@ -315,10 +282,7 @@ async function verifyCode(req, res) {
       [email]
     );
 
-    await pool.query(
-      'DELETE FROM codigos_verificacion WHERE id = $1',
-      [registro.id]
-    );
+    await pool.query('DELETE FROM codigos_verificacion WHERE id = $1', [registro.id]);
 
     res.json({ mensaje: 'Cuenta verificada correctamente. Ya puedes iniciar sesión.' });
   } catch (error) {
@@ -423,8 +387,8 @@ async function solicitarRecuperacion(req, res) {
       [email, codigo, expira]
     );
 
+    // Enviar correo (Utilizando la instancia compartida y optimizada)
     try {
-      const transporter = crearTransporter();
       await transporter.sendMail({
         from: process.env.EMAIL_FROM || `MELIKA Salud <${process.env.EMAIL_USER}>`,
         to: email,
@@ -432,7 +396,7 @@ async function solicitarRecuperacion(req, res) {
         html: templateRecuperacion(usuario.rows[0].nombre, codigo),
       });
     } catch (emailError) {
-      console.error('Error enviando correo recuperación:', emailError.message);
+      console.error(`❌ [Email Error - Recuperacion] Falló el transporte SMTP hacia ${email}:`, emailError.message);
     }
 
     res.json({ mensaje: 'Si el correo está registrado, recibirás un código en breve.' });
