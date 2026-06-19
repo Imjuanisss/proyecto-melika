@@ -1,36 +1,7 @@
 const pool   = require('../config/db');
 const bcrypt = require('bcrypt');
 const jwt    = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
-
-// ─── CONFIGURACIÓN DE CORREO (CANAL ASÍNCRONO EN SEGUNDO PLANO) ──────────────
-// Configuración optimizada con TLS implícito (Puerto 465).
-// Si tu proveedor cloud (Railway) tiene un bloqueo estricto de puertos SMTP, 
-// este transporte fallará en background sin congelar jamás la experiencia del usuario.
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,             // Volvemos a 465 (Cifrado TLS nativo desde el inicio)
-  secure: true,          // true para puerto 465
-  family: 4,             // Fuerza resolución IPv4 para evadir el bloqueo de IPv6 en Railway
-  socketTimeout: 15000,  // Reducimos a 15s para liberar sockets rápidamente si la red está bloqueada
-  greetingTimeout: 15000,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  tls: {
-    rejectUnauthorized: true
-  }
-});
-
-// Verificación inicial del canal en el arranque del contenedor
-transporter.verify((error) => {
-  if (error) {
-    console.error('❌ [SMTP] Error de comunicación con Gmail (Posible bloqueo de puertos en Railway):', error.message);
-  } else {
-    console.log('✅ [SMTP] Canal de comunicación listo con smtp.gmail.com.');
-  }
-});
+const { enviarCorreo } = require('../services/emailService');
 
 function generarCodigo() {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -47,27 +18,27 @@ function templateVerificacion(nombre, codigo) {
         </h1>
         <p style="color: #4A5978; margin: 8px 0 0;">Tu salud, sin esperas ni papeleo</p>
       </div>
-      
+
       <div style="background: #fff; border-radius: 12px; padding: 32px; border: 1px solid #D9E4F7;">
         <h2 style="color: #0B1A36; margin: 0 0 16px;">¡Hola, ${nombre}! 👋</h2>
         <p style="color: #4A5978; line-height: 1.6;">
-          Gracias por registrarte en MELIKA. Para activar tu cuenta, 
+          Gracias por registrarte en MELIKA. Para activar tu cuenta,
           ingresa el siguiente código en la aplicación:
         </p>
-        
+
         <div style="background: #F6F9FF; border: 2px solid #3B6EE8; border-radius: 12px; padding: 24px; text-align: center; margin: 24px 0;">
           <p style="margin: 0 0 8px; color: #4A5978; font-size: 14px;">Tu código de verificación</p>
           <div style="font-size: 42px; font-weight: 800; color: #0B1A36; letter-spacing: 12px;">
             ${codigo}
           </div>
         </div>
-        
+
         <p style="color: #8A9BBE; font-size: 14px; margin: 16px 0 0;">
           ⏱ Este código expira en <strong>15 minutos</strong>.<br>
           Si no creaste esta cuenta, puedes ignorar este correo.
         </p>
       </div>
-      
+
       <p style="text-align: center; color: #8A9BBE; font-size: 12px; margin-top: 24px;">
         © 2026 MELIKA — Plataforma de Salud Digital Colombia
       </p>
@@ -83,21 +54,21 @@ function templateRecuperacion(nombre, codigo) {
           <span style="color: #E8856A;">M</span>ELIKA
         </h1>
       </div>
-      
+
       <div style="background: #fff; border-radius: 12px; padding: 32px; border: 1px solid #D9E4F7;">
         <h2 style="color: #0B1A36; margin: 0 0 16px;">Recuperación de contraseña</h2>
         <p style="color: #4A5978; line-height: 1.6;">
-          Hola <strong>${nombre}</strong>, recibimos una solicitud para restablecer 
+          Hola <strong>${nombre}</strong>, recibimos una solicitud para restablecer
           la contraseña de tu cuenta en MELIKA.
         </p>
-        
+
         <div style="background: #FEF3C7; border: 2px solid #B45309; border-radius: 12px; padding: 24px; text-align: center; margin: 24px 0;">
           <p style="margin: 0 0 8px; color: #B45309; font-size: 14px;">Código de recuperación</p>
           <div style="font-size: 42px; font-weight: 800; color: #0B1A36; letter-spacing: 12px;">
             ${codigo}
           </div>
         </div>
-        
+
         <p style="color: #8A9BBE; font-size: 14px;">
           ⏱ Este código expira en <strong>15 minutos</strong>.<br>
           Si no solicitaste este cambio, ignora este correo. Tu contraseña no cambiará.
@@ -107,7 +78,7 @@ function templateRecuperacion(nombre, codigo) {
   `;
 }
 
-// ─── REGISTRO (FLUJO ASÍNCRONO OPTIMIZADO) ───────────────────────────────────
+// ─── REGISTRO ─────────────────────────────────────────────────────────────
 
 async function register(req, res) {
   const { nombre, primer_apellido, email, password, tipo_documento, numero_documento } = req.body;
@@ -142,7 +113,7 @@ async function register(req, res) {
     const hash = await bcrypt.hash(password, 10);
 
     await pool.query(
-      `INSERT INTO usuarios 
+      `INSERT INTO usuarios
          (nombre, primer_apellido, email, password_hash, rol, activo, verificado, tipo_documento, numero_documento)
        VALUES ($1, $2, $3, $4, 'paciente', FALSE, FALSE, $5, $6)`,
       [nombre, primer_apellido, email, hash, tipo_documento, numero_documento]
@@ -162,23 +133,28 @@ async function register(req, res) {
       [email, codigo, expira]
     );
 
-    // ARQUITECTURA PRO: Se remueve el 'await'. El correo se procesa en segundo plano.
-    // La API responderá de inmediato al frontend evitando pantallas de carga eternas.
-    transporter.sendMail({
-      from: process.env.EMAIL_FROM || `MELIKA Salud <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject: `${codigo} — Tu código de verificación MELIKA`,
-      html: templateVerificacion(nombre, codigo),
-    })
-    .then(() => console.log(`✅ [Email Sent] Registro despachado a ${email}`))
-    .catch((emailError) => {
-      console.error(`❌ [Email Error - Register] Error de red/firewall hacia ${email}:`, emailError.message);
-    });
+    // Envío vía Gmail API (HTTPS). Se espera (await): la API responde en
+    // milisegundos, sin riesgo de quedarse colgada como el socket SMTP
+    // contra un firewall que descarta los paquetes en silencio.
+    let correoEnviado = true;
+    try {
+      await enviarCorreo({
+        to: email,
+        subject: `${codigo} — Tu código de verificación MELIKA`,
+        html: templateVerificacion(nombre, codigo),
+      });
+      console.log(`✅ [Gmail API] Código de registro enviado a ${email}`);
+    } catch (emailError) {
+      correoEnviado = false;
+      console.error(`❌ [Gmail API] Error enviando a ${email}:`, emailError.message);
+    }
 
-    // Respuesta instantánea al cliente
     return res.status(201).json({
-      mensaje: 'Cuenta creada. Revisa tu correo para obtener el código de verificación.',
+      mensaje: correoEnviado
+        ? 'Cuenta creada. Revisa tu correo para obtener el código de verificación.'
+        : 'Cuenta creada, pero no pudimos enviar el correo. Usa "Reenviar código" en unos segundos.',
       email,
+      correoEnviado,
     });
 
   } catch (error) {
@@ -187,7 +163,7 @@ async function register(req, res) {
   }
 }
 
-// ─── REENVIAR CÓDIGO (FLUJO ASÍNCRONO OPTIMIZADO) ─────────────────────────────
+// ─── REENVIAR CÓDIGO ─────────────────────────────────────────────────────────
 
 async function reenviarCodigo(req, res) {
   const { email, tipo = 'registro' } = req.body;
@@ -228,19 +204,25 @@ async function reenviarCodigo(req, res) {
       ? templateVerificacion(usuario.rows[0].nombre, codigo)
       : templateRecuperacion(usuario.rows[0].nombre, codigo);
 
-    // Envío en segundo plano (No bloquea la respuesta HTTP)
-    transporter.sendMail({
-      from: process.env.EMAIL_FROM || `MELIKA Salud <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject: `${codigo} — Tu código MELIKA`,
-      html,
-    })
-    .then(() => console.log(`✅ [Email Sent] Código reenviado a ${email}`))
-    .catch((emailError) => {
-      console.error(`❌ [Email Error - Reenviar] Error de red/firewall hacia ${email}:`, emailError.message);
-    });
+    let correoEnviado = true;
+    try {
+      await enviarCorreo({
+        to: email,
+        subject: `${codigo} — Tu código MELIKA`,
+        html,
+      });
+      console.log(`✅ [Gmail API] Código reenviado a ${email}`);
+    } catch (emailError) {
+      correoEnviado = false;
+      console.error(`❌ [Gmail API] Error reenviando a ${email}:`, emailError.message);
+    }
 
-    return res.json({ mensaje: 'Código reenviado. Revisa tu correo.' });
+    return res.json({
+      mensaje: correoEnviado
+        ? 'Código reenviado. Revisa tu correo.'
+        : 'No pudimos enviar el correo en este momento. Intenta de nuevo en unos segundos.',
+      correoEnviado,
+    });
 
   } catch (error) {
     console.error('Error en reenviarCodigo:', error.message);
@@ -354,7 +336,7 @@ async function login(req, res) {
   }
 }
 
-// ─── SOLICITAR RECUPERACIÓN DE CONTRASEÑA (FLUJO ASÍNCRONO OPTIMIZADO) ────────
+// ─── SOLICITAR RECUPERACIÓN DE CONTRASEÑA ─────────────────────────────────────
 
 async function solicitarRecuperacion(req, res) {
   const { email } = req.body;
@@ -389,18 +371,18 @@ async function solicitarRecuperacion(req, res) {
       [email, codigo, expira]
     );
 
-    // Envío en segundo plano (No bloquea la respuesta HTTP)
-    transporter.sendMail({
-      from: process.env.EMAIL_FROM || `MELIKA Salud <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject: `${codigo} — Recupera tu contraseña MELIKA`,
-      html: templateRecuperacion(usuario.rows[0].nombre, codigo),
-    })
-    .then(() => console.log(`✅ [Email Sent] Recuperación despachada a ${email}`))
-    .catch((emailError) => {
-      console.error(`❌ [Email Error - Recuperacion] Error de red/firewall hacia ${email}:`, emailError.message);
-    });
+    try {
+      await enviarCorreo({
+        to: email,
+        subject: `${codigo} — Recupera tu contraseña MELIKA`,
+        html: templateRecuperacion(usuario.rows[0].nombre, codigo),
+      });
+      console.log(`✅ [Gmail API] Recuperación enviada a ${email}`);
+    } catch (emailError) {
+      console.error(`❌ [Gmail API] Error enviando recuperación a ${email}:`, emailError.message);
+    }
 
+    // Respuesta siempre genérica por seguridad (no revela si el correo existe o no).
     return res.json({ mensaje: 'Si el correo está registrado, recibirás un código en breve.' });
   } catch (error) {
     console.error('Error en solicitarRecuperacion:', error.message);

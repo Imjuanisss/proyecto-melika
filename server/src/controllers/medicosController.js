@@ -1,5 +1,3 @@
-
-
 // server/src/controllers/medicosController.js
 // ─── REESCRITURA COMPLETA — todos los bugs de schema corregidos ────────────────
 // Bugs corregidos:
@@ -8,18 +6,14 @@
 // 3. tarifa NOT NULL en medicos → se guarda como 0 (el admin no la gestiona públicamente)
 // 4. listarMedicos incluye todos los campos nuevos del JOIN y el campo foto_url
 // 5. CORRECCIÓN SQL: Sintaxis válida para la inserción de ciudad en PostgreSQL
+// 6. CORRECCIÓN INFRA: el envío de correo ya NO usa Nodemailer/SMTP (bloqueado
+//    por el firewall de Railway). Ahora usa emailService.js (Gmail API / HTTPS),
+//    el mismo servicio centralizado que usa authController.js.
 
 const pool       = require('../config/db');
-const bcrypt     = require('bcrypt');
-const crypto     = require('crypto');
-const nodemailer = require('nodemailer');
-
-function crearTransporter() {
-  return nodemailer.createTransport({
-    service: 'gmail',
-    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-  });
-}
+const bcrypt      = require('bcrypt');
+const crypto      = require('crypto');
+const { enviarCorreo } = require('../services/emailService');
 
 // ─── POST /medicos — Crear médico (solo Admin) ─────────────────────────────────
 async function crearMedico(req, res) {
@@ -128,12 +122,12 @@ async function crearMedico(req, res) {
       [email, token, expiraEn]
     );
 
-    // ── Enviar email de activación ────────────────────────────────────────────
+    // ── Enviar email de activación (Gmail API — HTTPS, no SMTP) ───────────────
     const urlActivacion = `${process.env.FRONTEND_URL}/activar-cuenta?token=${token}`;
+    let correoEnviado = true;
+
     try {
-      const transporter = crearTransporter();
-      await transporter.sendMail({
-        from: process.env.EMAIL_FROM || `MELIKA Salud <${process.env.EMAIL_USER}>`,
+      await enviarCorreo({
         to: email,
         subject: 'Bienvenido a MELIKA — Activa tu cuenta médica',
         html: `
@@ -170,17 +164,22 @@ async function crearMedico(req, res) {
               </p>
             </div>
             <p style="text-align:center;color:#8A9BBE;font-size:12px;margin-top:24px;">
-              © 2025 MELIKA — Plataforma de Salud Digital Colombia
+              © 2026 MELIKA — Plataforma de Salud Digital Colombia
             </p>
           </div>
         `,
       });
+      console.log(`✅ [Gmail API] Invitación de médico enviada a ${email}`);
     } catch (emailErr) {
-      console.error('⚠️  Error enviando email de invitación:', emailErr.message);
+      correoEnviado = false;
+      console.error('⚠️  [Gmail API] Error enviando email de invitación:', emailErr.message);
     }
 
     return res.status(201).json({
-      mensaje: `Médico creado exitosamente. Se envió un email de activación a ${email}.`,
+      mensaje: correoEnviado
+        ? `Médico creado exitosamente. Se envió un email de activación a ${email}.`
+        : `Médico creado, pero no pudimos enviar el email de activación a ${email}. Reenvíalo manualmente o contacta soporte.`,
+      correoEnviado,
       medico: {
         ...nuevoMedico.rows[0],
         nombre,
