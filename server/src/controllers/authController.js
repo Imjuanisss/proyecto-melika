@@ -3,33 +3,32 @@ const bcrypt = require('bcrypt');
 const jwt    = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 
-// ─── CONFIGURACIÓN DE CORREO (ARQUITECTURA DE CONEXIÓN PERSISTENTE) ──────────
-// Optimizada para entornos Cloud (Railway) evitando problemas de IPv6 y bloqueos de puertos.
-// Instanciamos el transporter una sola vez para que 'pool: true' reutilice eficazmente los sockets.
+// ─── CONFIGURACIÓN DE CORREO (CANAL ASÍNCRONO EN SEGUNDO PLANO) ──────────────
+// Configuración optimizada con TLS implícito (Puerto 465).
+// Si tu proveedor cloud (Railway) tiene un bloqueo estricto de puertos SMTP, 
+// este transporte fallará en background sin congelar jamás la experiencia del usuario.
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
-  port: 587,             // Puerto 587 (STARTTLS) es el más estable y compatible con firewalls cloud
-  secure: false,         // false para puerto 587; sube a TLS automáticamente vía comando STARTTLS
-  family: 4,             // Fuerza resolución IPv4. Railway bloquea IPv6 saliente, previniendo ENETUNREACH
-  pool: true,            // Mantiene sockets TCP abiertos para reutilizarlos en múltiples envíos de correos
-  maxConnections: 3,     // Límite seguro para no saturar las políticas de concurrencia de Gmail
-  socketTimeout: 30000,  // 30 segundos de margen para tolerar la latencia de red inicial de la nube
-  greetingTimeout: 30000,// Tiempo de espera para la respuesta de cortesía del servidor de Google
+  port: 465,             // Volvemos a 465 (Cifrado TLS nativo desde el inicio)
+  secure: true,          // true para puerto 465
+  family: 4,             // Fuerza resolución IPv4 para evadir el bloqueo de IPv6 en Railway
+  socketTimeout: 15000,  // Reducimos a 15s para liberar sockets rápidamente si la red está bloqueada
+  greetingTimeout: 15000,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
   tls: {
-    rejectUnauthorized: true // Garantiza la validación estricta de certificados SSL/TLS en producción
+    rejectUnauthorized: true
   }
 });
 
-// Verificación asíncrona del canal SMTP al arrancar el backend (Diagnóstico limpio)
+// Verificación inicial del canal en el arranque del contenedor
 transporter.verify((error) => {
   if (error) {
-    console.error('❌ [SMTP] Error de comunicación con Gmail:', error.message);
+    console.error('❌ [SMTP] Error de comunicación con Gmail (Posible bloqueo de puertos en Railway):', error.message);
   } else {
-    console.log('✅ [SMTP] Canal de comunicación optimizado listo con smtp.gmail.com.');
+    console.log('✅ [SMTP] Canal de comunicación listo con smtp.gmail.com.');
   }
 });
 
@@ -108,7 +107,7 @@ function templateRecuperacion(nombre, codigo) {
   `;
 }
 
-// ─── REGISTRO ────────────────────────────────────────────────────────────────
+// ─── REGISTRO (FLUJO ASÍNCRONO OPTIMIZADO) ───────────────────────────────────
 
 async function register(req, res) {
   const { nombre, primer_apellido, email, password, tipo_documento, numero_documento } = req.body;
@@ -163,30 +162,32 @@ async function register(req, res) {
       [email, codigo, expira]
     );
 
-    // Enviar correo (Utilizando la instancia compartida y optimizada)
-    try {
-      await transporter.sendMail({
-        from: process.env.EMAIL_FROM || `MELIKA Salud <${process.env.EMAIL_USER}>`,
-        to: email,
-        subject: `${codigo} — Tu código de verificación MELIKA`,
-        html: templateVerificacion(nombre, codigo),
-      });
-    } catch (emailError) {
-      // Observabilidad Correcta: Muestra la razón real devuelta por el protocolo SMTP
-      console.error(`❌ [Email Error - Register] No se pudo despachar el correo a ${email}:`, emailError.message);
-    }
+    // ARQUITECTURA PRO: Se remueve el 'await'. El correo se procesa en segundo plano.
+    // La API responderá de inmediato al frontend evitando pantallas de carga eternas.
+    transporter.sendMail({
+      from: process.env.EMAIL_FROM || `MELIKA Salud <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: `${codigo} — Tu código de verificación MELIKA`,
+      html: templateVerificacion(nombre, codigo),
+    })
+    .then(() => console.log(`✅ [Email Sent] Registro despachado a ${email}`))
+    .catch((emailError) => {
+      console.error(`❌ [Email Error - Register] Error de red/firewall hacia ${email}:`, emailError.message);
+    });
 
-    res.status(201).json({
+    // Respuesta instantánea al cliente
+    return res.status(201).json({
       mensaje: 'Cuenta creada. Revisa tu correo para obtener el código de verificación.',
       email,
     });
+
   } catch (error) {
     console.error('Error en register:', error.message);
-    res.status(500).json({ mensaje: 'Error al crear la cuenta.' });
+    return res.status(500).json({ mensaje: 'Error al crear la cuenta.' });
   }
 }
 
-// ─── REENVIAR CÓDIGO ─────────────────────────────────────────────────────────
+// ─── REENVIAR CÓDIGO (FLUJO ASÍNCRONO OPTIMIZADO) ─────────────────────────────
 
 async function reenviarCodigo(req, res) {
   const { email, tipo = 'registro' } = req.body;
@@ -223,26 +224,27 @@ async function reenviarCodigo(req, res) {
       [email, codigo, tipo, expira]
     );
 
-    // Enviar correo (Utilizando la instancia compartida y optimizada)
-    try {
-      const html = tipo === 'registro'
-        ? templateVerificacion(usuario.rows[0].nombre, codigo)
-        : templateRecuperacion(usuario.rows[0].nombre, codigo);
+    const html = tipo === 'registro'
+      ? templateVerificacion(usuario.rows[0].nombre, codigo)
+      : templateRecuperacion(usuario.rows[0].nombre, codigo);
 
-      await transporter.sendMail({
-        from: process.env.EMAIL_FROM || `MELIKA Salud <${process.env.EMAIL_USER}>`,
-        to: email,
-        subject: `${codigo} — Tu código MELIKA`,
-        html,
-      });
-    } catch (emailError) {
-      console.error(`❌ [Email Error - Reenviar] Error en infraestructura de transporte para ${email}:`, emailError.message);
-    }
+    // Envío en segundo plano (No bloquea la respuesta HTTP)
+    transporter.sendMail({
+      from: process.env.EMAIL_FROM || `MELIKA Salud <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: `${codigo} — Tu código MELIKA`,
+      html,
+    })
+    .then(() => console.log(`✅ [Email Sent] Código reenviado a ${email}`))
+    .catch((emailError) => {
+      console.error(`❌ [Email Error - Reenviar] Error de red/firewall hacia ${email}:`, emailError.message);
+    });
 
-    res.json({ mensaje: 'Código reenviado. Revisa tu correo.' });
+    return res.json({ mensaje: 'Código reenviado. Revisa tu correo.' });
+
   } catch (error) {
     console.error('Error en reenviarCodigo:', error.message);
-    res.status(500).json({ mensaje: 'Error al reenviar el código.' });
+    return res.status(500).json({ mensaje: 'Error al reenviar el código.' });
   }
 }
 
@@ -284,10 +286,10 @@ async function verifyCode(req, res) {
 
     await pool.query('DELETE FROM codigos_verificacion WHERE id = $1', [registro.id]);
 
-    res.json({ mensaje: 'Cuenta verificada correctamente. Ya puedes iniciar sesión.' });
+    return res.json({ mensaje: 'Cuenta verificada correctamente. Ya puedes iniciar sesión.' });
   } catch (error) {
     console.error('Error en verifyCode:', error.message);
-    res.status(500).json({ mensaje: 'Error al verificar el código.' });
+    return res.status(500).json({ mensaje: 'Error al verificar el código.' });
   }
 }
 
@@ -336,7 +338,7 @@ async function login(req, res) {
       { expiresIn: '8h' }
     );
 
-    res.json({
+    return res.json({
       token,
       usuario: {
         id:              usuario.id,
@@ -348,11 +350,11 @@ async function login(req, res) {
     });
   } catch (error) {
     console.error('Error en login:', error.message);
-    res.status(500).json({ mensaje: 'Error al iniciar sesión.' });
+    return res.status(500).json({ mensaje: 'Error al iniciar sesión.' });
   }
 }
 
-// ─── SOLICITAR RECUPERACIÓN DE CONTRASEÑA ────────────────────────────────────
+// ─── SOLICITAR RECUPERACIÓN DE CONTRASEÑA (FLUJO ASÍNCRONO OPTIMIZADO) ────────
 
 async function solicitarRecuperacion(req, res) {
   const { email } = req.body;
@@ -387,22 +389,22 @@ async function solicitarRecuperacion(req, res) {
       [email, codigo, expira]
     );
 
-    // Enviar correo (Utilizando la instancia compartida y optimizada)
-    try {
-      await transporter.sendMail({
-        from: process.env.EMAIL_FROM || `MELIKA Salud <${process.env.EMAIL_USER}>`,
-        to: email,
-        subject: `${codigo} — Recupera tu contraseña MELIKA`,
-        html: templateRecuperacion(usuario.rows[0].nombre, codigo),
-      });
-    } catch (emailError) {
-      console.error(`❌ [Email Error - Recuperacion] Falló el transporte SMTP hacia ${email}:`, emailError.message);
-    }
+    // Envío en segundo plano (No bloquea la respuesta HTTP)
+    transporter.sendMail({
+      from: process.env.EMAIL_FROM || `MELIKA Salud <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: `${codigo} — Recupera tu contraseña MELIKA`,
+      html: templateRecuperacion(usuario.rows[0].nombre, codigo),
+    })
+    .then(() => console.log(`✅ [Email Sent] Recuperación despachada a ${email}`))
+    .catch((emailError) => {
+      console.error(`❌ [Email Error - Recuperacion] Error de red/firewall hacia ${email}:`, emailError.message);
+    });
 
-    res.json({ mensaje: 'Si el correo está registrado, recibirás un código en breve.' });
+    return res.json({ mensaje: 'Si el correo está registrado, recibirás un código en breve.' });
   } catch (error) {
     console.error('Error en solicitarRecuperacion:', error.message);
-    res.status(500).json({ mensaje: 'Error al procesar la solicitud.' });
+    return res.status(500).json({ mensaje: 'Error al procesar la solicitud.' });
   }
 }
 
@@ -450,10 +452,10 @@ async function cambiarPassword(req, res) {
 
     await pool.query('DELETE FROM codigos_verificacion WHERE id = $1', [registro.id]);
 
-    res.json({ mensaje: 'Contraseña actualizada correctamente. Ya puedes iniciar sesión.' });
+    return res.json({ mensaje: 'Contraseña actualizada correctamente. Ya puedes iniciar sesión.' });
   } catch (error) {
     console.error('Error en cambiarPassword:', error.message);
-    res.status(500).json({ mensaje: 'Error al cambiar la contraseña.' });
+    return res.status(500).json({ mensaje: 'Error al cambiar la contraseña.' });
   }
 }
 
