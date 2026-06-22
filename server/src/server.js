@@ -11,7 +11,13 @@ const medicamentosRoutes   = require('./routes/medicamentosRoutes');
 const adminRoutes          = require('./routes/adminRoutes');
 
 const app = express();
-app.use(cors({ origin: process.env.FRONTEND_URL }));
+
+// 👇 Aquí está la magia de CORS actualizada 👇
+app.use(cors({ 
+  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+  credentials: true 
+}));
+
 app.use(express.json());
 
 // ── Estado del Servidor (Verificación Raíz) ────────────────────────────────
