@@ -123,8 +123,31 @@ export default function DashboardMedico() {
     }
   }
 
+  // ── TERMINAR CITA (NUEVA FUNCIÓN) ────────────────────────────────────
+  async function handleTerminarCita(idCita) {
+    if (!window.confirm('¿Estás seguro de que deseas dar por terminada esta cita?')) return;
+
+    try {
+      // Usamos tu propio apiClient para hacer la petición
+      await api.patch(`/medico/citas/${idCita}/completar`);
+      
+      alert('✅ Cita terminada exitosamente.');
+      
+      // Actualizamos visualmente la lista de citas sin tener que recargar la página
+      setCitasDia(prevCitas => 
+        prevCitas.map(c => 
+          c.id === idCita ? { ...c, estado: 'completada' } : c
+        )
+      );
+
+      // Opcional: Actualizar el calendario principal
+      calendarRef.current?.getApi().refetchEvents();
+    } catch (error) {
+      alert('❌ Error al terminar cita: ' + (error.message || 'Error de red.'));
+    }
+  }
+
   // ── Abrir modal historia ─────────────────────────────────────────────
-  // FIX: URL corregida de /historias/${cita.id} → /historias/cita/${cita.id}
   function abrirHistoria(cita) {
     setModalHistoria(cita);
     setHistoria(null);
@@ -167,7 +190,6 @@ export default function DashboardMedico() {
   }
 
   // ── Guardar / actualizar historia ────────────────────────────────────
-  // FIX: se envían los campos correctos según historiasController.js
   async function handleGuardarHistoria() {
     if (!formHistoria.motivo_consulta.trim()) {
       setErrorHist('El motivo de consulta es obligatorio.');
@@ -301,13 +323,38 @@ export default function DashboardMedico() {
                         {cita.tipo_consulta === 'teleconsulta' ? '💻 Teleconsulta' : '🏥 Presencial'}
                         {cita.motivo && ` · ${cita.motivo.substring(0, 28)}…`}
                       </div>
+                      
+                      {/* Aquí agrupamos los botones de Historia y Terminar Cita */}
                       {cita.estado !== 'cancelada' && (
-                        <button
-                          className="agenda-item__btn-historia"
-                          onClick={() => abrirHistoria(cita)}
-                        >
-                          {cita.historia_id ? '📄 Ver historia' : '📝 Crear historia'}
-                        </button>
+                        <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                          <button
+                            className="agenda-item__btn-historia"
+                            onClick={() => abrirHistoria(cita)}
+                            style={{ flex: 1 }}
+                          >
+                            {cita.historia_id ? '📄 Ver historia' : '📝 Crear historia'}
+                          </button>
+                          
+                          {/* BOTÓN NUEVO: TERMINAR CITA */}
+                          {cita.estado !== 'completada' && (
+                            <button
+                              onClick={() => handleTerminarCita(cita.id)}
+                              style={{
+                                background: '#1A7A52',
+                                color: 'white',
+                                border: 'none',
+                                padding: '8px 16px',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                fontWeight: 'bold',
+                                fontSize: '0.85rem'
+                              }}
+                              title="Marcar cita como completada"
+                            >
+                              ✅ Terminar
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
                   ))}

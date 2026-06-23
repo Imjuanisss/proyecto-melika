@@ -618,6 +618,53 @@ async function eliminarFranja(req, res) {
   }
 }
 
+// ─── PATCH /medico/citas/:id/completar — El médico termina la cita ──────────
+async function completarCita(req, res) {
+  const { id } = req.params;
+  const id_usuario = req.usuario.id; // ID del usuario (médico) logueado
+
+  try {
+    // 1. Buscamos la cita y verificamos que pertenezca a este médico
+    const citaRes = await pool.query(
+      `SELECT c.id, c.estado, m.id_usuario 
+       FROM citas c
+       JOIN medicos m ON c.id_medico = m.id
+       WHERE c.id = $1`,
+      [id]
+    );
+
+    if (citaRes.rows.length === 0) {
+      return res.status(404).json({ mensaje: 'Cita no encontrada.' });
+    }
+
+    const cita = citaRes.rows[0];
+
+    // 2. Seguridad: ¿Es este médico el dueño de esta cita?
+    if (cita.id_usuario !== id_usuario) {
+      return res.status(403).json({ mensaje: 'No tienes permiso para modificar esta cita.' });
+    }
+
+    // 3. Validaciones de estado
+    if (cita.estado === 'completada') {
+      return res.status(400).json({ mensaje: 'La cita ya estaba terminada.' });
+    }
+    if (cita.estado === 'cancelada') {
+      return res.status(400).json({ mensaje: 'No puedes terminar una cita cancelada.' });
+    }
+
+    // 4. ¡Actualizamos a completada!
+    await pool.query(
+      "UPDATE citas SET estado = 'completada', updated_at = NOW() WHERE id = $1",
+      [id]
+    );
+
+    return res.json({ mensaje: 'Cita terminada exitosamente. ¡Buen trabajo, Doc!' });
+  } catch (error) {
+    console.error('Error en completarCita:', error.message);
+    return res.status(500).json({ mensaje: 'Error al terminar la cita.' });
+  }
+}
+
 module.exports = {
   crearMedico,
   activarCuenta,
@@ -630,4 +677,7 @@ module.exports = {
   crearFranja,
   listarFranjas,
   eliminarFranja,
+  completarCita,
+  
+
 };

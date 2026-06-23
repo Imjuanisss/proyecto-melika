@@ -13,6 +13,7 @@ const {
   crearFranja,
   listarFranjas,
   eliminarFranja,
+  completarCita,
 } = require('../controllers/medicosController');
 
 // ── Públicas (no requieren token) ──────────────────────
@@ -31,5 +32,6 @@ router.get('/agenda/rango', verifyToken, isMedico, agendaRango);
 router.post('/franjas', verifyToken, isMedico, crearFranja);
 router.get('/franjas', verifyToken, isMedico, listarFranjas);
 router.delete('/franjas/:id', verifyToken, isMedico, eliminarFranja);
+router.patch('/citas/:id/completar', verifyToken, isMedico, completarCita);
 
 module.exports = router;
