@@ -44,14 +44,14 @@ async function crearHistoria(req, res) {
 
     const id_paciente = cita.rows[0].id_paciente;
 
-    // ─── BLINDAJE PARA EL TIPO JSONB ───
-    // Convierte el valor a un string JSON válido o a null si viene vacío
+    // ─── BLINDAJE JSONB CORREGIDO ───
+    // Si viene como string, lo empacamos en un objeto JSON válido para Postgres
     let medicamentosFormateados = null;
     if (medicamentos_recetados) {
       if (typeof medicamentos_recetados === 'object') {
         medicamentosFormateados = JSON.stringify(medicamentos_recetados);
       } else if (typeof medicamentos_recetados === 'string' && medicamentos_recetados.trim() !== '') {
-        medicamentosFormateados = medicamentos_recetados;
+        medicamentosFormateados = JSON.stringify({ detalle: medicamentos_recetados });
       }
     }
 
@@ -72,7 +72,7 @@ async function crearHistoria(req, res) {
         diagnostico_cie10 || null,
         descripcion_diagnostico || null,
         plan_tratamiento || null,
-        medicamentosFormateados, // Pasa la variable blindada aquí
+        medicamentosFormateados,
         observaciones || null,
       ]
     );
@@ -89,7 +89,6 @@ async function crearHistoria(req, res) {
     res.status(500).json({ mensaje: 'Error al crear la historia.' });
   }
 }
-
 
 // ─── PUT /historias/:id — Actualizar historia ─────────────────────────────
 async function actualizarHistoria(req, res) {
@@ -123,13 +122,13 @@ async function actualizarHistoria(req, res) {
     if (historia.rows[0].id_medico !== id_medico)
       return res.status(403).json({ mensaje: 'No puedes editar una historia ajena.' });
 
-    // ─── BLINDAJE PARA EL TIPO JSONB ───
+    // ─── BLINDAJE JSONB CORREGIDO ───
     let medicamentosFormateados = null;
     if (medicamentos_recetados) {
       if (typeof medicamentos_recetados === 'object') {
         medicamentosFormateados = JSON.stringify(medicamentos_recetados);
       } else if (typeof medicamentos_recetados === 'string' && medicamentos_recetados.trim() !== '') {
-        medicamentosFormateados = medicamentos_recetados;
+        medicamentosFormateados = JSON.stringify({ detalle: medicamentos_recetados });
       }
     }
 
@@ -147,7 +146,7 @@ async function actualizarHistoria(req, res) {
         diagnostico_cie10 || null, 
         descripcion_diagnostico || null,
         plan_tratamiento || null, 
-        medicamentosFormateados, // Pasa la variable blindada aquí
+        medicamentosFormateados, 
         observaciones || null, 
         id,
       ]
@@ -159,7 +158,6 @@ async function actualizarHistoria(req, res) {
     res.status(500).json({ mensaje: 'Error al actualizar la historia.' });
   }
 }
-
 
 // ─── GET /historias/:id_cita — Obtener historia por cita ──────────────────
 async function obtenerHistoria(req, res) {
@@ -175,7 +173,6 @@ async function obtenerHistoria(req, res) {
     res.status(500).json({ mensaje: 'Error al obtener la historia.' });
   }
 }
-
 
 // ─── GET /historias/paciente/:id_paciente — Historial del paciente ─────────
 async function historialPaciente(req, res) {

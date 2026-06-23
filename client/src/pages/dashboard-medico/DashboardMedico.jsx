@@ -169,7 +169,7 @@ export default function DashboardMedico() {
             diagnostico_cie10:       h.diagnostico_cie10       || '',
             descripcion_diagnostico: h.descripcion_diagnostico || '',
             plan_tratamiento:        h.plan_tratamiento        || '',
-            medicamentos_recetados:  h.medicamentos_recetados  || '',
+            medicamentos_recetados:  medsTexto                 || '',
             observaciones:           h.observaciones           || '',
           });
         } else {
