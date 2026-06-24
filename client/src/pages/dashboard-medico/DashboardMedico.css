@@ -1,3 +1,7 @@
+/* ─── client/src/pages/dashboard-medico/DashboardMedico.css ──────────── */
+/* Incluye todos los estilos originales + los nuevos para el modal de
+   gestión de cita y los badges de estado actualizados.                  */
+
 /* ─── BASE ─────────────────────────────────────────────────────────── */
 
 .dashboard-medico {
@@ -28,7 +32,7 @@
     color:     var(--melika-text-secondary);
 }
 
-/* ─── TABS (selector de vista) ─────────────────────────────────────── */
+/* ─── TABS ─────────────────────────────────────────────────────────── */
 
 .dashboard-medico__tabs {
     display:       flex;
@@ -79,189 +83,185 @@
 .panel-calendario {
     background:    var(--melika-bg);
     border:        1px solid var(--melika-primary-100);
-    border-radius: var(--radius-xl);
+    border-radius: var(--radius-lg);
     padding:       var(--space-6);
     box-shadow:    var(--shadow-sm);
 }
 
 .panel-calendario__titulo {
-    font-size:     18px;
+    font-size:     1rem;
     font-weight:   700;
     color:         var(--melika-text-primary);
-    margin-bottom: var(--space-5);
+    margin-bottom: var(--space-4);
 }
 
-/* ─── ESTILOS FULLCALENDAR ─────────────────────────────────────────── */
-
-.fc { font-family: var(--font-body) !important; }
-
-.fc .fc-toolbar-title {
-    font-family: var(--font-display) !important;
-    font-size:   16px !important;
-    font-weight: 700 !important;
-    color:       var(--melika-text-primary) !important;
-}
-
-.fc .fc-button {
-    background:    var(--melika-primary-50) !important;
-    border:        1px solid var(--melika-primary-100) !important;
-    color:         var(--melika-primary-600) !important;
-    font-family:   var(--font-display) !important;
-    font-weight:   600 !important;
-    font-size:     13px !important;
-    border-radius: var(--radius-sm) !important;
-    padding:       6px 12px !important;
-    transition:    all 0.15s !important;
-    text-transform: none !important;
-    box-shadow:    none !important;
-}
-
-.fc .fc-button:hover {
-    background: var(--melika-primary-100) !important;
-    border-color: var(--melika-primary-200) !important;
-}
-
-.fc .fc-button-primary:not(:disabled).fc-button-active {
-    background:   var(--melika-primary-600) !important;
-    border-color: var(--melika-primary-600) !important;
-    color:        #fff !important;
-}
-
-.fc .fc-daygrid-day-number {
-    font-family: var(--font-display) !important;
-    font-size:   13px !important;
-    color:       var(--melika-text-secondary) !important;
-}
-
-.fc .fc-daygrid-day.fc-day-today {
-    background: var(--melika-primary-25) !important;
-}
-
-.fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
-    background:    var(--melika-primary-600) !important;
-    color:         #fff !important;
-    border-radius: 50% !important;
-    width:         24px;
-    height:        24px;
-    display:       flex !important;
-    align-items:   center !important;
-    justify-content: center !important;
-}
-
-.fc .fc-event {
-    background:    var(--melika-accent) !important;
-    border:        none !important;
-    border-radius: 4px !important;
-    font-size:     12px !important;
-    font-weight:   600 !important;
-    padding:       2px 6px !important;
-    cursor:        pointer !important;
-}
-
-.fc .fc-event:hover { background: var(--melika-accent-dark) !important; }
-
-.fc .fc-col-header-cell-cushion {
-    font-family:    var(--font-display) !important;
-    font-size:      12px !important;
-    font-weight:    700 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.06em !important;
-    color:          var(--melika-text-muted) !important;
-}
-
-.fc .fc-scrollgrid { border-color: var(--melika-primary-100) !important; }
-.fc .fc-scrollgrid td,
-.fc .fc-scrollgrid th { border-color: var(--melika-primary-50) !important; }
-
-/* ─── PANEL AGENDA / DISPONIBILIDAD (lateral derecho) ──────────────── */
+/* ─── PANEL AGENDA / DISPONIBILIDAD ───────────────────────────────── */
 
 .panel-agenda {
     background:    var(--melika-bg);
     border:        1px solid var(--melika-primary-100);
-    border-radius: var(--radius-xl);
+    border-radius: var(--radius-lg);
     padding:       var(--space-6);
     box-shadow:    var(--shadow-sm);
-    position:      sticky;
-    top:           80px;
+    display:       flex;
+    flex-direction: column;
+    gap:           var(--space-3);
 }
 
 .panel-agenda__cabecera {
     display:         flex;
     justify-content: space-between;
-    align-items:     center;
-    margin-bottom:   var(--space-5);
+    align-items:     baseline;
+    flex-wrap:       wrap;
+    gap:             var(--space-2);
+    margin-bottom:   var(--space-2);
 }
 
 .panel-agenda__titulo {
-    font-size:   17px;
+    font-size:   1.05rem;
     font-weight: 700;
     color:       var(--melika-text-primary);
 }
 
 .panel-agenda__fecha {
-    font-size:   13px;
-    color:       var(--melika-text-muted);
-    font-family: var(--font-display);
+    font-size:     0.82rem;
+    color:         var(--melika-text-muted);
+    text-transform: capitalize;
 }
 
-/* ─── LISTA DE AGENDA (citas del día) ──────────────────────────────── */
+/* ─── AGENDA: estados skeleton / vacío / loading ───────────────────── */
+
+.agenda-loading {
+    display:        flex;
+    flex-direction: column;
+    gap:            var(--space-3);
+}
+
+.agenda-skeleton {
+    height:        72px;
+    border-radius: var(--radius-md);
+    background:    linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation:     pulso 1.5s infinite;
+}
+
+@keyframes pulso {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+.agenda-vacio {
+    display:         flex;
+    flex-direction:  column;
+    align-items:     center;
+    gap:             var(--space-2);
+    padding:         var(--space-8);
+    color:           var(--melika-text-muted);
+    font-size:       0.9rem;
+    text-align:      center;
+}
+
+.agenda-vacio span { font-size: 2rem; }
+
+/* ─── AGENDA: tarjeta de cita ──────────────────────────────────────── */
 
 .agenda-lista {
     display:        flex;
     flex-direction: column;
     gap:            var(--space-3);
-    max-height:     520px;
-    overflow-y:     auto;
 }
 
 .agenda-item {
     background:    var(--melika-bg-secondary);
-    border:        1px solid var(--melika-primary-50);
+    border:        1px solid var(--melika-primary-100);
+    border-left:   4px solid var(--melika-primary-300);
     border-radius: var(--radius-md);
     padding:       var(--space-4);
-    border-left:   3px solid var(--melika-accent);
+    display:       flex;
+    flex-direction: column;
+    gap:           var(--space-2);
     transition:    box-shadow 0.15s;
 }
 
 .agenda-item:hover { box-shadow: var(--shadow-sm); }
 
-.agenda-item--completada { border-left-color: var(--melika-success); }
-.agenda-item--cancelada  { border-left-color: var(--melika-primary-200); opacity: 0.7; }
+/* Variantes por estado — borde izquierdo */
+.agenda-item--pendiente  { border-left-color: #B45309; }
+.agenda-item--completada { border-left-color: #1A7A52; }
+.agenda-item--no_asistio { border-left-color: #6B7280; }
+.agenda-item--cancelada  { border-left-color: #DC2626; opacity: 0.75; }
 
-.agenda-item__hora {
-    font-family:   var(--font-display);
-    font-size:     13px;
-    font-weight:   700;
-    color:         var(--melika-accent);
-    margin-bottom: var(--space-1);
+/* Encabezado: hora + badge */
+.agenda-item__encabezado {
+    display:         flex;
+    justify-content: space-between;
+    align-items:     center;
+    gap:             var(--space-2);
 }
 
-.agenda-item--completada .agenda-item__hora { color: var(--melika-success); }
+.agenda-item__hora {
+    font-size:   1rem;
+    font-weight: 700;
+    color:       var(--melika-primary-600);
+}
+
+/* ─── BADGES DE ESTADO ────────────────────────────────────────────── */
+
+.agenda-item__badge {
+    font-size:     0.72rem;
+    font-weight:   700;
+    padding:       2px 10px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.agenda-badge--pendiente  { background: #FEF3C7; color: #92400E; }
+.agenda-badge--completada { background: #D1FAE5; color: #065F46; }
+.agenda-badge--no_asistio { background: #F3F4F6; color: #374151; }
+.agenda-badge--cancelada  { background: #FEE2E2; color: #991B1B; }
 
 .agenda-item__paciente {
-    font-size:     15px;
-    font-weight:   700;
-    color:         var(--melika-text-primary);
-    margin-bottom: var(--space-1);
+    font-size:   0.95rem;
+    font-weight: 600;
+    color:       var(--melika-text-primary);
 }
 
 .agenda-item__tipo {
-    font-size:     12px;
-    color:         var(--melika-text-muted);
-    margin-bottom: var(--space-3);
+    font-size: 0.82rem;
+    color:     var(--melika-text-secondary);
+}
+
+.agenda-item__notas {
+    font-size:     0.82rem;
+    color:         var(--melika-text-secondary);
+    font-style:    italic;
+    background:    var(--melika-primary-25);
+    border-radius: var(--radius-sm);
+    padding:       var(--space-2) var(--space-3);
+}
+
+/* ─── BOTONES DE ACCIÓN EN CADA CITA ──────────────────────────────── */
+
+.agenda-item__acciones {
+    display:   flex;
+    gap:       var(--space-2);
+    flex-wrap: wrap;
+    margin-top: var(--space-1);
 }
 
 .agenda-item__btn-historia {
     font-family:   var(--font-display);
-    font-size:     12px;
-    font-weight:   700;
+    font-size:     0.8rem;
+    font-weight:   600;
     color:         var(--melika-primary-600);
     background:    var(--melika-primary-50);
-    border:        1px solid var(--melika-primary-100);
+    border:        1.5px solid var(--melika-primary-100);
     border-radius: var(--radius-sm);
-    padding:       var(--space-1) var(--space-3);
+    padding:       var(--space-2) var(--space-3);
     cursor:        pointer;
-    transition:    all 0.15s;
+    transition:    all 0.18s;
+    flex:          1;
 }
 
 .agenda-item__btn-historia:hover {
@@ -269,40 +269,32 @@
     border-color: var(--melika-primary-200);
 }
 
-.agenda-vacio {
-    text-align: center;
-    padding:    var(--space-10) var(--space-4);
-    color:      var(--melika-text-muted);
-    font-size:  14px;
+.agenda-item__btn-gestionar {
+    font-family:   var(--font-display);
+    font-size:     0.8rem;
+    font-weight:   700;
+    color:         #fff;
+    background:    var(--melika-accent);
+    border:        none;
+    border-radius: var(--radius-sm);
+    padding:       var(--space-2) var(--space-3);
+    cursor:        pointer;
+    transition:    background 0.18s;
+    flex:          1;
 }
 
-.agenda-vacio span { display: block; font-size: 36px; margin-bottom: var(--space-3); }
-
-.agenda-loading { display: flex; flex-direction: column; gap: var(--space-3); }
-
-.agenda-skeleton {
-    height:        80px;
-    background:    linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
-    background-size: 200% 100%;
-    animation:     pulso 1.5s infinite;
-    border-radius: var(--radius-md);
+.agenda-item__btn-gestionar:hover {
+    background: var(--melika-accent-dark);
 }
 
-/* ─── FORMULARIO DISPONIBILIDAD ────────────────────────────────────── */
+/* ─── DISPONIBILIDAD ───────────────────────────────────────────────── */
 
-.dispo-formulario {
-    background:    var(--melika-bg-secondary);
-    border:        1px solid var(--melika-primary-100);
-    border-radius: var(--radius-md);
-    padding:       var(--space-4);
-    margin-bottom: var(--space-2);
-}
+.dispo-formulario { display: flex; flex-direction: column; gap: var(--space-3); }
 
 .dispo-formulario__inputs {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap:     var(--space-3);
-    margin-bottom: var(--space-3);
 }
 
 .dispo-campo {
@@ -312,39 +304,41 @@
 }
 
 .dispo-campo label {
-    font-size:   12px;
-    font-weight: 700;
-    color:       var(--melika-text-primary);
-    font-family: var(--font-display);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    font-size:   0.8rem;
+    font-weight: 600;
+    color:       var(--melika-text-secondary);
 }
 
-.dispo-campo input[type="time"] {
-    border:        1.5px solid var(--melika-primary-100);
+.dispo-campo input {
+    border:        1px solid var(--melika-primary-100);
     border-radius: var(--radius-sm);
     padding:       var(--space-2) var(--space-3);
-    font-size:     15px;
-    font-family:   var(--font-body);
-    color:         var(--melika-text-primary);
+    font-size:     0.9rem;
     background:    var(--melika-bg);
+    color:         var(--melika-text-primary);
     outline:       none;
-    transition:    border-color 0.2s;
-    width:         100%;
+    transition:    border-color 0.18s;
 }
 
-.dispo-campo input[type="time"]:focus {
-    border-color: var(--melika-primary-500);
+.dispo-campo input:focus { border-color: var(--melika-primary-300); }
+
+.dispo-separador {
+    margin:     var(--space-4) 0;
+    border:     0;
+    border-top: 1px solid var(--melika-primary-50);
 }
 
-/* ─── LISTA DE FRANJAS ─────────────────────────────────────────────── */
+.dispo-subtitulo {
+    font-size:     0.9rem;
+    font-weight:   700;
+    color:         var(--melika-text-primary);
+    margin-bottom: var(--space-2);
+}
 
 .dispo-lista {
     display:        flex;
     flex-direction: column;
     gap:            var(--space-2);
-    max-height:     320px;
-    overflow-y:     auto;
 }
 
 .dispo-item {
@@ -352,230 +346,380 @@
     justify-content: space-between;
     align-items:     center;
     background:      var(--melika-bg-secondary);
-    border:          1px solid var(--melika-primary-100);
+    border:          1px solid var(--melika-primary-50);
     border-radius:   var(--radius-sm);
     padding:         var(--space-3) var(--space-4);
-    transition:      background 0.15s;
+    font-size:       0.88rem;
+    color:           var(--melika-text-primary);
 }
 
-.dispo-item:hover { background: var(--melika-primary-25); }
-
-.dispo-item__info {
-    font-family: var(--font-display);
-    font-size:   14px;
-    font-weight: 600;
-    color:       var(--melika-text-primary);
-    display:     flex;
-    align-items: center;
-    gap:         var(--space-2);
-}
+.dispo-item__info { display: flex; align-items: center; gap: var(--space-2); }
 
 .dispo-item__badge-reservada {
-    font-size:     11px;
+    background:    var(--melika-primary-50);
+    color:         var(--melika-primary-600);
+    font-size:     0.72rem;
     font-weight:   700;
-    background:    var(--melika-warning-bg);
-    color:         var(--melika-warning);
     padding:       2px 8px;
     border-radius: 20px;
-    margin-left:   var(--space-2);
 }
 
 .dispo-item__btn-eliminar {
-    background:    none;
-    border:        1px solid transparent;
-    border-radius: var(--radius-sm);
-    color:         var(--melika-text-muted);
-    padding:       var(--space-1) var(--space-2);
+    background:    transparent;
+    border:        none;
     cursor:        pointer;
-    font-size:     16px;
-    transition:    all 0.15s;
-    line-height:   1;
+    font-size:     1rem;
+    padding:       var(--space-1);
+    border-radius: var(--radius-sm);
+    transition:    background 0.15s;
+    color:         var(--melika-text-muted);
 }
 
-.dispo-item__btn-eliminar:hover {
-    background:   var(--melika-error-bg);
-    border-color: #fca5a5;
-    color:        var(--melika-error);
-}
+.dispo-item__btn-eliminar:hover { background: var(--melika-error-bg); }
 
-.dispo-item__btn-eliminar:disabled {
-    opacity: 0.4;
-    cursor:  not-allowed;
-}
-
-/* ─── MODAL HISTORIA CLÍNICA ───────────────────────────────────────── */
+/* ─── MODAL BASE ────────────────────────────────────────────────────── */
 
 .modal-overlay {
-    position:        fixed;
-    inset:           0;
-    background:      rgba(11, 26, 54, 0.5);
-    display:         flex;
-    align-items:     center;
-    justify-content: center;
-    z-index:         300;
-    padding:         var(--space-5);
+    position:         fixed;
+    inset:            0;
+    background:       rgba(0, 0, 0, 0.45);
+    backdrop-filter:  blur(3px);
+    display:          flex;
+    align-items:      center;
+    justify-content:  center;
+    z-index:          1000;
+    padding:          var(--space-4);
 }
 
-.modal-historia {
+.btn-cerrar {
+    background:    transparent;
+    border:        none;
+    font-size:     1.2rem;
+    cursor:        pointer;
+    color:         var(--melika-text-muted);
+    padding:       var(--space-1);
+    border-radius: var(--radius-sm);
+    line-height:   1;
+    transition:    color 0.15s;
+    flex-shrink:   0;
+}
+
+.btn-cerrar:hover { color: var(--melika-text-primary); }
+
+/* ─── MODAL GESTIÓN DE CITA (NUEVO) ────────────────────────────────── */
+
+.modal-gestion {
     background:    var(--melika-bg);
     border-radius: var(--radius-xl);
-    padding:       var(--space-8);
-    max-width:     640px;
+    box-shadow:    var(--shadow-xl);
     width:         100%;
+    max-width:     480px;
+    display:       flex;
+    flex-direction: column;
+    gap:           var(--space-5);
+    padding:       var(--space-6);
     max-height:    90vh;
     overflow-y:    auto;
-    box-shadow:    var(--shadow-xl);
+}
+
+.modal-gestion__cabecera {
+    display:         flex;
+    justify-content: space-between;
+    align-items:     flex-start;
+    gap:             var(--space-4);
+}
+
+.modal-gestion__titulo {
+    font-size:     1.15rem;
+    font-weight:   700;
+    color:         var(--melika-text-primary);
+    margin-bottom: var(--space-1);
+}
+
+.modal-gestion__meta {
+    font-size:   0.83rem;
+    color:       var(--melika-text-secondary);
+    margin:      0;
+    line-height: 1.6;
+}
+
+.modal-gestion__label {
+    font-size:     0.85rem;
+    font-weight:   600;
+    color:         var(--melika-text-secondary);
+    margin-bottom: var(--space-3);
+}
+
+.modal-gestion__opcional {
+    font-weight: 400;
+    color:       var(--melika-text-muted);
+}
+
+/* Radio opciones estilizadas */
+.modal-gestion__radio-grupo {
+    display:        flex;
+    flex-direction: column;
+    gap:            var(--space-3);
+}
+
+.radio-opcion {
+    display:       flex;
+    align-items:   center;
+    gap:           var(--space-3);
+    padding:       var(--space-4);
+    border:        2px solid var(--melika-primary-100);
+    border-radius: var(--radius-md);
+    cursor:        pointer;
+    transition:    all 0.18s;
+}
+
+.radio-opcion:hover {
+    border-color: var(--melika-primary-300);
+    background:   var(--melika-primary-25);
+}
+
+.radio-opcion--activa {
+    border-color: var(--melika-accent);
+    background:   #fff5f2;
+}
+
+.radio-opcion input[type="radio"] {
+    accent-color: var(--melika-accent);
+    width:        18px;
+    height:       18px;
+    flex-shrink:  0;
+}
+
+.radio-opcion__icono {
+    font-size:  1.4rem;
+    flex-shrink: 0;
+}
+
+.radio-opcion strong {
+    display:     block;
+    font-size:   0.92rem;
+    color:       var(--melika-text-primary);
+    line-height: 1.3;
+}
+
+.radio-opcion small {
+    font-size: 0.78rem;
+    color:     var(--melika-text-muted);
+}
+
+.modal-gestion__notas {
+    display:        flex;
+    flex-direction: column;
+    gap:            var(--space-2);
+}
+
+/* Acciones del modal de gestión */
+.modal-gestion__acciones {
+    display:         flex;
+    justify-content: flex-end;
+    gap:             var(--space-3);
+    padding-top:     var(--space-2);
+    border-top:      1px solid var(--melika-primary-50);
+}
+
+.btn-gestion-cancelar {
+    font-family:   var(--font-display);
+    font-size:     0.9rem;
+    font-weight:   600;
+    color:         var(--melika-text-secondary);
+    background:    transparent;
+    border:        1.5px solid var(--melika-primary-100);
+    border-radius: var(--radius-sm);
+    padding:       var(--space-3) var(--space-5);
+    cursor:        pointer;
+    transition:    all 0.18s;
+}
+
+.btn-gestion-cancelar:hover {
+    border-color: var(--melika-primary-300);
+    color:        var(--melika-text-primary);
+}
+
+.btn-gestion-confirmar {
+    font-family:   var(--font-display);
+    font-size:     0.9rem;
+    font-weight:   700;
+    color:         #fff;
+    background:    #1A7A52;
+    border:        none;
+    border-radius: var(--radius-sm);
+    padding:       var(--space-3) var(--space-6);
+    cursor:        pointer;
+    transition:    background 0.18s;
+}
+
+.btn-gestion-confirmar:hover:not(:disabled) { background: #145C3E; }
+
+.btn-gestion-confirmar--ausente { background: #6B7280; }
+.btn-gestion-confirmar--ausente:hover:not(:disabled) { background: #4B5563; }
+
+.btn-gestion-confirmar:disabled,
+.btn-gestion-cancelar:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ─── MODAL HISTORIA CLÍNICA ────────────────────────────────────────── */
+
+.modal-historia {
+    background:     var(--melika-bg);
+    border-radius:  var(--radius-xl);
+    box-shadow:     var(--shadow-xl);
+    width:          100%;
+    max-width:      640px;
+    max-height:     90vh;
+    overflow-y:     auto;
+    display:        flex;
+    flex-direction: column;
+    gap:            var(--space-4);
+    padding:        var(--space-6);
 }
 
 .modal-historia__cabecera {
     display:         flex;
     justify-content: space-between;
     align-items:     flex-start;
-    margin-bottom:   var(--space-5);
+    gap:             var(--space-4);
+    padding-bottom:  var(--space-4);
+    border-bottom:   1px solid var(--melika-primary-50);
 }
 
 .modal-historia__cabecera h3 {
-    font-size:   20px;
-    font-weight: 700;
-    color:       var(--melika-text-primary);
+    font-size:     1.1rem;
+    font-weight:   700;
+    color:         var(--melika-text-primary);
     margin-bottom: var(--space-1);
 }
 
 .modal-historia__meta {
-    font-size:     12px;
-    color:         var(--melika-text-muted);
-    margin-bottom: var(--space-1);
+    font-size:   0.82rem;
+    color:       var(--melika-text-secondary);
+    margin:      0;
+    line-height: 1.5;
 }
 
-.btn-cerrar {
-    background:  none;
-    border:      none;
-    font-size:   20px;
-    color:       var(--melika-text-muted);
-    cursor:      pointer;
-    padding:     var(--space-1);
-    line-height: 1;
-    transition:  color 0.15s;
-    flex-shrink: 0;
+.historia-grid-2col {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap:     var(--space-3);
 }
-
-.btn-cerrar:hover { color: var(--melika-text-primary); }
-
-/* ─── CAMPOS DE HISTORIA ───────────────────────────────────────────── */
 
 .historia-campo {
     display:        flex;
     flex-direction: column;
     gap:            var(--space-1);
-    margin-bottom:  var(--space-4);
 }
 
 .historia-campo label {
-    font-size:   12px;
-    font-weight: 700;
-    color:       var(--melika-text-primary);
-    font-family: var(--font-display);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    font-size:   0.82rem;
+    font-weight: 600;
+    color:       var(--melika-text-secondary);
 }
 
-.historia-campo .historia-campo__requerido {
-    color: var(--melika-accent);
-}
+.historia-campo__requerido { color: var(--melika-error); margin-left: 2px; }
 
 .historia-textarea {
     width:         100%;
-    border:        1.5px solid var(--melika-primary-100);
+    border:        1px solid var(--melika-primary-100);
     border-radius: var(--radius-sm);
-    padding:       var(--space-3) var(--space-4);
-    font-size:     14px;
+    padding:       var(--space-3);
+    font-size:     0.88rem;
     font-family:   var(--font-body);
     color:         var(--melika-text-primary);
     background:    var(--melika-bg);
     resize:        vertical;
-    outline:       none;
-    transition:    border-color 0.2s;
-    min-height:    80px;
+    transition:    border-color 0.18s;
+    box-sizing:    border-box;
 }
 
-.historia-textarea:focus  { border-color: var(--melika-primary-500); }
+.historia-textarea:focus {
+    outline:       none;
+    border-color:  var(--melika-primary-300);
+}
+
 .historia-textarea:disabled {
     background: var(--melika-bg-secondary);
     color:      var(--melika-text-secondary);
     cursor:     default;
-    resize:     none;
+}
+
+.historia-error {
+    background:    var(--melika-error-bg);
+    color:         var(--melika-error);
+    border:        1px solid var(--melika-error);
+    border-radius: var(--radius-sm);
+    padding:       var(--space-3) var(--space-4);
+    font-size:     0.85rem;
 }
 
 .historia-acciones {
     display:         flex;
     justify-content: flex-end;
     gap:             var(--space-3);
-    margin-top:      var(--space-2);
-    padding-top:     var(--space-4);
+    padding-top:     var(--space-2);
     border-top:      1px solid var(--melika-primary-50);
 }
 
 .btn-editar-historia {
-    background:    var(--melika-primary-50);
+    font-family:   var(--font-display);
+    font-size:     0.88rem;
+    font-weight:   600;
+    color:         var(--melika-text-secondary);
+    background:    transparent;
     border:        1.5px solid var(--melika-primary-100);
     border-radius: var(--radius-sm);
-    color:         var(--melika-primary-600);
     padding:       var(--space-2) var(--space-5);
-    font-size:     14px;
-    font-weight:   700;
-    font-family:   var(--font-display);
     cursor:        pointer;
-    transition:    all 0.15s;
+    transition:    all 0.18s;
 }
 
 .btn-editar-historia:hover {
-    background:   var(--melika-primary-100);
-    border-color: var(--melika-primary-200);
+    border-color: var(--melika-primary-300);
+    color:        var(--melika-text-primary);
 }
 
 .btn-guardar-historia {
+    font-family:   var(--font-display);
+    font-size:     0.88rem;
+    font-weight:   700;
+    color:         #fff;
     background:    var(--melika-accent);
     border:        none;
     border-radius: var(--radius-sm);
-    color:         #fff;
-    padding:       var(--space-2) var(--space-5);
-    font-size:     14px;
-    font-weight:   700;
-    font-family:   var(--font-display);
+    padding:       var(--space-2) var(--space-6);
     cursor:        pointer;
-    transition:    background 0.2s;
+    transition:    background 0.18s;
 }
 
 .btn-guardar-historia:hover:not(:disabled) { background: var(--melika-accent-dark); }
 .btn-guardar-historia:disabled { opacity: 0.6; cursor: not-allowed; }
 
-.historia-error {
-    background:    var(--melika-error-bg);
-    color:         var(--melika-error);
-    border:        1px solid #fca5a5;
-    border-radius: var(--radius-sm);
-    padding:       var(--space-2) var(--space-4);
-    font-size:     14px;
-    margin-bottom: var(--space-3);
+/* ─── RESPONSIVE ────────────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+    .dashboard-medico__grid {
+        grid-template-columns: 1fr;
+    }
+    .historia-grid-2col {
+        grid-template-columns: 1fr;
+    }
 }
 
-/* ─── ANIMACIONES ──────────────────────────────────────────────────── */
-
-@keyframes pulso {
-    0%   { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
-}
-
-/* ─── RESPONSIVE ───────────────────────────────────────────────────── */
-
-@media (max-width: 1024px) {
-    .dashboard-medico__grid { grid-template-columns: 1fr; }
-    .panel-agenda           { position: static; }
-}
-
-@media (max-width: 640px) {
-    .dashboard-medico__cabecera { flex-direction: column; }
-    .dashboard-medico__tabs     { width: 100%; }
-    .tab-btn                    { flex: 1; text-align: center; }
-    .dispo-formulario__inputs   { grid-template-columns: 1fr; }
+@media (max-width: 600px) {
+    .dashboard-medico__cabecera {
+        flex-direction: column;
+    }
+    .dispo-formulario__inputs {
+        grid-template-columns: 1fr;
+    }
+    .modal-gestion__acciones {
+        flex-direction: column-reverse;
+    }
+    .btn-gestion-confirmar,
+    .btn-gestion-cancelar {
+        width:      100%;
+        text-align: center;
+    }
 }

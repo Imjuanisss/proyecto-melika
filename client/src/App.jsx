@@ -1,3 +1,5 @@
+// client/src/App.jsx
+
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Navbar from "./components/layout/Navbar";
@@ -14,27 +16,32 @@ import DashboardMedico from "./pages/dashboard-medico/DashboardMedico";
 import ActivarCuenta from "./pages/activar-cuenta/ActivarCuenta";
 import Catalogo from "./pages/catalogo/Catalogo";
 
-// 🩺 IMPORTACIONES DE ESPECIALIDADES (PÚBLICAS)
+// Especialidades (públicas)
 import Especialidades from "./pages/especialidades/Especialidades";
 import MedicosEspecialidad from "./pages/especialidades/MedicosEspecialidad";
 
-// ─── Imports Admin (nueva estructura de carpetas) ────────────────────────────
-import AdminLayout          from "./pages/admin/AdminLayout";
-import AdminDashboard       from "./pages/admin/dashboard/AdminDashboard";
-import MedicosAdmin         from "./pages/admin/gestionmedicos/MedicosAdmin"; 
-import HorariosAdmin        from "./pages/admin/gestionhorarios/HorariosAdmin";
-import UsuariosAdmin        from "./pages/admin/gestionusuarios/UsuariosAdmin";
-import CitasAdmin           from "./pages/admin/gestioncitas/CitasAdmin";
-import EspecialidadesAdmin  from "./pages/admin/gestionespecialidades/EspecialidadesAdmin";
-import MedicamentosAdmin    from "./pages/admin/gestionmedicamentos/MedicamentosAdmin";
+// Admin
+import AdminLayout         from "./pages/admin/AdminLayout";
+import AdminDashboard      from "./pages/admin/dashboard/AdminDashboard";
+import MedicosAdmin        from "./pages/admin/gestionmedicos/MedicosAdmin";
+import HorariosAdmin       from "./pages/admin/gestionhorarios/HorariosAdmin";
+import UsuariosAdmin       from "./pages/admin/gestionusuarios/UsuariosAdmin";
+import CitasAdmin          from "./pages/admin/gestioncitas/CitasAdmin";
+import EspecialidadesAdmin from "./pages/admin/gestionespecialidades/EspecialidadesAdmin";
+import MedicamentosAdmin   from "./pages/admin/gestionmedicamentos/MedicamentosAdmin";
 
-// ─── Middlewares de Protección de Rutas ──────────────────────────────────────
-function RutaProtegida({ children }) {
+// ─── Guards de rutas ──────────────────────────────────────────────────────────
+
+// Exclusivo para pacientes — el médico NO puede entrar aquí
+function RutaPaciente({ children }) {
   const { usuario } = useAuth();
   if (!usuario) return <Navigate to="/login" replace />;
+  if (usuario.rol === "medico")  return <Navigate to="/dashboard-medico" replace />;
+  if (usuario.rol === "admin")   return <Navigate to="/admin" replace />;
   return children;
 }
 
+// Exclusivo para médicos
 function RutaMedico({ children }) {
   const { usuario } = useAuth();
   if (!usuario) return <Navigate to="/login" replace />;
@@ -42,6 +49,7 @@ function RutaMedico({ children }) {
   return children;
 }
 
+// Exclusivo para administradores
 function RutaAdmin({ children }) {
   const { usuario } = useAuth();
   if (!usuario) return <Navigate to="/login" replace />;
@@ -49,49 +57,61 @@ function RutaAdmin({ children }) {
   return children;
 }
 
-// ─── Componente Principal ────────────────────────────────────────────────────
+// ─── Componente principal ─────────────────────────────────────────────────────
+
 function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
         <Navbar />
         <Routes>
-          {/*  Rutas Públicas */}
-          <Route path="/" element={<Inicio />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/registro" element={<Registro />} />
-          <Route path="/verificar" element={<Verificar />} />
-          <Route path="/recuperar" element={<RecuperarPassword />} />
-          <Route path="/nueva-password" element={<NuevaPassword />} />
-          <Route path="/catalogo" element={<Catalogo />} />
 
-           {/* ruta de activación de cuenta (para médicos) */}
+          {/* ── Rutas públicas ── */}
+          <Route path="/"              element={<Inicio />} />
+          <Route path="/login"         element={<Login />} />
+          <Route path="/registro"      element={<Registro />} />
+          <Route path="/verificar"     element={<Verificar />} />
+          <Route path="/recuperar"     element={<RecuperarPassword />} />
+          <Route path="/nueva-password" element={<NuevaPassword />} />
+          <Route path="/catalogo"      element={<Catalogo />} />
           <Route path="/activar-cuenta" element={<ActivarCuenta />} />
 
-          {/*  Catálogo de Especialidades y Médicos (Públicos) */}
-          <Route path="/especialidades" element={<Especialidades />} />
-          <Route path="/especialidades/:id/medicos" element={<MedicosEspecialidad />} />         
-          <Route path="/medico/:id/agenda" element={<RutaProtegida><Agendarcita /></RutaProtegida>} />
+          {/* ── Catálogo de especialidades y médicos (público) ── */}
+          <Route path="/especialidades"              element={<Especialidades />} />
+          <Route path="/especialidades/:id/medicos"  element={<MedicosEspecialidad />} />
 
-          {/*  Rutas de Pacientes Protegidas */}
-          <Route path="/dashboard" element={<RutaProtegida><Dashboard /></RutaProtegida>} />
-          <Route path="/agendar" element={<RutaProtegida><Agendarcita /></RutaProtegida>} />
-          <Route path="/mis-citas" element={<RutaProtegida><MisCitas /></RutaProtegida>} />
+          {/*
+            Agendar desde el perfil público de un médico.
+            Solo pacientes — si un médico intenta acceder, RutaPaciente
+            lo redirige a /dashboard-medico.
+          */}
+          <Route
+            path="/medico/:id/agenda"
+            element={<RutaPaciente><Agendarcita /></RutaPaciente>}
+          />
 
-          {/*  Rutas de Médicos Protegidas */}
-          <Route path="/dashboard-medico" element={<RutaMedico><DashboardMedico /></RutaMedico>} />
-          
+          {/* ── Rutas exclusivas de pacientes ── */}
+          <Route path="/dashboard" element={<RutaPaciente><Dashboard /></RutaPaciente>} />
+          <Route path="/agendar"   element={<RutaPaciente><Agendarcita /></RutaPaciente>} />
+          <Route path="/mis-citas" element={<RutaPaciente><MisCitas /></RutaPaciente>} />
 
-          {/*  Rutas de Admin Protegidas (Anidadas) */}
+          {/* ── Rutas exclusivas de médicos ── */}
+          <Route
+            path="/dashboard-medico"
+            element={<RutaMedico><DashboardMedico /></RutaMedico>}
+          />
+
+          {/* ── Rutas de administración ── */}
           <Route path="/admin" element={<RutaAdmin><AdminLayout /></RutaAdmin>}>
-            <Route index element={<AdminDashboard />} />
-            <Route path="medicos" element={<MedicosAdmin />} />
-            <Route path="horarios" element={<HorariosAdmin />} />
-            <Route path="usuarios" element={<UsuariosAdmin />} />
-            <Route path="citas" element={<CitasAdmin />} />
+            <Route index               element={<AdminDashboard />} />
+            <Route path="medicos"      element={<MedicosAdmin />} />
+            <Route path="horarios"     element={<HorariosAdmin />} />
+            <Route path="usuarios"     element={<UsuariosAdmin />} />
+            <Route path="citas"        element={<CitasAdmin />} />
             <Route path="especialidades" element={<EspecialidadesAdmin />} />
             <Route path="medicamentos" element={<MedicamentosAdmin />} />
           </Route>
+
         </Routes>
       </BrowserRouter>
     </AuthProvider>

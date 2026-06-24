@@ -1,5 +1,7 @@
+// server/src/routes/medicosRoutes.js
+
 const express = require('express');
-const router = express.Router();
+const router  = express.Router();
 const { verifyToken, isAdmin, isMedico } = require('../middleware/authMiddleware');
 const {
   crearMedico,
@@ -13,25 +15,30 @@ const {
   crearFranja,
   listarFranjas,
   eliminarFranja,
-  completarCita,
+  gestionarCita,          // ← nueva función de gestión profesional
 } = require('../controllers/medicosController');
 
-// ── Públicas (no requieren token) ──────────────────────
-router.post('/activar', activarCuenta);     // el médico activa su cuenta
+// ── Pública — activar cuenta médico (no requiere token) ────────────────
+router.post('/activar', activarCuenta);
 
-// ── Admin ──────────────────────────────────────────────
-router.get('/', verifyToken, isAdmin, listarMedicos);
-router.post('/', verifyToken, isAdmin, crearMedico);
-router.put('/:id', verifyToken, isAdmin, actualizarMedico);
+// ── Admin — CRUD de médicos ────────────────────────────────────────────
+router.get('/',             verifyToken, isAdmin, listarMedicos);
+router.post('/',            verifyToken, isAdmin, crearMedico);
+router.put('/:id',          verifyToken, isAdmin, actualizarMedico);
 router.patch('/:id/estado', verifyToken, isAdmin, toggleEstadoMedico);
 
-// ── Médico autenticado ─────────────────────────────────
-router.get('/perfil', verifyToken, isMedico, perfilMedico);
-router.get('/agenda', verifyToken, isMedico, agendaMedico);
-router.get('/agenda/rango', verifyToken, isMedico, agendaRango);
-router.post('/franjas', verifyToken, isMedico, crearFranja);
-router.get('/franjas', verifyToken, isMedico, listarFranjas);
-router.delete('/franjas/:id', verifyToken, isMedico, eliminarFranja);
-router.patch('/citas/:id/completar', verifyToken, isMedico, completarCita);
+// ── Médico autenticado — perfil, agenda, franjas ───────────────────────
+router.get('/perfil',        verifyToken, isMedico, perfilMedico);
+router.get('/agenda',        verifyToken, isMedico, agendaMedico);
+router.get('/agenda/rango',  verifyToken, isMedico, agendaRango);
+router.post('/franjas',      verifyToken, isMedico, crearFranja);
+router.get('/franjas',       verifyToken, isMedico, listarFranjas);
+router.delete('/franjas/:id',verifyToken, isMedico, eliminarFranja);
+
+// ── Médico autenticado — gestión de estado de sus citas ────────────────
+// NOTA: La ruta usa /medico/ (no /medicos/) porque en server.js
+// app.use('/medico', medicosRoutes) apunta a este mismo router.
+// El médico llama a: PATCH /medico/citas/:id/gestionar
+router.patch('/citas/:id/gestionar', verifyToken, isMedico, gestionarCita);
 
 module.exports = router;
