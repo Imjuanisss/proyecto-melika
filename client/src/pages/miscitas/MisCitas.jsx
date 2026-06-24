@@ -14,6 +14,19 @@ const LEYENDA = [
   { estado: 'completada', color: '#1A7A52', label: 'Completada' },
 ];
 
+// ── Bloque reutilizable para cada campo de la historia clínica ───────────
+// Si el campo viene vacío (null / '' / undefined) no se renderiza nada,
+// así el modal no muestra secciones en blanco.
+function SeccionHistoria({ titulo, texto }) {
+  if (!texto) return null;
+  return (
+    <div className="historia-seccion">
+      <h4 className="historia-seccion__titulo">{titulo}</h4>
+      <p className="historia-seccion__texto">{texto}</p>
+    </div>
+  );
+}
+
 export default function MisCitas() {
   const navigate    = useNavigate();
   const calendarRef = useRef(null);
@@ -25,6 +38,12 @@ export default function MisCitas() {
   const [citaSeleccionada, setCitaSeleccionada] = useState(null);
   const [modal, setModal]                       = useState(null);
   const [procesando, setProcesando]             = useState(false);
+
+  // ── Modal de historia clínica: { cargando, error, datos } ──────────────
+  const [historiaModal, setHistoriaModal] = useState(null);
+
+  // ── Motivo de cancelación, escrito por el paciente en el modal ─────────
+  const [razonCancelacion, setRazonCancelacion] = useState('');
 
   // ── Cargar lista de citas ─────────────────────────────────────────────
   useEffect(() => {
@@ -92,6 +111,7 @@ export default function MisCitas() {
     } finally {
       setProcesando(false);
       setModal(null);
+      setRazonCancelacion('');
     }
   }
 
@@ -122,6 +142,37 @@ export default function MisCitas() {
   function confirmarModal() {
     if (modal.tipo === 'cancelar') cancelar(modal.id);
     if (modal.tipo === 'eliminar') eliminar(modal.id);
+  }
+
+  // ── Ver historia clínica de una cita completada ────────────────────────
+  // GET /historias/cita/:id_cita devuelve { historia: null } si el médico
+  // aún no la ha registrado, y { historia: {...} } cuando ya existe.
+  async function verHistoriaClinica(idCita) {
+    setHistoriaModal({ cargando: true, error: null, datos: null });
+
+    try {
+      const data = await api.get(`/historias/cita/${idCita}`);
+
+      if (!data.historia) {
+        setHistoriaModal({
+          cargando: false,
+          error:    'El médico aún no ha registrado la historia clínica de esta consulta.',
+          datos:    null,
+        });
+      } else {
+        setHistoriaModal({ cargando: false, error: null, datos: data.historia });
+      }
+    } catch (err) {
+      setHistoriaModal({
+        cargando: false,
+        error:    err.message || 'No se pudo cargar la historia clínica.',
+        datos:    null,
+      });
+    }
+  }
+
+  function cerrarHistoriaModal() {
+    setHistoriaModal(null);
   }
 
   // ── Helpers formato ───────────────────────────────────────────────────
@@ -299,6 +350,14 @@ export default function MisCitas() {
                           Eliminar registro
                         </button>
                       )}
+                      {citaSeleccionada.estado === 'completada' && (
+                        <button
+                          className="btn-historia btn-historia--bloque"
+                          onClick={() => verHistoriaClinica(citaSeleccionada.id)}
+                        >
+                          📄 Ver historia clínica
+                        </button>
+                      )}
                       <button
                         className="btn-agendar-nueva"
                         onClick={() => navigate('/agendar')}
@@ -388,6 +447,14 @@ export default function MisCitas() {
                           Eliminar
                         </button>
                       )}
+                      {c.estado === 'completada' && (
+                        <button
+                          className="btn-historia"
+                          onClick={() => verHistoriaClinica(c.id)}
+                        >
+                          📄 Ver historia clínica
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -397,9 +464,12 @@ export default function MisCitas() {
         )}
       </div>
 
-      {/* Modal confirmación */}
+      {/* Modal confirmación (cancelar / eliminar) */}
       {modal && (
-        <div className="modal-overlay" onClick={() => setModal(null)}>
+        <div
+          className="modal-overlay"
+          onClick={() => { setModal(null); setRazonCancelacion(''); }}
+        >
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
             <h3>
               {modal.tipo === 'cancelar' ? '¿Cancelar esta cita?' : '¿Eliminar esta cita?'}
@@ -409,10 +479,22 @@ export default function MisCitas() {
                 ? 'La cita pasará a estado cancelado y la franja horaria quedará disponible para otros pacientes.'
                 : 'La cita se eliminará permanentemente. Esta acción no se puede deshacer.'}
             </p>
+
+            {modal.tipo === 'cancelar' && (
+              <textarea
+                className="modal-textarea"
+                placeholder="Cuéntanos brevemente por qué cancelas (opcional)"
+                value={razonCancelacion}
+                onChange={(e) => setRazonCancelacion(e.target.value)}
+                rows={3}
+                maxLength={300}
+              />
+            )}
+
             <div className="modal-acciones">
               <button
                 className="btn-secundario"
-                onClick={() => setModal(null)}
+                onClick={() => { setModal(null); setRazonCancelacion(''); }}
                 disabled={procesando}
               >
                 Volver
@@ -431,6 +513,70 @@ export default function MisCitas() {
                   : 'Sí, eliminar'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de historia clínica */}
+      {historiaModal && (
+        <div className="modal-overlay" onClick={cerrarHistoriaModal}>
+          <div className="modal-card modal-card--historia" onClick={(e) => e.stopPropagation()}>
+
+            <div className="historia-modal__header">
+              <h3>📄 Historia clínica</h3>
+              <button
+                className="historia-modal__cerrar"
+                onClick={cerrarHistoriaModal}
+                aria-label="Cerrar"
+              >
+                ✕
+              </button>
+            </div>
+
+            {historiaModal.cargando && (
+              <div className="historia-modal__skeleton" />
+            )}
+
+            {!historiaModal.cargando && historiaModal.error && (
+              <p className="historia-modal__vacio">{historiaModal.error}</p>
+            )}
+
+            {!historiaModal.cargando && historiaModal.datos && (
+              <div className="historia-modal__cuerpo">
+
+                <div className="historia-modal__meta">
+                  <span>
+                    👨‍⚕️ Dr(a). {historiaModal.datos.medico_nombre} {historiaModal.datos.medico_apellido}
+                    {historiaModal.datos.especialidad && ` · ${historiaModal.datos.especialidad}`}
+                  </span>
+                  <span>
+                    📅 {formatFechaStr(historiaModal.datos.fecha)} · 🕐 {formatHoraStr(historiaModal.datos.hora_inicio)}
+                  </span>
+                </div>
+
+                <SeccionHistoria titulo="Motivo de consulta" texto={historiaModal.datos.motivo_consulta} />
+                <SeccionHistoria titulo="Anamnesis"          texto={historiaModal.datos.anamnesis} />
+                <SeccionHistoria titulo="Examen físico"      texto={historiaModal.datos.examen_fisico} />
+
+                {(historiaModal.datos.diagnostico_cie10 || historiaModal.datos.descripcion_diagnostico) && (
+                  <div className="historia-seccion">
+                    <h4 className="historia-seccion__titulo">Diagnóstico</h4>
+                    <p className="historia-seccion__texto">
+                      {historiaModal.datos.diagnostico_cie10 && (
+                        <span className="historia-cie10">{historiaModal.datos.diagnostico_cie10}</span>
+                      )}
+                      {historiaModal.datos.descripcion_diagnostico}
+                    </p>
+                  </div>
+                )}
+
+                <SeccionHistoria titulo="Plan de tratamiento"      texto={historiaModal.datos.plan_tratamiento} />
+                <SeccionHistoria titulo="Medicamentos recetados"   texto={historiaModal.datos.medicamentos_recetados} />
+                <SeccionHistoria titulo="Observaciones"            texto={historiaModal.datos.observaciones} />
+
+              </div>
+            )}
+
           </div>
         </div>
       )}
