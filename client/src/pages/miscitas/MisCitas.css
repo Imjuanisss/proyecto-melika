@@ -415,6 +415,23 @@
 .modal-card h3 { font-size: 20px; font-weight: 700; color: var(--melika-text-primary); margin-bottom: var(--space-3); }
 .modal-card p  { font-size: 15px; color: var(--melika-text-secondary); line-height: 1.6; margin-bottom: var(--space-6); }
 
+.modal-textarea {
+  width:         100%;
+  resize:        vertical;
+  font-family:   var(--font-body);
+  font-size:     14px;
+  color:         var(--melika-text-primary);
+  border:        1.5px solid var(--melika-primary-100);
+  border-radius: var(--radius-sm);
+  padding:       var(--space-3);
+  margin-bottom: var(--space-6);
+  margin-top:    calc(var(--space-6) * -1 + var(--space-2));
+}
+.modal-textarea:focus {
+  outline:      none;
+  border-color: var(--melika-primary-300);
+}
+
 .modal-acciones { display: flex; justify-content: flex-end; gap: var(--space-3); }
 
 .btn-secundario {
@@ -431,6 +448,121 @@
 }
 .btn-secundario:hover:not(:disabled) { background: var(--melika-primary-25); }
 .btn-secundario:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Botón "Ver historia clínica" ──────────────────────────── */
+.btn-historia {
+  background:    none;
+  border:        1.5px solid var(--melika-primary-300);
+  border-radius: var(--radius-sm);
+  color:         var(--melika-primary-600);
+  padding:       var(--space-2) var(--space-4);
+  font-size:     13px;
+  font-weight:   700;
+  font-family:   var(--font-display);
+  cursor:        pointer;
+  transition:    all 0.15s;
+  white-space:   nowrap;
+}
+.btn-historia:hover { background: var(--melika-primary-50); border-color: var(--melika-primary-200); }
+
+.btn-historia--bloque {
+  display:     block;
+  width:       100%;
+  white-space: normal;
+  text-align:  center;
+}
+
+/* ── Modal de historia clínica ─────────────────────────────── */
+.modal-card--historia {
+  max-width:  560px;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.historia-modal__header {
+  display:         flex;
+  justify-content: space-between;
+  align-items:     center;
+  margin-bottom:   var(--space-5);
+}
+
+.historia-modal__header h3 { margin-bottom: 0; }
+
+.historia-modal__cerrar {
+  background:    none;
+  border:        none;
+  color:         var(--melika-text-muted);
+  font-size:     18px;
+  line-height:   1;
+  cursor:        pointer;
+  padding:       var(--space-1);
+  border-radius: var(--radius-sm);
+  transition:    all 0.15s;
+}
+.historia-modal__cerrar:hover { background: var(--melika-primary-25); color: var(--melika-text-primary); }
+
+.historia-modal__skeleton {
+  height:          180px;
+  background:      linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation:       miscitas-pulso 1.5s infinite;
+  border-radius:   var(--radius-lg);
+}
+
+.historia-modal__vacio {
+  text-align:    center;
+  color:         var(--melika-text-muted);
+  font-size:     14px;
+  line-height:   1.6;
+  padding:       var(--space-6) var(--space-4);
+  background:    var(--melika-bg-secondary);
+  border-radius: var(--radius-md);
+  margin-bottom: 0 !important;
+}
+
+.historia-modal__cuerpo {
+  display:        flex;
+  flex-direction: column;
+  gap:            var(--space-4);
+}
+
+.historia-modal__meta {
+  display:        flex;
+  flex-direction: column;
+  gap:            var(--space-1);
+  font-size:      13px;
+  color:          var(--melika-text-secondary);
+  padding-bottom: var(--space-3);
+  border-bottom:  1px solid var(--melika-primary-50);
+}
+
+.historia-seccion__titulo {
+  font-size:      12px;
+  font-weight:    700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color:          var(--melika-primary-600);
+  margin-bottom:  var(--space-1);
+}
+
+.historia-seccion__texto {
+  font-size:   14px;
+  color:       var(--melika-text-primary);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  margin-bottom: 0 !important;
+}
+
+.historia-cie10 {
+  display:        inline-block;
+  background:     var(--melika-primary-50);
+  color:          var(--melika-primary-600);
+  font-size:      12px;
+  font-weight:    700;
+  padding:        2px 8px;
+  border-radius:  var(--radius-sm);
+  margin-right:   var(--space-2);
+}
 
 /* ── Animaciones ───────────────────────────────────────────── */
 @keyframes miscitas-pulso {
@@ -449,4 +581,5 @@
   .cita-card                    { flex-direction: column; }
   .cita-card__acciones          { flex-direction: row; width: 100%; }
   .modal-acciones               { flex-direction: column-reverse; }
+  .modal-card--historia         { max-height: 90vh; }
 }
