@@ -234,22 +234,66 @@ async function actualizarHistoria(req, res) {
 
 
 // ─── GET /historias/cita/:id_cita — Obtener historia por cita ─────────────────
+//
+// Esta ruta la usan TANTO médicos como pacientes:
+//   - El médico la usa para revisar/editar la historia que él mismo creó.
+//   - El paciente la usa para consultar su propia historia clínica desde
+//     "Mis citas", una vez que la consulta quedó marcada como completada.
+//
+// Por eso es indispensable validar que quien pregunta tiene derecho a ver
+// ESA historia puntual, y no cualquier id_cita que se le ocurra probar:
+//   - paciente → solo si la historia es suya (id_paciente coincide con su id).
+//   - médico   → solo si él fue quien la elaboró (id_medico le pertenece).
+//   - admin    → acceso total (soporte/auditoría).
+// ──────────────────────────────────────────────────────────────────────────────
 async function obtenerHistoria(req, res) {
   const { id_cita } = req.params;
+  const { id: id_usuario_auth, rol } = req.usuario;
 
   try {
     const resultado = await pool.query(
-      'SELECT * FROM historias_clinicas WHERE id_cita = $1',
+      `SELECT
+          hc.*,
+          u.nombre          AS medico_nombre,
+          u.primer_apellido AS medico_apellido,
+          e.nombre          AS especialidad,
+          TO_CHAR(c.fecha, 'YYYY-MM-DD') AS fecha,
+          c.hora_inicio
+       FROM historias_clinicas hc
+       JOIN medicos        m  ON hc.id_medico      = m.id
+       JOIN usuarios       u  ON m.id_usuario      = u.id
+       JOIN especialidades e  ON m.id_especialidad = e.id
+       JOIN citas          c  ON hc.id_cita        = c.id
+       WHERE hc.id_cita = $1`,
       [id_cita]
     );
 
+    // Aún no existe historia para esta cita (p. ej. consulta pendiente).
+    // No es un error: el frontend lo interpreta como "todavía sin registrar".
     if (resultado.rows.length === 0) {
       return res.json({ historia: null });
     }
 
     const historia = resultado.rows[0];
 
-    // Normalizar medicamentos para que el frontend reciba texto plano
+    // ── Control de acceso ──────────────────────────────────────────────────
+    if (rol === 'paciente' && historia.id_paciente !== id_usuario_auth) {
+      return res.status(403).json({ mensaje: 'No tienes permiso para ver esta historia clínica.' });
+    }
+
+    if (rol === 'medico') {
+      const medicoRes = await pool.query(
+        'SELECT id FROM medicos WHERE id_usuario = $1',
+        [id_usuario_auth]
+      );
+      const id_medico_propio = medicoRes.rows[0]?.id;
+
+      if (id_medico_propio !== historia.id_medico) {
+        return res.status(403).json({ mensaje: 'No tienes permiso para ver esta historia clínica.' });
+      }
+    }
+    // rol === 'admin' → sin restricción adicional.
+
     const historiaRespuesta = {
       ...historia,
       medicamentos_recetados: normalizarMedicamentosParaFrontend(historia.medicamentos_recetados),
