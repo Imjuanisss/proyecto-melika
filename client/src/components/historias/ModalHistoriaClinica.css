@@ -1,0 +1,698 @@
+/*  Overlay MELIKA — Estilos del Modal de Historia Clínica */
+
+/*  Overlay */
+.mhc-overlay {
+  position:         fixed;
+  inset:            0;
+  background:       rgba(11, 26, 54, 0.55);
+  backdrop-filter:  blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index:          1000;
+  display:          flex;
+  align-items:      center;
+  justify-content:  center;
+  padding:          var(--space-4);
+  animation:        mhc-fade-in var(--duration-base) var(--ease-smooth);
+}
+
+@keyframes mhc-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── Modal principal ──────────────────────────────────────────────────────── */
+.mhc-modal {
+  background:       rgba(255, 255, 255, 0.96);
+  backdrop-filter:  blur(12px);
+  border:           1px solid var(--melika-primary-200);
+  border-radius:    var(--radius-xl);
+  box-shadow:       var(--shadow-xl);
+  width:            100%;
+  max-width:        860px;
+  max-height:       90vh;
+  display:          flex;
+  flex-direction:   column;
+  overflow:         hidden;
+  animation:        mhc-slide-up var(--duration-slow) var(--ease-spring);
+}
+
+@keyframes mhc-slide-up {
+  from { transform: translateY(24px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* ── Cabecera ─────────────────────────────────────────────────────────────── */
+.mhc-cabecera {
+  display:          flex;
+  justify-content:  space-between;
+  align-items:      flex-start;
+  gap:              var(--space-4);
+  padding:          var(--space-5) var(--space-6);
+  background:       linear-gradient(135deg, var(--melika-primary-900) 0%, var(--melika-primary-700) 100%);
+  color:            #fff;
+  flex-shrink:      0;
+}
+
+.mhc-cabecera__titulo {
+  font-family:      var(--font-display);
+  font-size:        18px;
+  font-weight:      700;
+  color:            #fff;
+  margin:           0 0 var(--space-1);
+}
+
+.mhc-cabecera__sub {
+  font-size:        13px;
+  color:            var(--melika-primary-300);
+  margin:           0;
+}
+
+.mhc-cabecera__acciones {
+  display:          flex;
+  align-items:      center;
+  gap:              var(--space-2);
+  flex-shrink:      0;
+}
+
+/* ── Botones ─────────────────────────────────────────────────────────────── */
+.mhc-btn {
+  font-family:      var(--font-display);
+  font-size:        13px;
+  font-weight:      700;
+  border:           none;
+  border-radius:    var(--radius-sm);
+  padding:          var(--space-2) var(--space-4);
+  cursor:           pointer;
+  transition:       all var(--duration-fast) var(--ease-smooth);
+  text-decoration:  none;
+  display:          inline-flex;
+  align-items:      center;
+  gap:              var(--space-1);
+  white-space:      nowrap;
+}
+
+.mhc-btn--pdf {
+  background:       var(--melika-primary-600);
+  color:            #fff;
+}
+.mhc-btn--pdf:hover {
+  background:       var(--melika-primary-500);
+}
+
+.mhc-btn--formula {
+  background:       var(--melika-success);
+  color:            #fff;
+}
+.mhc-btn--formula:hover {
+  background:       #155f3e;
+}
+
+.mhc-btn--primary {
+  background:       var(--melika-accent);
+  color:            #fff;
+}
+.mhc-btn--primary:hover {
+  background:       var(--melika-accent-dark);
+}
+
+.mhc-btn--guardar {
+  background:       var(--melika-success);
+  color:            #fff;
+}
+.mhc-btn--guardar:hover { background: #155f3e; }
+.mhc-btn--guardar:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.mhc-btn--secundario {
+  background:       var(--melika-primary-50);
+  color:            var(--melika-primary-700);
+  border:           1.5px solid var(--melika-primary-200);
+}
+.mhc-btn--secundario:hover { background: var(--melika-primary-100); }
+
+.mhc-btn--ghost {
+  background:       transparent;
+  color:            var(--melika-text-secondary);
+  border:           1.5px solid var(--melika-primary-200);
+}
+.mhc-btn--ghost:hover { background: var(--melika-bg-secondary); }
+
+.mhc-btn--aclaracion {
+  background:       var(--melika-warning-bg);
+  color:            var(--melika-warning);
+  border:           1.5px solid #fcd34d;
+  width:            100%;
+  justify-content:  center;
+  padding:          var(--space-3) var(--space-6);
+}
+.mhc-btn--aclaracion:hover { background: #fef9c3; }
+
+.mhc-cerrar {
+  background:       rgba(255, 255, 255, 0.15);
+  border:           none;
+  color:            #fff;
+  font-size:        18px;
+  width:            32px;
+  height:           32px;
+  border-radius:    50%;
+  cursor:           pointer;
+  display:          flex;
+  align-items:      center;
+  justify-content:  center;
+  transition:       background var(--duration-fast);
+  flex-shrink:      0;
+}
+.mhc-cerrar:hover { background: rgba(255, 255, 255, 0.28); }
+
+/* ── Cuerpo con scroll ────────────────────────────────────────────────────── */
+.mhc-cuerpo {
+  flex:             1;
+  overflow-y:       auto;
+  padding:          var(--space-6);
+  scrollbar-width:  thin;
+  scrollbar-color:  var(--melika-primary-200) transparent;
+}
+.mhc-cuerpo::-webkit-scrollbar { width: 6px; }
+.mhc-cuerpo::-webkit-scrollbar-thumb { background: var(--melika-primary-200); border-radius: 4px; }
+
+/* ── Loading ─────────────────────────────────────────────────────────────── */
+.mhc-loading {
+  display:          flex;
+  flex-direction:   column;
+  align-items:      center;
+  justify-content:  center;
+  padding:          var(--space-16);
+  gap:              var(--space-4);
+  color:            var(--melika-text-muted);
+  font-size:        14px;
+}
+
+.mhc-spinner {
+  width:            36px;
+  height:           36px;
+  border:           3px solid var(--melika-primary-100);
+  border-top-color: var(--melika-accent);
+  border-radius:    50%;
+  animation:        mhc-spin 0.8s linear infinite;
+}
+
+@keyframes mhc-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Alertas ─────────────────────────────────────────────────────────────── */
+.mhc-alerta-aclaraciones {
+  display:          flex;
+  align-items:      center;
+  gap:              var(--space-2);
+  background:       var(--melika-primary-50);
+  border:           1px solid var(--melika-primary-200);
+  border-left:      4px solid var(--melika-primary-500);
+  border-radius:    var(--radius-md);
+  padding:          var(--space-3) var(--space-4);
+  margin-bottom:    var(--space-5);
+  font-size:        13px;
+  color:            var(--melika-primary-700);
+}
+
+.mhc-error {
+  background:       var(--melika-error-bg);
+  border:           1px solid var(--melika-error);
+  border-radius:    var(--radius-md);
+  padding:          var(--space-3) var(--space-4);
+  margin-top:       var(--space-4);
+  font-size:        13px;
+  color:            var(--melika-error);
+  font-weight:      600;
+}
+
+/* ── Selector tipo aclaración ────────────────────────────────────────────── */
+.mhc-tipo-aclaracion {
+  display:          flex;
+  align-items:      center;
+  gap:              var(--space-3);
+  margin-bottom:    var(--space-5);
+  flex-wrap:        wrap;
+}
+
+.mhc-tipo-aclaracion__label {
+  font-size:        13px;
+  font-weight:      700;
+  color:            var(--melika-text-secondary);
+}
+
+.mhc-tipo-aclaracion__opciones {
+  display:          flex;
+  gap:              var(--space-2);
+}
+
+.mhc-tipo-btn {
+  font-family:      var(--font-display);
+  font-size:        12px;
+  font-weight:      600;
+  padding:          var(--space-2) var(--space-4);
+  border:           1.5px solid var(--melika-primary-200);
+  border-radius:    var(--radius-full);
+  background:       var(--melika-bg-secondary);
+  color:            var(--melika-text-secondary);
+  cursor:           pointer;
+  transition:       all var(--duration-fast);
+}
+.mhc-tipo-btn--activo {
+  background:       var(--melika-warning-bg);
+  border-color:     var(--melika-warning);
+  color:            var(--melika-warning);
+}
+
+/* ── Indicador de pasos ──────────────────────────────────────────────────── */
+.mhc-pasos {
+  display:          flex;
+  gap:              var(--space-2);
+  margin-bottom:    var(--space-6);
+  justify-content:  center;
+  flex-wrap:        wrap;
+}
+
+.mhc-paso-dot {
+  display:          flex;
+  flex-direction:   column;
+  align-items:      center;
+  gap:              2px;
+  cursor:           default;
+}
+
+.mhc-paso-dot span {
+  width:            28px;
+  height:           28px;
+  border-radius:    50%;
+  background:       var(--melika-primary-100);
+  color:            var(--melika-text-muted);
+  font-family:      var(--font-display);
+  font-size:        12px;
+  font-weight:      700;
+  display:          flex;
+  align-items:      center;
+  justify-content:  center;
+  border:           2px solid var(--melika-primary-200);
+  transition:       all var(--duration-fast);
+}
+
+.mhc-paso-dot small {
+  font-size:        9px;
+  color:            var(--melika-text-muted);
+  font-weight:      600;
+  text-transform:   uppercase;
+  letter-spacing:   0.05em;
+}
+
+.mhc-paso-dot--activo span {
+  background:       var(--melika-accent);
+  border-color:     var(--melika-accent-dark);
+  color:            #fff;
+  box-shadow:       var(--shadow-accent);
+}
+
+.mhc-paso-dot--completado span {
+  background:       var(--melika-success-bg);
+  border-color:     var(--melika-success);
+  color:            var(--melika-success);
+}
+
+/* ── Secciones del formulario ────────────────────────────────────────────── */
+.mhc-seccion {
+  background:       var(--melika-bg-secondary);
+  border:           1px solid var(--melika-primary-100);
+  border-radius:    var(--radius-lg);
+  padding:          var(--space-6);
+  margin-bottom:    var(--space-4);
+}
+
+.mhc-seccion__titulo {
+  display:          flex;
+  align-items:      center;
+  gap:              var(--space-3);
+  font-family:      var(--font-display);
+  font-size:        16px;
+  font-weight:      700;
+  color:            var(--melika-text-primary);
+  margin:           0 0 var(--space-5);
+}
+
+.mhc-seccion__num {
+  width:            28px;
+  height:           28px;
+  border-radius:    50%;
+  background:       var(--melika-primary-700);
+  color:            #fff;
+  font-size:        13px;
+  font-weight:      800;
+  display:          flex;
+  align-items:      center;
+  justify-content:  center;
+  flex-shrink:      0;
+}
+
+.mhc-seccion__sub {
+  font-size:        12px;
+  color:            var(--melika-text-muted);
+  margin:           -var(--space-3) 0 var(--space-4);
+  font-style:       italic;
+}
+
+/* ── Campos de formulario ────────────────────────────────────────────────── */
+.mhc-grid-2 {
+  display:          grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap:              var(--space-4);
+}
+
+.mhc-grid-signos {
+  display:          grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap:              var(--space-3);
+  margin-bottom:    var(--space-4);
+}
+
+.mhc-campo {
+  display:          flex;
+  flex-direction:   column;
+  gap:              var(--space-1);
+  margin-bottom:    var(--space-4);
+}
+
+.mhc-campo label {
+  font-family:      var(--font-display);
+  font-size:        12px;
+  font-weight:      700;
+  color:            var(--melika-text-secondary);
+  text-transform:   uppercase;
+  letter-spacing:   0.04em;
+}
+
+.mhc-campo--requerido label span {
+  color:            var(--melika-accent);
+  margin-left:      2px;
+}
+
+.mhc-campo input,
+.mhc-campo textarea,
+.mhc-campo select {
+  font-family:      var(--font-body);
+  font-size:        14px;
+  color:            var(--melika-text-primary);
+  background:       var(--melika-bg);
+  border:           1.5px solid var(--melika-primary-200);
+  border-radius:    var(--radius-md);
+  padding:          var(--space-3) var(--space-4);
+  width:            100%;
+  transition:       border-color var(--duration-fast);
+  resize:           vertical;
+}
+
+.mhc-campo input:focus,
+.mhc-campo textarea:focus {
+  outline:          none;
+  border-color:     var(--melika-primary-500);
+  box-shadow:       0 0 0 3px var(--melika-primary-100);
+}
+
+.mhc-campo textarea {
+  min-height:       80px;
+  line-height:      1.6;
+}
+
+/* IMC calculado */
+.mhc-campo--imc { justify-content: flex-end; }
+
+.mhc-imc-display {
+  background:       var(--melika-success-bg);
+  border:           1.5px solid var(--melika-success);
+  border-radius:    var(--radius-md);
+  padding:          var(--space-3) var(--space-4);
+  min-height:       46px;
+  display:          flex;
+  align-items:      center;
+}
+
+.mhc-imc-valor {
+  font-family:      var(--font-display);
+  font-size:        18px;
+  font-weight:      800;
+  color:            var(--melika-success);
+}
+
+.mhc-imc-vacio {
+  font-size:        12px;
+  color:            var(--melika-text-muted);
+  font-style:       italic;
+}
+
+/* ── Resumen legal (paso 6) ───────────────────────────────────────────────── */
+.mhc-resumen-legal {
+  background:       var(--melika-primary-50);
+  border:           1px solid var(--melika-primary-200);
+  border-radius:    var(--radius-md);
+  padding:          var(--space-4);
+  margin-top:       var(--space-4);
+}
+
+.mhc-resumen-legal__titulo {
+  font-family:      var(--font-display);
+  font-size:        12px;
+  font-weight:      700;
+  color:            var(--melika-text-secondary);
+  text-transform:   uppercase;
+  letter-spacing:   0.04em;
+  margin:           0 0 var(--space-3);
+}
+
+.mhc-resumen-legal__items {
+  display:          flex;
+  flex-wrap:        wrap;
+  gap:              var(--space-3);
+}
+
+.mhc-resumen-legal__items .ok {
+  color:            var(--melika-success);
+  font-size:        13px;
+  font-weight:      600;
+}
+
+.mhc-resumen-legal__items .faltante {
+  color:            var(--melika-error);
+  font-size:        13px;
+  font-weight:      600;
+}
+
+.mhc-resumen-legal__items .opcional {
+  color:            var(--melika-text-muted);
+  font-size:        13px;
+}
+
+/* ── Navegación del wizard ───────────────────────────────────────────────── */
+.mhc-nav {
+  display:          flex;
+  justify-content:  space-between;
+  align-items:      center;
+  margin-top:       var(--space-6);
+  padding-top:      var(--space-5);
+  border-top:       1px solid var(--melika-primary-100);
+  flex-wrap:        wrap;
+  gap:              var(--space-3);
+}
+
+.mhc-nav__pasos {
+  display:          flex;
+  gap:              var(--space-2);
+}
+
+/* ── Vista de solo lectura ───────────────────────────────────────────────── */
+.mhc-vista-historia {
+  display:          flex;
+  flex-direction:   column;
+  gap:              var(--space-4);
+}
+
+.mhc-vista-seccion {
+  background:       var(--melika-bg-secondary);
+  border:           1px solid var(--melika-primary-100);
+  border-radius:    var(--radius-md);
+  padding:          var(--space-4) var(--space-5);
+}
+
+.mhc-vista-seccion h4 {
+  font-family:      var(--font-display);
+  font-size:        13px;
+  font-weight:      700;
+  color:            var(--melika-text-secondary);
+  text-transform:   uppercase;
+  letter-spacing:   0.04em;
+  margin:           0 0 var(--space-3);
+}
+
+.mhc-vista-seccion p {
+  font-size:        14px;
+  color:            var(--melika-text-primary);
+  line-height:      1.7;
+  margin:           0;
+  white-space:      pre-wrap;
+}
+
+.mhc-vista-seccion__texto {
+  font-size:        14px;
+  color:            var(--melika-text-primary);
+  line-height:      1.7;
+  margin:           var(--space-3) 0 0;
+  white-space:      pre-wrap;
+}
+
+.mhc-vista-campo {
+  display:          flex;
+  flex-direction:   column;
+  gap:              2px;
+  margin-bottom:    var(--space-3);
+}
+
+.mhc-vista-campo__etiqueta {
+  font-size:        11px;
+  font-weight:      700;
+  color:            var(--melika-text-muted);
+  text-transform:   uppercase;
+  letter-spacing:   0.04em;
+}
+
+.mhc-vista-campo__valor {
+  font-size:        14px;
+  color:            var(--melika-text-primary);
+  line-height:      1.6;
+  white-space:      pre-wrap;
+}
+
+.mhc-signos-row {
+  display:          grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap:              var(--space-3);
+  margin-bottom:    var(--space-3);
+}
+
+.mhc-vista-seccion--diagnostico {
+  border-left:      4px solid var(--melika-primary-700);
+}
+
+.mhc-cie10-badge {
+  background:       var(--melika-primary-50);
+  border-radius:    var(--radius-sm);
+  padding:          var(--space-3) var(--space-4);
+}
+
+.mhc-cie10-badge strong {
+  font-family:      var(--font-display);
+  font-size:        18px;
+  font-weight:      800;
+  color:            var(--melika-primary-700);
+  display:          block;
+  margin-bottom:    var(--space-1);
+}
+
+.mhc-cie10-badge p {
+  font-size:        14px;
+  color:            var(--melika-text-primary);
+  margin:           0;
+  line-height:      1.6;
+}
+
+.mhc-incapacidad-badge {
+  background:       var(--melika-warning-bg);
+  border:           1px solid #fcd34d;
+  border-radius:    var(--radius-sm);
+  padding:          var(--space-2) var(--space-4);
+  font-size:        13px;
+  font-weight:      700;
+  color:            var(--melika-warning);
+  margin-top:       var(--space-3);
+}
+
+/* ── Aclaraciones ────────────────────────────────────────────────────────── */
+.mhc-aclaraciones {
+  margin-top:       var(--space-6);
+  border-top:       2px dashed var(--melika-primary-200);
+  padding-top:      var(--space-5);
+}
+
+.mhc-aclaraciones__titulo {
+  font-family:      var(--font-display);
+  font-size:        15px;
+  font-weight:      700;
+  color:            var(--melika-text-primary);
+  margin:           0 0 var(--space-4);
+}
+
+.mhc-aclaracion-item {
+  background:       #FEF9C3;
+  border:           1px solid #FCD34D;
+  border-radius:    var(--radius-md);
+  padding:          var(--space-4);
+  margin-bottom:    var(--space-3);
+}
+
+.mhc-aclaracion-item__header {
+  display:          flex;
+  justify-content:  space-between;
+  align-items:      center;
+  margin-bottom:    var(--space-2);
+  flex-wrap:        wrap;
+  gap:              var(--space-2);
+}
+
+.mhc-aclaracion-item__num {
+  font-family:      var(--font-display);
+  font-size:        12px;
+  font-weight:      700;
+  color:            #92400E;
+  text-transform:   uppercase;
+  letter-spacing:   0.04em;
+}
+
+.mhc-aclaracion-item__fecha {
+  font-size:        11px;
+  color:            #B45309;
+}
+
+.mhc-aclaracion-item__texto {
+  font-size:        14px;
+  color:            #78350F;
+  line-height:      1.6;
+  margin:           0;
+  white-space:      pre-wrap;
+}
+
+/* ── Acciones en vista ────────────────────────────────────────────────────── */
+.mhc-acciones-vista {
+  margin-top:       var(--space-5);
+}
+
+/* ── Vacío ───────────────────────────────────────────────────────────────── */
+.mhc-vacio {
+  text-align:       center;
+  padding:          var(--space-16);
+  color:            var(--melika-text-muted);
+}
+
+.mhc-vacio span {
+  font-size:        40px;
+  display:          block;
+  margin-bottom:    var(--space-3);
+}
+
+.mhc-vacio p {
+  font-size:        15px;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .mhc-overlay { padding: 0; align-items: flex-end; }
+  .mhc-modal   { max-height: 96vh; border-radius: var(--radius-xl) var(--radius-xl) 0 0; }
+  .mhc-cabecera { flex-direction: column; }
+  .mhc-cabecera__acciones { flex-wrap: wrap; }
+  .mhc-nav  { flex-direction: column-reverse; }
+  .mhc-nav__pasos { width: 100%; justify-content: flex-end; }
+}

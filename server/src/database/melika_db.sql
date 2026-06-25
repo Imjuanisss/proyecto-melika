@@ -295,168 +295,8 @@ CREATE INDEX IF NOT EXISTS idx_citas_paciente_fecha
 CREATE INDEX IF NOT EXISTS idx_citas_medico_fecha
   ON citas (id_medico, fecha);
 
-  -- 1. Asegurarnos de que exista la especialidad de Cardiología (ID = 1)
-INSERT INTO especialidades (id, nombre, descripcion, precio_base, activa)
-VALUES (1, 'Cardiología', 'Especialidad médica encargada del estudio, diagnóstico y tratamiento de las enfermedades del corazón.', 0.00, TRUE)
-ON CONFLICT (id) DO NOTHING;
--- Nota: Si el ID 1 ya existe, el 'DO NOTHING' evitará un error.
 
--- 2. Crear el Usuario para el Médico
--- Necesitamos cumplir con los campos NOT NULL (como tipo_documento y numero_documento)
-INSERT INTO usuarios (nombre, primer_apellido, email, password_hash, rol, activo, verificado, tipo_documento, numero_documento) 
-VALUES ('Alejandro', 'Gómez', 'dr.gomez@melika.com', 'hash_simulado_123', 'medico', TRUE, TRUE, 'CC', '1020304050')
-RETURNING id; 
--- ⚠️ ATENCIÓN: Mira qué ID devuelve esta consulta. Supongamos que devuelve el ID 1.
-
--- 3. Crear el Perfil Médico
--- Reemplaza el "1" en id_usuario por el número que te devolvió el paso anterior.
-INSERT INTO medicos (id_usuario, id_especialidad, numero_registro, tarifa, calificacion, acepta_teleconsulta, acepta_presencial, biografia, anos_experiencia, activo)
-VALUES (1, 1, 'RM-778899', 150000.00, 4.9, TRUE, TRUE, 'Cardiólogo clínico con enfoque en prevención y tratamiento de arritmias.', 12, TRUE)
-RETURNING id;
--- ⚠️ ATENCIÓN: Mira qué ID devuelve esta consulta. Supongamos que devuelve el ID 1.
-
--- 4. Crear Franjas Horarias Disponibles (Para que podamos probar el agendamiento luego)
--- Reemplaza el "1" en id_medico por el número que te devolvió el paso 3.
-INSERT INTO franjas_horarias (id_medico, fecha, hora_inicio, hora_fin, disponible)
-VALUES 
-(1, CURRENT_DATE + INTERVAL '1 day', '08:00:00', '08:30:00', TRUE),
-(1, CURRENT_DATE + INTERVAL '1 day', '08:30:00', '09:00:00', TRUE),
-(1, CURRENT_DATE + INTERVAL '1 day', '09:00:00', '09:30:00', TRUE);
-
-
-
--- 1. Limpiamos pruebas anteriores para evitar errores de "duplicados"
-DELETE FROM medicos WHERE numero_registro = 'RM-778899';
-DELETE FROM usuarios WHERE email = 'dr.gomez@melika.com';
-
--- 2. Aseguramos que la especialidad exista
-INSERT INTO especialidades (id, nombre, descripcion, precio_base, activa)
-VALUES (1, 'Cardiología', 'Especialistas en el corazón', 0.00, TRUE)
-ON CONFLICT (id) DO NOTHING;
-
--- 3. BLOQUE INTELIGENTE: Crea todo y vincula los IDs automáticamente
-DO $$
-DECLARE
-    v_user_id INT;
-    v_medico_id INT;
-BEGIN
-    -- Crear usuario y guardar su ID automático en la variable v_user_id
-    INSERT INTO usuarios (nombre, primer_apellido, email, password_hash, rol, activo, verificado, tipo_documento, numero_documento) 
-    VALUES ('Alejandro', 'Gómez', 'dr.gomez@melika.com', 'hash_simulado_123', 'medico', TRUE, TRUE, 'CC', '1020304050')
-    RETURNING id INTO v_user_id;
-
-    -- Crear el médico usando la variable v_user_id y conectarlo a Cardiología (id=1)
-    INSERT INTO medicos (id_usuario, id_especialidad, numero_registro, tarifa, calificacion, acepta_teleconsulta, acepta_presencial, biografia, anos_experiencia, activo)
-    VALUES (v_user_id, 1, 'RM-778899', 150000.00, 4.9, TRUE, TRUE, 'Cardiólogo clínico con enfoque en prevención y tratamiento de arritmias y falla cardíaca.', 12, TRUE)
-    RETURNING id INTO v_medico_id;
-
-    -- Crear las franjas horarias usando la variable v_medico_id
-    INSERT INTO franjas_horarias (id_medico, fecha, hora_inicio, hora_fin, disponible)
-    VALUES 
-    (v_medico_id, CURRENT_DATE + INTERVAL '1 day', '08:00:00', '08:30:00', TRUE),
-    (v_medico_id, CURRENT_DATE + INTERVAL '1 day', '08:30:00', '09:00:00', TRUE),
-    (v_medico_id, CURRENT_DATE + INTERVAL '1 day', '09:00:00', '09:30:00', TRUE);
-END $$;
-
-
--- Insertar o actualizar las 12 especialidades oficiales
-INSERT INTO especialidades (id, nombre, descripcion, precio_base, imagen_url, activa)
-VALUES 
-  (1, 'Cardiología', 'Evaluación, prevención y tratamiento de enfermedades del corazón y del sistema cardiovascular.', 80000.00, '/imagenes/especialidades/cardiologia.jpg', TRUE),
-  (2, 'Dermatología', 'Diagnóstico y cuidado integral de patologías de la piel, pelo, uñas y tratamientos estéticos médicos.', 70000.00, '/imagenes/especialidades/dermatologia.jpg', TRUE),
-  (3, 'Pediatría', 'Atención médica integral, control de crecimiento y desarrollo para bebés, niños y adolescentes.', 65000.00, '/imagenes/especialidades/pediatria.jpg', TRUE),
-  (4, 'Neurología', 'Especialistas en trastornos complejos del cerebro, la médula espinal, los nervios y el sistema muscular.', 90000.00, '/imagenes/especialidades/neurologia.jpg', TRUE),
-  (5, 'Ginecología', 'Cuidado integral de la salud del sistema reproductor femenino, control prenatal y maternidad.', 75000.00, '/imagenes/especialidades/ginecologia.jpg', TRUE),
-  (6, 'Medicina General', 'Tu primer punto de contacto médico. Diagnóstico primario, remisiones y chequeos preventivos.', 45000.00, '/imagenes/especialidades/medicina-general.jpg', TRUE),
-  (7, 'Ortopedia y Traumatología', 'Tratamiento de lesiones óseas, fracturas, problemas articulares, musculares y correcciones de postura.', 80000.00, '/imagenes/especialidades/ortopedia.jpg', TRUE),
-  (8, 'Oftalmología', 'Cuidado avanzado de la visión, diagnóstico de enfermedades oculares y prescripción médica de lentes.', 70000.00, '/imagenes/especialidades/oftalmologia.jpg', TRUE),
-  (9, 'Psiquiatría', 'Evaluación médica y terapéutica de la salud mental, trastornos del ánimo, ansiedad y bienestar emocional.', 85000.00, '/imagenes/especialidades/psiquiatria.jpg', TRUE),
-  (10, 'Otorrinolaringología', 'Especialistas en el diagnóstico y tratamiento de oído, nariz, garganta y estructuras del cuello.', 75000.00, '/imagenes/especialidades/otorrino.jpg', TRUE),
-  (11, 'Urología', 'Atención del sistema urinario en ambos sexos y patologías del sistema reproductor masculino.', 75000.00, '/imagenes/especialidades/urologia.jpg', TRUE),
-  (12, 'Nutrición y Dietética', 'Planes alimenticios personalizados para control de peso, rendimiento deportivo o manejo de patologías.', 55000.00, '/imagenes/especialidades/nutricion.jpg', TRUE)
-ON CONFLICT (id) DO UPDATE 
-SET nombre = EXCLUDED.nombre, 
-    descripcion = EXCLUDED.descripcion, 
-    precio_base = EXCLUDED.precio_base,
-    imagen_url = EXCLUDED.imagen_url;
-
--- Sincronizar el contador de IDs para que cuando crees nuevas especialidades desde un panel de admin no haya errores
-SELECT setval('especialidades_id_seq', (SELECT MAX(id) FROM especialidades));
-
-
-DO $$
-DECLARE
-    v_usr_id INT;
-    v_med_id INT;
-    -- Datos realistas para los 24 médicos
-    v_nombres TEXT[] := ARRAY['Camila', 'Juan Fernando', 'Liliana', 'Mauricio', 'Carlos', 'Andrea', 'Andrés', 'Diana Marcela', 'Diana', 'Laura', 'Valeria Sofía', 'Jorge Iván', 'Mauricio', 'Felipe', 'Natalia', 'Gabriel', 'Ricardo', 'Amalia', 'Santiago', 'Clara Inés', 'Fernando', 'Juliana', 'Carolina', 'Esteban'];
-    v_apellidos TEXT[] := ARRAY['Restrepo', 'Medina', 'Pérez', 'Tobón', 'Mendoza', 'Zuluaga', 'Jaramillo', 'Ríos', 'Ospina', 'Castillo', 'Plata', 'Cardona', 'Bermúdez', 'Suárez', 'Castellanos', 'Muñoz', 'Tobón', 'Herrera', 'Vásquez', 'Beltrán', 'Echeverry', 'Patiño', 'Sanz', 'Villarreal'];
-    -- Mapeo exacto a las 12 especialidades (2 de cada una)
-    v_especialidades INT[] := ARRAY[1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12];
-    v_tarifas NUMERIC[] := ARRAY[90000, 110000, 85000, 95000, 80000, 75000, 120000, 115000, 95000, 90000, 45000, 45000, 100000, 95000, 85000, 90000, 110000, 100000, 90000, 95000, 105000, 95000, 65000, 60000];
-    v_bios TEXT[] := ARRAY[
-        'Especialista en cardiología preventiva y cuidado cardiovascular.', 'Experto en cardiología intervencionista y falla cardíaca.',
-        'Experta en dermatología clínica y estética funcional.', 'Dermatólogo oncólogo enfocado en prevención y mapeo.',
-        'Pediatra dedicado al desarrollo integral y nutrición.', 'Especialista en neonatología y crecimiento infantil.',
-        'Especialista en trastornos del sueño, migrañas y patologías.', 'Neuróloga clínica con énfasis en el manejo de epilepsia.',
-        'Gineco-obstetra con amplia trayectoria en control prenatal.', 'Especialista en ginecología endocrinológica y salud de la mujer.',
-        'Atención médica primaria orientada a la prevención familiar.', 'Médico general enfocado en el control de hipertensión.',
-        'Ortopedista enfocado en lesiones deportivas y articulares.', 'Especialista en cirugía de mano y ortopedia infantil.',
-        'Especialista en cirugía refractiva y diagnóstico visual.', 'Oftalmólogo clínico enfocado en enfermedades de la retina.',
-        'Psiquiatra clínico enfocado en trastornos del ánimo y ansiedad.', 'Especialista en psiquiatría de enlace y terapia conductual.',
-        'Tratamiento avanzado de patologías de oído, nariz y garganta.', 'Otorrinolaringóloga con subespecialidad en otología o vértigo.',
-        'Urólogo certificado. Tratamiento de cálculos y próstata.', 'Especialista en urología femenina y suelo pélvico.',
-        'Nutricionista clínica experta en planes metabólicos.', 'Asesoría nutricional orientada a control metabólico.'
-    ];
-    i INT;
-BEGIN
-    -- 1. Limpieza preventiva: Borramos los médicos actuales para evitar choques de correos y documentos únicos
-    DELETE FROM medicos;
-    DELETE FROM usuarios WHERE rol = 'medico';
-
-    -- 2. Bucle para inyectar los 24 doctores a la base de datos
-    FOR i IN 1..array_length(v_nombres, 1) LOOP
-        
-        -- Crear Usuario
-        INSERT INTO usuarios (nombre, primer_apellido, email, password_hash, rol, activo, verificado, tipo_documento, numero_documento)
-        VALUES (
-            v_nombres[i], 
-            v_apellidos[i], 
-            'dr.demo' || i || '@melika.com', 
-            'hash_12345', 
-            'medico', 
-            TRUE, 
-            TRUE, 
-            'CC', 
-            (1020304000 + i)::TEXT
-        ) RETURNING id INTO v_usr_id;
-
-        -- Crear Perfil Médico
-        INSERT INTO medicos (id_usuario, id_especialidad, numero_registro, tarifa, calificacion, acepta_teleconsulta, acepta_presencial, biografia, anos_experiencia, activo)
-        VALUES (
-            v_usr_id, 
-            v_especialidades[i], 
-            'RM-' || (778800 + i), 
-            v_tarifas[i], 
-            ROUND((4.5 + random() * 0.5)::numeric, 1), -- Calificación aleatoria entre 4.5 y 5.0
-            TRUE, 
-            TRUE, 
-            v_bios[i], 
-            (5 + random() * 10)::INT, -- Experiencia aleatoria entre 5 y 15 años
-            TRUE
-        ) RETURNING id INTO v_med_id;
-
-        -- Crear Franjas Horarias Disponibles
-        INSERT INTO franjas_horarias (id_medico, fecha, hora_inicio, hora_fin, disponible)
-        VALUES 
-        (v_med_id, CURRENT_DATE + INTERVAL '1 day', '08:00:00', '08:30:00', TRUE),
-        (v_med_id, CURRENT_DATE + INTERVAL '1 day', '08:30:00', '09:00:00', TRUE),
-        (v_med_id, CURRENT_DATE + INTERVAL '1 day', '09:00:00', '09:30:00', TRUE),
-        (v_med_id, CURRENT_DATE + INTERVAL '2 day', '10:00:00', '10:30:00', TRUE);
-
-    END LOOP;
-END $$;
-
+-- PASO 4: Migración de datos históricos de medicamentos_recetados a la nueva estructura JSONB
 UPDATE historias_clinicas
 SET medicamentos_recetados = jsonb_build_object(
       'texto',
@@ -500,4 +340,116 @@ WHERE
 -- AND NOT (medicamentos_recetados ? 'texto');
 --
 -- Debe devolver 0 filas.
-SELECT * FROM usuarios
+SELECT * FROM usuarios;
+
+--MIGRACIÓN v2: MÓDULO INTEGRAL DE HISTORIAS CLÍNICAS
+-- PASO 1: Ampliar la tabla historias_clinicas con todos los bloques normativos
+-- Se usa ALTER TABLE para no romper datos ni relaciones existentes
+-- -----------------------------------------------------------------------------
+ 
+-- Bloque 1 — Identificación administrativa del paciente (datos complementarios)
+ALTER TABLE historias_clinicas
+  ADD COLUMN IF NOT EXISTS tipo_consulta       VARCHAR(20)  DEFAULT 'presencial',
+  ADD COLUMN IF NOT EXISTS eps_aseguradora     VARCHAR(150),
+  ADD COLUMN IF NOT EXISTS contacto_responsable_nombre   VARCHAR(150),
+  ADD COLUMN IF NOT EXISTS contacto_responsable_telefono VARCHAR(30);
+ 
+-- Bloque 2 — Anamnesis expandida (campos separados por tipo de antecedente)
+ALTER TABLE historias_clinicas
+  ADD COLUMN IF NOT EXISTS antecedentes_patologicos      TEXT,
+  ADD COLUMN IF NOT EXISTS antecedentes_quirurgicos      TEXT,
+  ADD COLUMN IF NOT EXISTS antecedentes_alergicos        TEXT,
+  ADD COLUMN IF NOT EXISTS antecedentes_familiares       TEXT,
+  ADD COLUMN IF NOT EXISTS antecedentes_ginecoobstetricos TEXT,
+  ADD COLUMN IF NOT EXISTS habitos                       TEXT;
+ 
+-- Bloque 3 — Examen físico con signos vitales numéricos (Res. 1995/1999)
+ALTER TABLE historias_clinicas
+  ADD COLUMN IF NOT EXISTS tension_arterial_sistolica    FLOAT,
+  ADD COLUMN IF NOT EXISTS tension_arterial_diastolica   FLOAT,
+  ADD COLUMN IF NOT EXISTS frecuencia_cardiaca           INT,
+  ADD COLUMN IF NOT EXISTS frecuencia_respiratoria       INT,
+  ADD COLUMN IF NOT EXISTS temperatura_corporal          FLOAT,
+  ADD COLUMN IF NOT EXISTS peso_kg                       FLOAT,
+  ADD COLUMN IF NOT EXISTS talla_cm                      FLOAT,
+  ADD COLUMN IF NOT EXISTS imc                           FLOAT,
+  ADD COLUMN IF NOT EXISTS exploracion_por_sistemas      TEXT;
+ 
+-- Bloque 4 — Diagnóstico CIE-10 ya estaba como diagnostico_cie10 + descripcion_diagnostico
+ 
+-- Bloque 5 — Plan de manejo separado por tipo
+ALTER TABLE historias_clinicas
+  ADD COLUMN IF NOT EXISTS ordenes_medicas  TEXT,
+  ADD COLUMN IF NOT EXISTS recomendaciones  TEXT,
+  ADD COLUMN IF NOT EXISTS incapacidad_dias INT;
+ 
+-- Bloque 6 — Cierre legal con datos del médico firmante
+ALTER TABLE historias_clinicas
+  ADD COLUMN IF NOT EXISTS medico_nombre_firma    VARCHAR(200),
+  ADD COLUMN IF NOT EXISTS medico_cedula_firma    VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS medico_rethus_firma    VARCHAR(50);
+ 
+-- Estado del documento (activo | anulado_por_aclaracion)
+ALTER TABLE historias_clinicas
+  ADD COLUMN IF NOT EXISTS estado VARCHAR(30) NOT NULL DEFAULT 'activo'
+    CHECK (estado IN ('activo', 'anulado_por_aclaracion'));
+ 
+-- ID de la historia original (para notas de aclaración/evolución)
+ALTER TABLE historias_clinicas
+  ADD COLUMN IF NOT EXISTS id_historia_original INT REFERENCES historias_clinicas(id);
+ 
+-- Tipo de documento: historia principal o aclaración/nota de evolución
+ALTER TABLE historias_clinicas
+  ADD COLUMN IF NOT EXISTS tipo_registro VARCHAR(30) NOT NULL DEFAULT 'historia_principal'
+    CHECK (tipo_registro IN ('historia_principal', 'nota_aclaracion', 'nota_evolucion'));
+ 
+
+-- PASO 2: Tabla de documentos adjuntos (fórmulas, exámenes, documentos externos)
+-- Lógica append-only: nunca se borra un documento médico generado
+
+ 
+CREATE TABLE IF NOT EXISTS documentos_clinicos (
+  id              SERIAL        PRIMARY KEY,
+  id_historia     INT           REFERENCES historias_clinicas(id),
+  id_paciente     INT           NOT NULL REFERENCES usuarios(id),
+  id_medico       INT           REFERENCES medicos(id),
+  tipo_documento  VARCHAR(30)   NOT NULL CHECK (tipo_documento IN (
+                    'historia_clinica',
+                    'formula_medica',
+                    'orden_examen',
+                    'documento_externo'
+                  )),
+  origen          VARCHAR(20)   NOT NULL CHECK (origen IN ('medico', 'paciente')),
+  nombre_archivo  VARCHAR(255),
+  url_pdf         TEXT,
+  descripcion     VARCHAR(500),
+  -- Solo el paciente puede "ocultar" un documento externo que él mismo subió
+  -- Un documento médico NUNCA se elimina (inmutabilidad legal)
+  oculto_paciente BOOLEAN       NOT NULL DEFAULT FALSE,
+  created_at      TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at      TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+ 
+-- Índices para búsquedas frecuentes
+CREATE INDEX IF NOT EXISTS idx_docs_clinicos_paciente ON documentos_clinicos(id_paciente);
+CREATE INDEX IF NOT EXISTS idx_docs_clinicos_historia ON documentos_clinicos(id_historia);
+CREATE INDEX IF NOT EXISTS idx_docs_clinicos_medico   ON documentos_clinicos(id_medico);
+ 
+
+-- PASO 3: Índices de optimización sobre historias_clinicas existentes
+
+ 
+CREATE INDEX IF NOT EXISTS idx_historias_paciente   ON historias_clinicas(id_paciente);
+CREATE INDEX IF NOT EXISTS idx_historias_medico      ON historias_clinicas(id_medico);
+CREATE INDEX IF NOT EXISTS idx_historias_original    ON historias_clinicas(id_historia_original);
+CREATE INDEX IF NOT EXISTS idx_historias_tipo        ON historias_clinicas(tipo_registro);
+ 
+
+-- VERIFICACIÓN: Consultas de control post-migración
+-- Ejecutar manualmente para confirmar que la migración fue exitosa:
+--
+ SELECT column_name, data_type FROM information_schema.columns
+ WHERE table_name = 'historias_clinicas' ORDER BY ordinal_position;
+
+SELECT COUNT(*) FROM documentos_clinicos;
+SELECT COUNT(*) FROM historias_clinicas WHERE tipo_registro IS NOT NULL;
