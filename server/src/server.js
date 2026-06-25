@@ -12,30 +12,23 @@ const adminRoutes          = require('./routes/adminRoutes');
 
 const app = express();
 
-// ── CORS ─────────────────────────────────────────────────────────────────
-// Orígenes permitidos:
-//   - localhost / 127.0.0.1 → desarrollo local con Vite
-//   - el dominio de producción del frontend en Railway
-//
-// FRONTEND_URL se define como variable de entorno en Railway (en el
-// servicio del backend), apuntando a la URL pública del frontend.
-// Así, si el dominio cambia en el futuro, solo se actualiza la variable
-// de entorno y no hay que tocar ni redeployar código.
-const origenesPermitidos = [
-  'http://localhost:5173',
-  'http://127.0.0.1:5173',
-  process.env.FRONTEND_URL, // p. ej. https://melika-frontend-production.up.railway.app
-].filter(Boolean); // quita undefined si la variable no está definida
 
-app.use(cors({
-  origin(origin, callback) {
-    // Permite peticiones sin "origin" (curl, health checks de Railway, etc.)
-    if (!origin || origenesPermitidos.includes(origin)) {
-      return callback(null, true);
+const allowedOrigins = [
+  'http://localhost:5173', 
+  'http://127.0.0.1:5173',
+  process.env.FRONTEND_URL // <-- Agrega la URL de producción de tu frontend aquí
+];
+
+app.use(cors({ 
+  origin: (origin, callback) => {
+    // Permitir peticiones sin origen (como Postman o el mismo servidor)
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('No permitido por CORS'));
     }
-    return callback(new Error(`Origen no permitido por CORS: ${origin}`));
   },
-  credentials: true,
+  credentials: true 
 }));
 
 app.use(express.json());
