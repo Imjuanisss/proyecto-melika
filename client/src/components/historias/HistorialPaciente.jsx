@@ -1,24 +1,15 @@
 // client/src/components/historias/HistorialPaciente.jsx
-// MELIKA — Historial clínico del paciente
-// Visible desde el Dashboard del paciente y desde el panel del médico (con acceso verificado)
-//
-// CORRECCIONES APLICADAS:
-//   - Eliminado componente VisorPDF interno (duplicado) — ahora usa VisorPDFModal compartido
-//   - Eliminado import de usePDFSlick (ya no se usa directamente aquí)
-//   - visorNombre pasado a VisorPDFModal para el nombre de descarga correcto
-//   - visorUrl con revokeObjectURL correcto al cerrar (sin memory leak)
-
 import { useState, useEffect, useCallback } from 'react';
 import { pdf, PDFDownloadLink }              from '@react-pdf/renderer';
 import { useAuth }                           from '../../context/AuthContext';
 import { api }                               from '../../lib/apiClient';
 import VisorPDFModal                         from './VisorPDFModal';
+import FormularioAclaracion                  from './FormularioAclaracion';
 import { PlantillaHistoriaPDF, PlantillaFormulaPDF } from './PlantillaHistoriaPDF';
 import './HistorialPaciente.css';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CAMPO — Etiqueta + valor. Declarado a nivel de módulo para que React
-// no lo recree en cada render.
+// CAMPO
 // ─────────────────────────────────────────────────────────────────────────────
 function Campo({ etiqueta, valor }) {
   if (!valor && valor !== 0) return null;
@@ -31,7 +22,7 @@ function Campo({ etiqueta, valor }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TARJETA DE HISTORIA — Fila en el listado del historial
+// TARJETA DE HISTORIA
 // ─────────────────────────────────────────────────────────────────────────────
 function TarjetaHistoria({ entrada, onVerDetalle, onGenerarPDF, generandoId }) {
   function formatFecha(fechaStr) {
@@ -46,17 +37,12 @@ function TarjetaHistoria({ entrada, onVerDetalle, onGenerarPDF, generandoId }) {
   return (
     <div className="hp-tarjeta">
       <div className="hp-tarjeta__izq">
-
         <div className="hp-tarjeta__fecha">{formatFecha(entrada.fecha)}</div>
-
         <div className="hp-tarjeta__especialidad">{entrada.especialidad}</div>
-
         <div className="hp-tarjeta__medico">
           Dr(a). {entrada.medico_nombre} {entrada.medico_apellido}
         </div>
-
         <p className="hp-tarjeta__motivo">{entrada.motivo_consulta}</p>
-
         {entrada.diagnostico_cie10 && (
           <div className="hp-tarjeta__cie10">
             <span className="hp-tarjeta__cie10-codigo">{entrada.diagnostico_cie10}</span>
@@ -69,7 +55,6 @@ function TarjetaHistoria({ entrada, onVerDetalle, onGenerarPDF, generandoId }) {
             )}
           </div>
         )}
-
       </div>
 
       <div className="hp-tarjeta__der">
@@ -78,7 +63,6 @@ function TarjetaHistoria({ entrada, onVerDetalle, onGenerarPDF, generandoId }) {
             {entrada.total_aclaraciones} aclaración(es)
           </span>
         )}
-
         <div className="hp-tarjeta__acciones">
           <button
             className="hp-btn hp-btn--ver"
@@ -100,8 +84,7 @@ function TarjetaHistoria({ entrada, onVerDetalle, onGenerarPDF, generandoId }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DETALLE DE HISTORIA — Modal con todos los bloques clínicos
-// Permite ver en pantalla, previsualizar con VisorPDFModal, descargar HC y fórmula
+// DETALLE DE HISTORIA (modal expandido)
 // ─────────────────────────────────────────────────────────────────────────────
 function DetalleHistoria({ historiaId, onCerrar, usuario }) {
   const [datos,         setDatos]         = useState(null);
@@ -109,12 +92,11 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
   const [loading,       setLoading]       = useState(true);
   const [error,         setError]         = useState(null);
 
-  // Estado del visor PDF (usa VisorPDFModal compartido)
   const [visorUrl,      setVisorUrl]      = useState(null);
   const [visorNombre,   setVisorNombre]   = useState('historia.pdf');
   const [visorCargando, setVisorCargando] = useState(false);
 
-  // Cerrar con Escape (solo cuando no hay visor abierto)
+  // Cerrar con Escape (solo cuando el visor no está abierto)
   useEffect(() => {
     function onKey(e) {
       if (e.key === 'Escape' && !visorUrl) onCerrar();
@@ -124,7 +106,7 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
   }, [onCerrar, visorUrl]);
 
   // Cargar datos de la historia
-  useEffect(() => {
+  const cargarDatos = useCallback(() => {
     setLoading(true);
     api.get(`/historias/${historiaId}/completa`)
       .then(data => {
@@ -135,7 +117,19 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
       .finally(() => setLoading(false));
   }, [historiaId]);
 
-  // Genera blob URL y abre el VisorPDFModal compartido
+  useEffect(() => {
+    cargarDatos();
+  }, [cargarDatos]);
+
+  // Recargar cuando se crea una aclaración
+  useEffect(() => {
+    function onAclaracionCreada(e) {
+      if (e.detail?.historiaId === historiaId) cargarDatos();
+    }
+    window.addEventListener('melika:aclaracion-creada', onAclaracionCreada);
+    return () => window.removeEventListener('melika:aclaracion-creada', onAclaracionCreada);
+  }, [historiaId, cargarDatos]);
+
   async function handleVerPDFEmbebido(tipo) {
     if (!datos) return;
     setVisorCargando(true);
@@ -144,9 +138,9 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
         ? <PlantillaFormulaPDF historia={datos} />
         : <PlantillaHistoriaPDF historia={datos} aclaraciones={aclaraciones} />;
 
-      const blob     = await pdf(documento).toBlob();
-      const blobUrl  = URL.createObjectURL(blob);
-      const nombre   = tipo === 'formula'
+      const blob    = await pdf(documento).toBlob();
+      const blobUrl = URL.createObjectURL(blob);
+      const nombre  = tipo === 'formula'
         ? `Formula-${datos.id}-${datos.paciente_apellido}.pdf`
         : `HC-${datos.id}-${datos.paciente_apellido}.pdf`;
 
@@ -160,7 +154,6 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
     }
   }
 
-  // Cerrar visor y liberar memoria del blob
   function cerrarVisor() {
     if (visorUrl) {
       URL.revokeObjectURL(visorUrl);
@@ -169,7 +162,6 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
     setVisorNombre('historia.pdf');
   }
 
-  // Extrae texto plano de medicamentos desde el campo JSONB
   function extraerMedTexto(campo) {
     if (!campo) return '';
     if (typeof campo === 'string') return campo;
@@ -182,7 +174,6 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
 
   return (
     <>
-      {/* VisorPDFModal compartido — se monta sobre este modal */}
       {visorUrl && (
         <VisorPDFModal
           url={visorUrl}
@@ -191,7 +182,6 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
         />
       )}
 
-      {/* Modal overlay de detalle */}
       <div
         className="hp-overlay"
         role="dialog"
@@ -200,7 +190,7 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
       >
         <div className="hp-detalle-modal">
 
-          {/* ── Cabecera del modal ── */}
+          {/* Cabecera */}
           <div className="hp-detalle-cabecera">
             <div>
               <h2 className="hp-detalle-titulo">Historia Clínica #{historiaId}</h2>
@@ -212,8 +202,6 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
             </div>
 
             <div className="hp-detalle-cabecera__acciones">
-
-              {/* Botón: previsualizar historia en visor embebido */}
               {datos && (
                 <button
                   className="hp-btn hp-btn--visor"
@@ -224,7 +212,6 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
                 </button>
               )}
 
-              {/* Botón: descargar Historia Clínica completa */}
               {datos && (
                 <PDFDownloadLink
                   document={
@@ -240,7 +227,6 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
                 </PDFDownloadLink>
               )}
 
-              {/* Botón: descargar Fórmula Médica — solo si tiene contenido */}
               {datos && hayFormula && (
                 <PDFDownloadLink
                   document={<PlantillaFormulaPDF historia={datos} />}
@@ -271,9 +257,8 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
             </div>
           </div>
 
-          {/* ── Cuerpo del modal ── */}
+          {/* Cuerpo */}
           <div className="hp-detalle-cuerpo">
-
             {loading && (
               <div className="hp-loading">
                 <div className="hp-spinner" />
@@ -285,11 +270,9 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
 
             {!loading && datos && (
               <>
-                {/* BLOQUE 1 — Identificación administrativa */}
+                {/* BLOQUE 1 — Identificación */}
                 <div className="hp-bloque">
-                  <h3 className="hp-bloque__titulo">
-                    <span>1</span> Identificación del Paciente
-                  </h3>
+                  <h3 className="hp-bloque__titulo"><span>1</span> Identificación del Paciente</h3>
                   <div className="hp-grid-2">
                     <Campo etiqueta="Paciente"      valor={`${datos.paciente_nombre} ${datos.paciente_apellido}`} />
                     <Campo etiqueta="Documento"     valor={`${datos.paciente_tipo_doc || 'CC'} ${datos.paciente_num_doc}`} />
@@ -309,9 +292,7 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
 
                 {/* BLOQUE 2 — Anamnesis */}
                 <div className="hp-bloque">
-                  <h3 className="hp-bloque__titulo">
-                    <span>2</span> Anamnesis
-                  </h3>
+                  <h3 className="hp-bloque__titulo"><span>2</span> Anamnesis</h3>
                   <Campo etiqueta="Motivo de consulta"    valor={datos.motivo_consulta} />
                   <Campo etiqueta="Enfermedad actual"     valor={datos.anamnesis} />
                   <Campo etiqueta="Ant. patológicos"      valor={datos.antecedentes_patologicos} />
@@ -326,9 +307,7 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
                 {(datos.tension_arterial_sistolica || datos.frecuencia_cardiaca
                   || datos.peso_kg || datos.temperatura_corporal) && (
                   <div className="hp-bloque">
-                    <h3 className="hp-bloque__titulo">
-                      <span>3</span> Examen Físico
-                    </h3>
+                    <h3 className="hp-bloque__titulo"><span>3</span> Examen Físico</h3>
                     <div className="hp-signos-grid">
                       {datos.tension_arterial_sistolica && (
                         <div className="hp-signo-card">
@@ -387,12 +366,10 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
                   </div>
                 )}
 
-                {/* BLOQUE 4 — Diagnóstico CIE-10 */}
+                {/* BLOQUE 4 — Diagnóstico */}
                 {datos.diagnostico_cie10 && (
                   <div className="hp-bloque">
-                    <h3 className="hp-bloque__titulo">
-                      <span>4</span> Diagnóstico CIE-10
-                    </h3>
+                    <h3 className="hp-bloque__titulo"><span>4</span> Diagnóstico CIE-10</h3>
                     <div className="hp-cie10">
                       <span className="hp-cie10__codigo">{datos.diagnostico_cie10}</span>
                       {datos.descripcion_diagnostico && (
@@ -405,9 +382,7 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
                 {/* BLOQUE 5 — Plan de manejo */}
                 {(datos.plan_tratamiento || medTexto || datos.ordenes_medicas || datos.recomendaciones) && (
                   <div className="hp-bloque">
-                    <h3 className="hp-bloque__titulo">
-                      <span>5</span> Plan de Manejo
-                    </h3>
+                    <h3 className="hp-bloque__titulo"><span>5</span> Plan de Manejo</h3>
                     <Campo etiqueta="Plan de tratamiento" valor={datos.plan_tratamiento} />
                     {medTexto && (
                       <div className="hp-detalle-campo hp-detalle-campo--bloque">
@@ -427,9 +402,7 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
 
                 {/* BLOQUE 6 — Cierre legal */}
                 <div className="hp-bloque hp-bloque--cierre">
-                  <h3 className="hp-bloque__titulo">
-                    <span>6</span> Cierre Legal
-                  </h3>
+                  <h3 className="hp-bloque__titulo"><span>6</span> Cierre Legal</h3>
                   <div className="hp-firma">
                     <div className="hp-firma__linea" />
                     <p className="hp-firma__nombre">
@@ -446,7 +419,7 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
                   </div>
                 </div>
 
-                {/* Aclaraciones / notas de evolución */}
+                {/* Aclaraciones */}
                 {aclaraciones.length > 0 && (
                   <div className="hp-bloque hp-bloque--aclaraciones">
                     <h3 className="hp-bloque__titulo">
@@ -483,11 +456,9 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
                     ))}
                   </div>
                 )}
-
               </>
             )}
           </div>
-
         </div>
       </div>
     </>
@@ -495,9 +466,7 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// COMPONENTE PRINCIPAL — HistorialPaciente
-// Prop idPaciente: si viene del dashboard del médico, trae el ID del paciente.
-// Si no viene (dashboard del paciente), usa el ID del usuario autenticado.
+// COMPONENTE PRINCIPAL
 // ─────────────────────────────────────────────────────────────────────────────
 export default function HistorialPaciente({ idPaciente }) {
   const { usuario } = useAuth();
@@ -506,11 +475,10 @@ export default function HistorialPaciente({ idPaciente }) {
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState(null);
   const [detalleId,    setDetalleId]    = useState(null);
-  const [generandoPdf, setGenerandoPdf] = useState(null); // ID de la historia en generación
+  const [generandoPdf, setGenerandoPdf] = useState(null);
 
   const idTarget = idPaciente || usuario?.id;
 
-  // ── Cargar el historial clínico ───────────────────────────────────────────
   const cargarHistorial = useCallback(() => {
     if (!idTarget) return;
     setLoading(true);
@@ -525,16 +493,12 @@ export default function HistorialPaciente({ idPaciente }) {
     cargarHistorial();
   }, [cargarHistorial]);
 
-  // Escuchar cuando FormularioAclaracion crea una nota — recargar el listado
+  // Recargar listado cuando se guarda una aclaración
   useEffect(() => {
-    function onAclaracionCreada() {
-      cargarHistorial();
-    }
-    window.addEventListener('melika:aclaracion-creada', onAclaracionCreada);
-    return () => window.removeEventListener('melika:aclaracion-creada', onAclaracionCreada);
+    window.addEventListener('melika:aclaracion-creada', cargarHistorial);
+    return () => window.removeEventListener('melika:aclaracion-creada', cargarHistorial);
   }, [cargarHistorial]);
 
-  // ── Generar y descargar PDF directo desde la tarjeta ─────────────────────
   const handleGenerarPDF = useCallback(async (entrada) => {
     setGenerandoPdf(entrada.id);
     try {
@@ -554,7 +518,6 @@ export default function HistorialPaciente({ idPaciente }) {
       enlace.click();
       document.body.removeChild(enlace);
       URL.revokeObjectURL(blobUrl);
-
     } catch (err) {
       console.error('Error generando PDF:', err);
       alert('No se pudo generar el PDF. Intenta de nuevo.');
@@ -562,8 +525,6 @@ export default function HistorialPaciente({ idPaciente }) {
       setGenerandoPdf(null);
     }
   }, []);
-
-  // ── Render ────────────────────────────────────────────────────────────────
 
   if (loading) {
     return (
@@ -585,7 +546,7 @@ export default function HistorialPaciente({ idPaciente }) {
 
   return (
     <>
-      {/* Modal de detalle expandido */}
+      {/* Modal de detalle */}
       {detalleId && (
         <DetalleHistoria
           historiaId={detalleId}
@@ -594,8 +555,15 @@ export default function HistorialPaciente({ idPaciente }) {
         />
       )}
 
-      <div className="hp-contenedor">
+      {/*
+        FormularioAclaracion montado aquí como hermano de DetalleHistoria.
+        Escucha el evento global 'melika:abrir-aclaracion' y solo se muestra
+        cuando el médico hace clic en "Agregar aclaración" dentro de DetalleHistoria.
+        Solo es visible para rol === 'medico' (validación interna del componente).
+      */}
+      <FormularioAclaracion />
 
+      <div className="hp-contenedor">
         <div className="hp-cabecera">
           <div>
             <h2 className="hp-cabecera__titulo">📋 Historial Clínico</h2>
@@ -628,7 +596,6 @@ export default function HistorialPaciente({ idPaciente }) {
             ))}
           </div>
         )}
-
       </div>
     </>
   );

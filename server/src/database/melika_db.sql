@@ -544,3 +544,26 @@ CREATE INDEX IF NOT EXISTS idx_historias_original  ON historias_clinicas(id_hist
 CREATE INDEX IF NOT EXISTS idx_historias_tipo      ON historias_clinicas(tipo_registro);
 CREATE INDEX IF NOT EXISTS idx_docs_clinicos_pac   ON documentos_clinicos(id_paciente);
 CREATE INDEX IF NOT EXISTS idx_docs_clinicos_his   ON documentos_clinicos(id_historia);
+
+
+-- MELIKA — Migración v4: Fix constraint UNIQUE en historias_clinicas
+-- Permite múltiples filas por id_cita (historia principal + aclaraciones/evoluciones)
+-- Se reemplaza el UNIQUE simple por un índice parcial que solo aplica a historia_principal
+
+-- 1. Identificar y eliminar el constraint UNIQUE existente en id_cita
+-- (el nombre puede variar; Railway lo genera como historias_clinicas_id_cita_key)
+ALTER TABLE historias_clinicas
+  DROP CONSTRAINT IF EXISTS historias_clinicas_id_cita_key;
+
+-- 2. Crear índice parcial ÚNICO solo para historia_principal
+--    Esto garantiza: una sola historia principal por cita
+--    pero permite N aclaraciones/notas vinculadas al mismo id_cita
+CREATE UNIQUE INDEX IF NOT EXISTS uq_historia_principal_por_cita
+  ON historias_clinicas (id_cita)
+  WHERE tipo_registro = 'historia_principal';
+
+-- 3. Verificación: debe retornar el índice parcial creado
+SELECT indexname, indexdef
+FROM pg_indexes
+WHERE tablename = 'historias_clinicas'
+  AND indexname = 'uq_historia_principal_por_cita';

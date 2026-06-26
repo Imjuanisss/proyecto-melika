@@ -162,44 +162,55 @@ export default function MisCitas() {
 
   // ── Ver historia clínica — genera PDF y abre visor pdfslick ──────────────
   async function verHistoriaClinica(idCita) {
-    if (visorCargando) return;
+  if (visorCargando) return;
 
-    setVisorCargando(true);
-    setVisorError(null);
+  setVisorCargando(true);
+  setVisorError(null);
 
+  try {
+    // 1. Verificar que existe la historia para esta cita.
+    //    El backend retorna 404 si no hay historia → capturamos ese caso específico.
+    let respuesta;
     try {
-      // 1. Verificar que existe la historia para esta cita
-      const respuesta = await api.get(`/historias/cita/${idCita}`);
-
-      if (!respuesta.historia) {
+      respuesta = await api.get(`/historias/cita/${idCita}`);
+    } catch (err) {
+      // 404 significa que el médico aún no registró la historia
+      if (err?.status === 404 || err?.message?.includes('404')) {
         setVisorError('El médico aún no ha registrado la historia clínica de esta consulta.');
         return;
       }
-
-      // 2. Obtener datos completos enriquecidos para el PDF
-      const datosCompletos = await api.get(`/historias/${respuesta.historia.id}/completa`);
-      const historia       = datosCompletos.historia;
-      const aclaraciones   = datosCompletos.aclaraciones || [];
-
-      // 3. Generar el blob PDF en memoria
-      const blob = await pdf(
-        <PlantillaHistoriaPDF historia={historia} aclaraciones={aclaraciones} />
-      ).toBlob();
-
-      // 4. Crear URL efímera y abrir el visor
-      const blobUrl       = URL.createObjectURL(blob);
-      const nombreArchivo = `HC-${historia.id}-${historia.paciente_apellido || 'paciente'}.pdf`;
-
-      setVisorNombre(nombreArchivo);
-      setVisorUrl(blobUrl);
-
-    } catch (err) {
-      console.error('Error generando PDF de historia clínica:', err);
-      setVisorError(err.message || 'No se pudo cargar la historia clínica. Intenta de nuevo.');
-    } finally {
-      setVisorCargando(false);
+      throw err; // cualquier otro error lo relanzamos
     }
+
+    if (!respuesta?.historia) {
+      setVisorError('El médico aún no ha registrado la historia clínica de esta consulta.');
+      return;
+    }
+
+    // 2. Obtener datos completos enriquecidos para el PDF
+    const datosCompletos = await api.get(`/historias/${respuesta.historia.id}/completa`);
+    const historia       = datosCompletos.historia;
+    const aclaraciones   = datosCompletos.aclaraciones || [];
+
+    // 3. Generar el blob PDF en memoria
+    const blob = await pdf(
+      <PlantillaHistoriaPDF historia={historia} aclaraciones={aclaraciones} />
+    ).toBlob();
+
+    // 4. Crear URL efímera y abrir el visor
+    const blobUrl       = URL.createObjectURL(blob);
+    const nombreArchivo = `HC-${historia.id}-${historia.paciente_apellido || 'paciente'}.pdf`;
+
+    setVisorNombre(nombreArchivo);
+    setVisorUrl(blobUrl);
+
+  } catch (err) {
+    console.error('Error generando PDF de historia clínica:', err);
+    setVisorError(err.message || 'No se pudo cargar la historia clínica. Intenta de nuevo.');
+  } finally {
+    setVisorCargando(false);
   }
+}
 
   // ── Cerrar visor y liberar memoria del blob ────────────────────────────────
   function cerrarVisor() {
