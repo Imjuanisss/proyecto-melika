@@ -9,33 +9,27 @@ import {
   Text,
   View,
   StyleSheet,
-
 } from '@react-pdf/renderer';
-
-// ─── Registro de fuente (usa la fuente del sistema, sin CDN) ──────────────────
-// @react-pdf/renderer usa Helvetica por defecto si no se registra ninguna.
-// No registramos fuente externa para evitar dependencias de red en producción.
 
 // ─── Paleta de colores MELIKA para PDF ───────────────────────────────────────
 const COLOR = {
-  azulPrimario:   '#0B1A36',
-  azulMedio:      '#1E3A6E',
-  azulClaro:      '#D9E4F7',
-  azulPale:       '#F0F5FF',
-  acento:         '#E8856A',
-  verde:          '#1A7A52',
-  verdeClaro:     '#D1FAE5',
-  grisTexto:      '#374151',
-  grisMuted:      '#6B7280',
-  grisLinea:      '#E5E7EB',
-  blanco:         '#FFFFFF',
-  negro:          '#111827',
+  azulPrimario: '#0B1A36',
+  azulMedio:    '#1E3A6E',
+  azulClaro:    '#D9E4F7',
+  azulPale:     '#F0F5FF',
+  acento:       '#E8856A',
+  verde:        '#1A7A52',
+  verdeClaro:   '#D1FAE5',
+  grisTexto:    '#374151',
+  grisMuted:    '#6B7280',
+  grisLinea:    '#E5E7EB',
+  blanco:       '#FFFFFF',
+  negro:        '#111827',
 };
 
-// ─── Estilos compartidos ──────────────────────────────────────────────────────
+// ─── Estilos base ─────────────────────────────────────────────────────────────
 const base = StyleSheet.create({
 
-  // Página
   pagina: {
     fontFamily:      'Helvetica',
     fontSize:        9,
@@ -47,13 +41,13 @@ const base = StyleSheet.create({
     paddingRight:    44,
   },
 
-  // ── Encabezado institucional ────────────────────────────────────────────────
+  // Encabezado institucional
   encabezado: {
-    flexDirection:   'row',
-    justifyContent:  'space-between',
-    alignItems:      'flex-start',
-    marginBottom:    16,
-    paddingBottom:   10,
+    flexDirection:     'row',
+    justifyContent:    'space-between',
+    alignItems:        'flex-start',
+    marginBottom:      16,
+    paddingBottom:     10,
     borderBottomWidth: 2,
     borderBottomColor: COLOR.azulPrimario,
   },
@@ -62,9 +56,9 @@ const base = StyleSheet.create({
     gap:           3,
   },
   logoTexto: {
-    fontSize:    22,
-    fontFamily:  'Helvetica-Bold',
-    color:       COLOR.azulPrimario,
+    fontSize:      22,
+    fontFamily:    'Helvetica-Bold',
+    color:         COLOR.azulPrimario,
     letterSpacing: 2,
   },
   logoAccento: {
@@ -76,19 +70,19 @@ const base = StyleSheet.create({
     marginTop: 2,
   },
   encabezadoDer: {
-    alignItems:  'flex-end',
+    alignItems:    'flex-end',
     flexDirection: 'column',
     gap:           3,
   },
   encabezadoTipoDoc: {
-    fontSize:        9,
-    fontFamily:      'Helvetica-Bold',
-    color:           COLOR.blanco,
-    backgroundColor: COLOR.azulMedio,
-    paddingVertical:  3,
+    fontSize:          9,
+    fontFamily:        'Helvetica-Bold',
+    color:             COLOR.blanco,
+    backgroundColor:   COLOR.azulMedio,
+    paddingVertical:   3,
     paddingHorizontal: 8,
-    borderRadius:    4,
-    textTransform:   'uppercase',
+    borderRadius:      4,
+    textTransform:     'uppercase',
   },
   encabezadoFecha: {
     fontSize: 8,
@@ -100,39 +94,39 @@ const base = StyleSheet.create({
     marginTop: 2,
   },
 
-  // ── Sección / bloque ────────────────────────────────────────────────────────
+  // Sección / bloque
   seccion: {
     marginBottom: 10,
   },
   seccionTitulo: {
-    flexDirection:   'row',
-    alignItems:      'center',
-    gap:             6,
-    marginBottom:    6,
-    paddingBottom:   4,
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               6,
+    marginBottom:      6,
+    paddingBottom:     4,
     borderBottomWidth: 1,
     borderBottomColor: COLOR.azulClaro,
   },
   seccionNumero: {
-    fontSize:        8,
-    fontFamily:      'Helvetica-Bold',
-    color:           COLOR.blanco,
-    backgroundColor: COLOR.azulMedio,
-    width:           16,
-    height:          16,
-    borderRadius:    8,
-    textAlign:       'center',
-    paddingTop:      3,
+    fontSize:          8,
+    fontFamily:        'Helvetica-Bold',
+    color:             COLOR.blanco,
+    backgroundColor:   COLOR.azulMedio,
+    width:             16,
+    height:            16,
+    borderRadius:      8,
+    textAlign:         'center',
+    paddingTop:        3,
   },
   seccionLabel: {
-    fontSize:   10,
-    fontFamily: 'Helvetica-Bold',
-    color:      COLOR.azulPrimario,
+    fontSize:      10,
+    fontFamily:    'Helvetica-Bold',
+    color:         COLOR.azulPrimario,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
 
-  // ── Campo etiqueta / valor ──────────────────────────────────────────────────
+  // Campo etiqueta / valor
   campoFila: {
     flexDirection: 'row',
     gap:           4,
@@ -152,19 +146,19 @@ const base = StyleSheet.create({
     lineHeight: 1.4,
   },
 
-  // ── Grid 2 columnas ──────────────────────────────────────────────────────────
+  // Grid 2 columnas
   grid2: {
     flexDirection: 'row',
     flexWrap:      'wrap',
     gap:           0,
   },
   grid2Item: {
-    width:         '50%',
-    paddingRight:  8,
-    marginBottom:  4,
+    width:        '50%',
+    paddingRight: 8,
+    marginBottom: 4,
   },
 
-  // ── Signos vitales ──────────────────────────────────────────────────────────
+  // Signos vitales
   signosGrid: {
     flexDirection: 'row',
     flexWrap:      'wrap',
@@ -172,12 +166,12 @@ const base = StyleSheet.create({
     marginBottom:  6,
   },
   signoCard: {
-    backgroundColor: COLOR.azulPale,
-    borderRadius:    6,
-    paddingVertical:  6,
+    backgroundColor:   COLOR.azulPale,
+    borderRadius:      6,
+    paddingVertical:   6,
     paddingHorizontal: 10,
-    alignItems:      'center',
-    minWidth:        60,
+    alignItems:        'center',
+    minWidth:          60,
   },
   signoValor: {
     fontSize:   11,
@@ -190,32 +184,32 @@ const base = StyleSheet.create({
     marginTop: 1,
   },
   signoLabel: {
-    fontSize:  7,
-    color:     COLOR.azulMedio,
-    marginTop: 2,
-    fontFamily: 'Helvetica-Bold',
+    fontSize:      7,
+    color:         COLOR.azulMedio,
+    marginTop:     2,
+    fontFamily:    'Helvetica-Bold',
     textTransform: 'uppercase',
   },
 
-  // ── CIE-10 ──────────────────────────────────────────────────────────────────
+  // CIE-10
   cie10Fila: {
-    flexDirection:   'row',
-    alignItems:      'flex-start',
-    gap:             8,
-    backgroundColor: COLOR.azulPale,
-    borderRadius:    6,
-    padding:         8,
-    marginBottom:    4,
+    flexDirection:     'row',
+    alignItems:        'flex-start',
+    gap:               8,
+    backgroundColor:   COLOR.azulPale,
+    borderRadius:      6,
+    padding:           8,
+    marginBottom:      4,
   },
   cie10Codigo: {
-    fontSize:        10,
-    fontFamily:      'Helvetica-Bold',
-    color:           COLOR.azulMedio,
-    backgroundColor: COLOR.azulClaro,
-    paddingVertical:  3,
+    fontSize:          10,
+    fontFamily:        'Helvetica-Bold',
+    color:             COLOR.azulMedio,
+    backgroundColor:   COLOR.azulClaro,
+    paddingVertical:   3,
     paddingHorizontal: 6,
-    borderRadius:    4,
-    flexShrink:      0,
+    borderRadius:      4,
+    flexShrink:        0,
   },
   cie10Desc: {
     fontSize:   9,
@@ -224,7 +218,7 @@ const base = StyleSheet.create({
     lineHeight: 1.4,
   },
 
-  // ── Medicamentos ─────────────────────────────────────────────────────────────
+  // Medicamentos
   medicamentoBox: {
     backgroundColor: COLOR.verdeClaro,
     borderRadius:    6,
@@ -234,10 +228,10 @@ const base = StyleSheet.create({
     borderLeftColor: COLOR.verde,
   },
   medicamentoLabel: {
-    fontSize:   8,
-    fontFamily: 'Helvetica-Bold',
-    color:      COLOR.verde,
-    marginBottom: 3,
+    fontSize:      8,
+    fontFamily:    'Helvetica-Bold',
+    color:         COLOR.verde,
+    marginBottom:  3,
     textTransform: 'uppercase',
   },
   medicamentoTexto: {
@@ -246,7 +240,7 @@ const base = StyleSheet.create({
     lineHeight: 1.5,
   },
 
-  // ── Incapacidad ──────────────────────────────────────────────────────────────
+  // Incapacidad
   incapacidadBox: {
     backgroundColor: '#FEF9C3',
     borderRadius:    6,
@@ -261,18 +255,18 @@ const base = StyleSheet.create({
     color:      '#854D0E',
   },
 
-  // ── Bloque de texto largo ────────────────────────────────────────────────────
+  // Bloque de texto largo
   textoBloque: {
-    fontSize:         9,
-    color:            COLOR.negro,
-    lineHeight:       1.5,
-    backgroundColor:  COLOR.azulPale,
-    borderRadius:     4,
-    padding:          6,
-    marginBottom:     4,
+    fontSize:        9,
+    color:           COLOR.negro,
+    lineHeight:      1.5,
+    backgroundColor: COLOR.azulPale,
+    borderRadius:    4,
+    padding:         6,
+    marginBottom:    4,
   },
 
-  // ── Cierre legal / Firma ─────────────────────────────────────────────────────
+  // Cierre legal / Firma
   cierreBox: {
     marginTop:         10,
     paddingTop:        10,
@@ -299,7 +293,7 @@ const base = StyleSheet.create({
     marginTop: 2,
   },
 
-  // ── Aclaraciones ─────────────────────────────────────────────────────────────
+  // Aclaraciones
   aclaracionBox: {
     backgroundColor: '#FFFBEB',
     borderRadius:    6,
@@ -309,36 +303,49 @@ const base = StyleSheet.create({
     borderLeftColor: '#F59E0B',
   },
   aclaracionEncabezado: {
-    flexDirection:   'row',
-    justifyContent:  'space-between',
-    marginBottom:    4,
+    flexDirection:  'row',
+    justifyContent: 'space-between',
+    marginBottom:   5,
   },
   aclaracionTipo: {
-    fontSize:   8,
-    fontFamily: 'Helvetica-Bold',
-    color:      '#B45309',
+    fontSize:      8,
+    fontFamily:    'Helvetica-Bold',
+    color:         '#B45309',
     textTransform: 'uppercase',
   },
   aclaracionFecha: {
     fontSize: 8,
     color:    COLOR.grisMuted,
   },
+  aclaracionEtiqueta: {
+    fontSize:   8,
+    fontFamily: 'Helvetica-Bold',
+    color:      '#92400E',
+    marginBottom: 2,
+  },
   aclaracionTexto: {
     fontSize:   9,
     color:      COLOR.grisTexto,
     lineHeight: 1.4,
+    marginBottom: 4,
+  },
+  aclaracionFirma: {
+    fontSize:  8,
+    color:     COLOR.grisMuted,
+    textAlign: 'right',
+    marginTop: 4,
   },
 
-  // ── Pie de página ────────────────────────────────────────────────────────────
+  // Pie de página
   piePagina: {
-    position:     'absolute',
-    bottom:       20,
-    left:         44,
-    right:        44,
-    flexDirection: 'row',
+    position:       'absolute',
+    bottom:         20,
+    left:           44,
+    right:          44,
+    flexDirection:  'row',
     justifyContent: 'space-between',
-    alignItems:   'center',
-    paddingTop:   6,
+    alignItems:     'center',
+    paddingTop:     6,
     borderTopWidth: 1,
     borderTopColor: COLOR.grisLinea,
   },
@@ -356,34 +363,30 @@ const base = StyleSheet.create({
 
 function formatFecha(fechaStr) {
   if (!fechaStr) return '—';
-  const fecha = new Date(fechaStr + 'T00:00:00');
-  return fecha.toLocaleDateString('es-CO', {
-    day:   '2-digit',
-    month: 'long',
-    year:  'numeric',
+  return new Date(fechaStr + 'T00:00:00').toLocaleDateString('es-CO', {
+    day: '2-digit', month: 'long', year: 'numeric',
   });
 }
 
 function calcularEdad(fechaNac) {
   if (!fechaNac) return null;
-  const hoy   = new Date();
-  const nac   = new Date(fechaNac);
-  let edad    = hoy.getFullYear() - nac.getFullYear();
-  const mes   = hoy.getMonth() - nac.getMonth();
+  const hoy  = new Date();
+  const nac  = new Date(fechaNac);
+  let edad   = hoy.getFullYear() - nac.getFullYear();
+  const mes  = hoy.getMonth() - nac.getMonth();
   if (mes < 0 || (mes === 0 && hoy.getDate() < nac.getDate())) edad--;
   return edad;
 }
 
-function extraerTextoMedicamentos(medicamentosRecetados) {
-  if (!medicamentosRecetados) return null;
-  if (typeof medicamentosRecetados === 'string') return medicamentosRecetados;
-  if (typeof medicamentosRecetados === 'object') {
-    return medicamentosRecetados.texto || JSON.stringify(medicamentosRecetados);
-  }
+function extraerTextoMedicamentos(campo) {
+  if (!campo) return null;
+  if (typeof campo === 'string') return campo;
+  if (typeof campo === 'object') return campo.texto || JSON.stringify(campo);
   return null;
 }
 
-// Componente Campo (etiqueta + valor en fila)
+// ─── Componentes reutilizables ────────────────────────────────────────────────
+
 function Campo({ etiqueta, valor }) {
   if (valor === null || valor === undefined || valor === '') return null;
   return (
@@ -394,7 +397,6 @@ function Campo({ etiqueta, valor }) {
   );
 }
 
-// Componente Sección con número
 function Seccion({ numero, titulo, children }) {
   return (
     <View style={base.seccion}>
@@ -407,7 +409,6 @@ function Seccion({ numero, titulo, children }) {
   );
 }
 
-// Componente Encabezado institucional
 function Encabezado({ tipoDocumento, historia }) {
   const fechaEmision = new Date().toLocaleDateString('es-CO', {
     day: '2-digit', month: 'long', year: 'numeric',
@@ -435,16 +436,13 @@ function Encabezado({ tipoDocumento, historia }) {
           </Text>
         )}
         {historia?.especialidad && (
-          <Text style={base.encabezadoConsecutivo}>
-            {historia.especialidad}
-          </Text>
+          <Text style={base.encabezadoConsecutivo}>{historia.especialidad}</Text>
         )}
       </View>
     </View>
   );
 }
 
-// Componente Pie de Página
 function PiePagina() {
   return (
     <View style={base.piePagina} fixed>
@@ -466,12 +464,12 @@ function PiePagina() {
 export function PlantillaHistoriaPDF({ historia, aclaraciones = [] }) {
   if (!historia) return null;
 
-  const edad       = calcularEdad(historia.paciente_fecha_nac);
-  const medTexto   = extraerTextoMedicamentos(historia.medicamentos_recetados);
-  const haySignos  = historia.tension_arterial_sistolica
-                  || historia.frecuencia_cardiaca
-                  || historia.peso_kg
-                  || historia.temperatura_corporal;
+  const edad      = calcularEdad(historia.paciente_fecha_nac);
+  const medTexto  = extraerTextoMedicamentos(historia.medicamentos_recetados);
+  const haySignos = historia.tension_arterial_sistolica
+                 || historia.frecuencia_cardiaca
+                 || historia.peso_kg
+                 || historia.temperatura_corporal;
 
   return (
     <Document
@@ -482,79 +480,56 @@ export function PlantillaHistoriaPDF({ historia, aclaraciones = [] }) {
     >
       <Page size="LETTER" style={base.pagina}>
 
-        {/* Encabezado institucional */}
         <Encabezado tipoDocumento="Historia Clínica" historia={historia} />
 
-        {/* ── BLOQUE 1 — Identificación administrativa ── */}
+        {/* ── BLOQUE 1 — Identificación ── */}
         <Seccion numero="1" titulo="Identificación del Paciente">
           <View style={base.grid2}>
-
             <View style={base.grid2Item}>
               <Campo
                 etiqueta="Paciente"
                 valor={`${historia.paciente_nombre} ${historia.paciente_apellido}`}
               />
             </View>
-
             <View style={base.grid2Item}>
               <Campo
                 etiqueta="Documento"
                 valor={`${historia.paciente_tipo_doc || 'CC'} ${historia.paciente_num_doc}`}
               />
             </View>
-
             <View style={base.grid2Item}>
-              <Campo
-                etiqueta="Fecha de nacimiento"
-                valor={formatFecha(historia.paciente_fecha_nac)}
-              />
+              <Campo etiqueta="Fecha de nacimiento" valor={formatFecha(historia.paciente_fecha_nac)} />
             </View>
-
             <View style={base.grid2Item}>
-              <Campo
-                etiqueta="Edad"
-                valor={edad !== null ? `${edad} años` : null}
-              />
+              <Campo etiqueta="Edad" valor={edad !== null ? `${edad} años` : null} />
             </View>
-
             <View style={base.grid2Item}>
               <Campo etiqueta="Sexo" valor={historia.paciente_genero} />
             </View>
-
             <View style={base.grid2Item}>
               <Campo etiqueta="Teléfono" valor={historia.paciente_telefono} />
             </View>
-
             <View style={base.grid2Item}>
               <Campo etiqueta="Dirección" valor={historia.paciente_direccion} />
             </View>
-
             <View style={base.grid2Item}>
-              <Campo
-                etiqueta="Municipio"
-                valor={historia.paciente_ciudad || 'Caldas, Antioquia'}
-              />
+              <Campo etiqueta="Municipio" valor={historia.paciente_ciudad || 'Caldas, Antioquia'} />
             </View>
-
             <View style={base.grid2Item}>
               <Campo etiqueta="EPS / Aseguradora" valor={historia.eps_aseguradora} />
             </View>
-
             <View style={base.grid2Item}>
               <Campo
                 etiqueta="Tipo de consulta"
                 valor={historia.tipo_cita === 'teleconsulta' ? 'Teleconsulta' : 'Presencial'}
               />
             </View>
-
             <View style={base.grid2Item}>
               <Campo etiqueta="Fecha de la cita" valor={formatFecha(historia.fecha_cita)} />
             </View>
-
             <View style={base.grid2Item}>
               <Campo etiqueta="Hora" valor={historia.hora_inicio?.substring(0, 5)} />
             </View>
-
           </View>
 
           {(historia.contacto_responsable_nombre || historia.contacto_responsable_telefono) && (
@@ -572,7 +547,6 @@ export function PlantillaHistoriaPDF({ historia, aclaraciones = [] }) {
 
         {/* ── BLOQUE 2 — Anamnesis ── */}
         <Seccion numero="2" titulo="Anamnesis">
-
           {historia.motivo_consulta && (
             <>
               <Text style={[base.campoEtiqueta, { marginBottom: 3 }]}>
@@ -581,7 +555,6 @@ export function PlantillaHistoriaPDF({ historia, aclaraciones = [] }) {
               <Text style={base.textoBloque}>{historia.motivo_consulta}</Text>
             </>
           )}
-
           {historia.anamnesis && (
             <>
               <Text style={[base.campoEtiqueta, { marginBottom: 3, marginTop: 4 }]}>
@@ -590,7 +563,6 @@ export function PlantillaHistoriaPDF({ historia, aclaraciones = [] }) {
               <Text style={base.textoBloque}>{historia.anamnesis}</Text>
             </>
           )}
-
           {(historia.antecedentes_patologicos
             || historia.antecedentes_quirurgicos
             || historia.antecedentes_alergicos
@@ -599,23 +571,20 @@ export function PlantillaHistoriaPDF({ historia, aclaraciones = [] }) {
             || historia.habitos) && (
             <View style={{ marginTop: 4 }}>
               <Text style={[base.campoEtiqueta, { marginBottom: 4 }]}>Antecedentes:</Text>
-              <Campo etiqueta="  Patológicos"           valor={historia.antecedentes_patologicos} />
-              <Campo etiqueta="  Quirúrgicos"           valor={historia.antecedentes_quirurgicos} />
+              <Campo etiqueta="  Patológicos"          valor={historia.antecedentes_patologicos} />
+              <Campo etiqueta="  Quirúrgicos"          valor={historia.antecedentes_quirurgicos} />
               <Campo etiqueta="  Alérgicos/farmacol."  valor={historia.antecedentes_alergicos} />
-              <Campo etiqueta="  Familiares"            valor={historia.antecedentes_familiares} />
+              <Campo etiqueta="  Familiares"           valor={historia.antecedentes_familiares} />
               <Campo etiqueta="  Ginecoobstétricos"    valor={historia.antecedentes_ginecoobstetricos} />
-              <Campo etiqueta="  Hábitos"               valor={historia.habitos} />
+              <Campo etiqueta="  Hábitos"              valor={historia.habitos} />
             </View>
           )}
-
         </Seccion>
 
-        {/* ── BLOQUE 3 — Examen físico y signos vitales ── */}
+        {/* ── BLOQUE 3 — Examen físico ── */}
         {haySignos && (
           <Seccion numero="3" titulo="Examen Físico — Signos Vitales">
-
             <View style={base.signosGrid}>
-
               {historia.tension_arterial_sistolica && (
                 <View style={base.signoCard}>
                   <Text style={base.signoValor}>
@@ -625,7 +594,6 @@ export function PlantillaHistoriaPDF({ historia, aclaraciones = [] }) {
                   <Text style={base.signoLabel}>Tensión Arterial</Text>
                 </View>
               )}
-
               {historia.frecuencia_cardiaca && (
                 <View style={base.signoCard}>
                   <Text style={base.signoValor}>{historia.frecuencia_cardiaca}</Text>
@@ -633,7 +601,6 @@ export function PlantillaHistoriaPDF({ historia, aclaraciones = [] }) {
                   <Text style={base.signoLabel}>Frec. Cardíaca</Text>
                 </View>
               )}
-
               {historia.frecuencia_respiratoria && (
                 <View style={base.signoCard}>
                   <Text style={base.signoValor}>{historia.frecuencia_respiratoria}</Text>
@@ -641,7 +608,6 @@ export function PlantillaHistoriaPDF({ historia, aclaraciones = [] }) {
                   <Text style={base.signoLabel}>Frec. Respiratoria</Text>
                 </View>
               )}
-
               {historia.temperatura_corporal && (
                 <View style={base.signoCard}>
                   <Text style={base.signoValor}>{historia.temperatura_corporal}</Text>
@@ -649,7 +615,6 @@ export function PlantillaHistoriaPDF({ historia, aclaraciones = [] }) {
                   <Text style={base.signoLabel}>Temperatura</Text>
                 </View>
               )}
-
               {historia.peso_kg && (
                 <View style={base.signoCard}>
                   <Text style={base.signoValor}>{historia.peso_kg}</Text>
@@ -657,7 +622,6 @@ export function PlantillaHistoriaPDF({ historia, aclaraciones = [] }) {
                   <Text style={base.signoLabel}>Peso</Text>
                 </View>
               )}
-
               {historia.talla_cm && (
                 <View style={base.signoCard}>
                   <Text style={base.signoValor}>{historia.talla_cm}</Text>
@@ -665,7 +629,6 @@ export function PlantillaHistoriaPDF({ historia, aclaraciones = [] }) {
                   <Text style={base.signoLabel}>Talla</Text>
                 </View>
               )}
-
               {historia.imc && (
                 <View style={[base.signoCard, { backgroundColor: '#EDE9FE' }]}>
                   <Text style={[base.signoValor, { color: '#5B21B6' }]}>
@@ -675,9 +638,7 @@ export function PlantillaHistoriaPDF({ historia, aclaraciones = [] }) {
                   <Text style={[base.signoLabel, { color: '#5B21B6' }]}>IMC</Text>
                 </View>
               )}
-
             </View>
-
             {historia.exploracion_por_sistemas && (
               <>
                 <Text style={[base.campoEtiqueta, { marginBottom: 3 }]}>
@@ -686,7 +647,6 @@ export function PlantillaHistoriaPDF({ historia, aclaraciones = [] }) {
                 <Text style={base.textoBloque}>{historia.exploracion_por_sistemas}</Text>
               </>
             )}
-
             {historia.examen_fisico && (
               <>
                 <Text style={[base.campoEtiqueta, { marginBottom: 3, marginTop: 4 }]}>
@@ -695,7 +655,6 @@ export function PlantillaHistoriaPDF({ historia, aclaraciones = [] }) {
                 <Text style={base.textoBloque}>{historia.examen_fisico}</Text>
               </>
             )}
-
           </Seccion>
         )}
 
@@ -718,21 +677,18 @@ export function PlantillaHistoriaPDF({ historia, aclaraciones = [] }) {
           || historia.recomendaciones
           || historia.incapacidad_dias) && (
           <Seccion numero="5" titulo="Plan de Manejo / Conducta">
-
             {historia.plan_tratamiento && (
               <>
                 <Text style={[base.campoEtiqueta, { marginBottom: 3 }]}>Plan de tratamiento:</Text>
                 <Text style={base.textoBloque}>{historia.plan_tratamiento}</Text>
               </>
             )}
-
             {medTexto && (
               <View style={base.medicamentoBox}>
                 <Text style={base.medicamentoLabel}>Fórmula Médica — Medicamentos</Text>
                 <Text style={base.medicamentoTexto}>{medTexto}</Text>
               </View>
             )}
-
             {historia.ordenes_medicas && (
               <>
                 <Text style={[base.campoEtiqueta, { marginBottom: 3, marginTop: 4 }]}>
@@ -741,7 +697,6 @@ export function PlantillaHistoriaPDF({ historia, aclaraciones = [] }) {
                 <Text style={base.textoBloque}>{historia.ordenes_medicas}</Text>
               </>
             )}
-
             {historia.recomendaciones && (
               <>
                 <Text style={[base.campoEtiqueta, { marginBottom: 3, marginTop: 4 }]}>
@@ -750,7 +705,6 @@ export function PlantillaHistoriaPDF({ historia, aclaraciones = [] }) {
                 <Text style={base.textoBloque}>{historia.recomendaciones}</Text>
               </>
             )}
-
             {historia.incapacidad_dias > 0 && (
               <View style={base.incapacidadBox}>
                 <Text style={base.incapacidadTexto}>
@@ -759,7 +713,6 @@ export function PlantillaHistoriaPDF({ historia, aclaraciones = [] }) {
                 </Text>
               </View>
             )}
-
           </Seccion>
         )}
 
@@ -793,46 +746,99 @@ export function PlantillaHistoriaPDF({ historia, aclaraciones = [] }) {
         {/* ── Notas de aclaración y evolución ── */}
         {aclaraciones.length > 0 && (
           <Seccion titulo="Notas de Aclaración y Evolución">
-            {aclaraciones.map((ac, i) => (
-              <View key={ac.id} style={base.aclaracionBox}>
-                <View style={base.aclaracionEncabezado}>
-                  <Text style={base.aclaracionTipo}>
-                    {ac.tipo_registro === 'nota_evolucion'
-                      ? `Nota de evolución #${i + 1}`
-                      : `Aclaración #${i + 1}`}
-                  </Text>
-                  <Text style={base.aclaracionFecha}>
-                    {new Date(ac.created_at).toLocaleDateString('es-CO', {
-                      day: '2-digit', month: 'long', year: 'numeric',
-                      hour: '2-digit', minute: '2-digit',
-                    })}
-                  </Text>
+            {aclaraciones.map((ac, i) => {
+              const medAcl = extraerTextoMedicamentos(ac.medicamentos_recetados);
+
+              return (
+                <View key={ac.id} style={base.aclaracionBox}>
+
+                  {/* Encabezado: tipo + fecha */}
+                  <View style={base.aclaracionEncabezado}>
+                    <Text style={base.aclaracionTipo}>
+                      {ac.tipo_registro === 'nota_evolucion'
+                        ? `Nota de evolución #${i + 1}`
+                        : `Aclaración / Corrección #${i + 1}`}
+                    </Text>
+                    <Text style={base.aclaracionFecha}>
+                      {new Date(ac.created_at).toLocaleDateString('es-CO', {
+                        day: '2-digit', month: 'long', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit',
+                      })}
+                    </Text>
+                  </View>
+
+                  {/* Motivo */}
+                  {ac.motivo_consulta ? (
+                    <View style={{ marginBottom: 4 }}>
+                      <Text style={base.aclaracionEtiqueta}>Motivo / Descripción:</Text>
+                      <Text style={base.aclaracionTexto}>{ac.motivo_consulta}</Text>
+                    </View>
+                  ) : null}
+
+                  {/* Evolución / anamnesis */}
+                  {ac.anamnesis ? (
+                    <View style={{ marginBottom: 4 }}>
+                      <Text style={base.aclaracionEtiqueta}>Evolución / Enfermedad actual:</Text>
+                      <Text style={base.aclaracionTexto}>{ac.anamnesis}</Text>
+                    </View>
+                  ) : null}
+
+                  {/* Diagnóstico CIE-10 */}
+                  {ac.diagnostico_cie10 ? (
+                    <View style={[base.cie10Fila, { marginBottom: 4 }]}>
+                      <Text style={base.cie10Codigo}>{ac.diagnostico_cie10}</Text>
+                      <Text style={base.cie10Desc}>
+                        {ac.descripcion_diagnostico || ''}
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  {/* Plan de tratamiento */}
+                  {ac.plan_tratamiento ? (
+                    <View style={{ marginBottom: 4 }}>
+                      <Text style={base.aclaracionEtiqueta}>Plan de tratamiento:</Text>
+                      <Text style={base.aclaracionTexto}>{ac.plan_tratamiento}</Text>
+                    </View>
+                  ) : null}
+
+                  {/* Medicamentos */}
+                  {medAcl ? (
+                    <View style={[base.medicamentoBox, { marginBottom: 4 }]}>
+                      <Text style={base.medicamentoLabel}>Medicamentos recetados</Text>
+                      <Text style={base.medicamentoTexto}>{medAcl}</Text>
+                    </View>
+                  ) : null}
+
+                  {/* Órdenes médicas */}
+                  {ac.ordenes_medicas ? (
+                    <View style={{ marginBottom: 4 }}>
+                      <Text style={base.aclaracionEtiqueta}>Órdenes médicas:</Text>
+                      <Text style={base.aclaracionTexto}>{ac.ordenes_medicas}</Text>
+                    </View>
+                  ) : null}
+
+                  {/* Recomendaciones */}
+                  {ac.recomendaciones ? (
+                    <View style={{ marginBottom: 4 }}>
+                      <Text style={base.aclaracionEtiqueta}>Recomendaciones:</Text>
+                      <Text style={base.aclaracionTexto}>{ac.recomendaciones}</Text>
+                    </View>
+                  ) : null}
+
+                  {/* Firma del médico que creó la aclaración */}
+                  {ac.medico_nombre_firma ? (
+                    <Text style={base.aclaracionFirma}>
+                      — {ac.medico_nombre_firma}
+                      {ac.medico_rethus_firma ? ` · ReTHUS: ${ac.medico_rethus_firma}` : ''}
+                    </Text>
+                  ) : null}
+
                 </View>
-                {ac.motivo_consulta && (
-                  <Text style={base.aclaracionTexto}>{ac.motivo_consulta}</Text>
-                )}
-                {ac.descripcion_diagnostico && (
-                  <Text style={[base.aclaracionTexto, { marginTop: 3 }]}>
-                    {ac.descripcion_diagnostico}
-                  </Text>
-                )}
-                {ac.plan_tratamiento && (
-                  <Text style={[base.aclaracionTexto, { marginTop: 3 }]}>
-                    Plan: {ac.plan_tratamiento}
-                  </Text>
-                )}
-                {ac.medico_nombre_firma && (
-                  <Text style={[base.aclaracionFecha, { marginTop: 4, textAlign: 'right' }]}>
-                    {ac.medico_nombre_firma}
-                    {ac.medico_rethus_firma ? ` · ReTHUS: ${ac.medico_rethus_firma}` : ''}
-                  </Text>
-                )}
-              </View>
-            ))}
+              );
+            })}
           </Seccion>
         )}
 
-        {/* Pie de página con numeración automática */}
         <PiePagina />
 
       </Page>
@@ -841,7 +847,7 @@ export function PlantillaHistoriaPDF({ historia, aclaraciones = [] }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PLANTILLA 2: Fórmula Médica (documento independiente, formato compacto)
+// PLANTILLA 2: Fórmula Médica
 // ─────────────────────────────────────────────────────────────────────────────
 
 const estilosFormula = StyleSheet.create({
@@ -855,17 +861,15 @@ const estilosFormula = StyleSheet.create({
     paddingLeft:     44,
     paddingRight:    44,
   },
-
-  // Banner superior verde de la fórmula
   bannerFormula: {
-    backgroundColor: COLOR.verde,
-    borderRadius:    8,
-    paddingVertical:  10,
+    backgroundColor:   COLOR.verde,
+    borderRadius:      8,
+    paddingVertical:   10,
     paddingHorizontal: 14,
-    marginBottom:    14,
-    flexDirection:   'row',
-    justifyContent:  'space-between',
-    alignItems:      'center',
+    marginBottom:      14,
+    flexDirection:     'row',
+    justifyContent:    'space-between',
+    alignItems:        'center',
   },
   bannerTitulo: {
     fontSize:   13,
@@ -873,21 +877,19 @@ const estilosFormula = StyleSheet.create({
     color:      COLOR.blanco,
   },
   bannerSub: {
-    fontSize: 8,
-    color:    '#A7F3D0',
+    fontSize:  8,
+    color:     '#A7F3D0',
     marginTop: 2,
   },
   bannerLogo: {
-    fontSize:   16,
-    fontFamily: 'Helvetica-Bold',
-    color:      COLOR.blanco,
+    fontSize:      16,
+    fontFamily:    'Helvetica-Bold',
+    color:         COLOR.blanco,
     letterSpacing: 2,
   },
   bannerLogoAccento: {
     color: '#FCA5A5',
   },
-
-  // Sección paciente (datos identificación)
   pacienteBox: {
     backgroundColor: COLOR.azulPale,
     borderRadius:    6,
@@ -895,31 +897,29 @@ const estilosFormula = StyleSheet.create({
     marginBottom:    10,
   },
   pacienteTitulo: {
-    fontSize:   8,
-    fontFamily: 'Helvetica-Bold',
-    color:      COLOR.azulMedio,
+    fontSize:      8,
+    fontFamily:    'Helvetica-Bold',
+    color:         COLOR.azulMedio,
     textTransform: 'uppercase',
-    marginBottom: 6,
+    marginBottom:  6,
     letterSpacing: 0.5,
   },
-
-  // Recuadro del medicamento
   medBox: {
-    borderWidth:     1,
-    borderColor:     COLOR.verde,
-    borderRadius:    8,
-    marginBottom:    10,
-    overflow:        'hidden',
+    borderWidth:   1,
+    borderColor:   COLOR.verde,
+    borderRadius:  8,
+    marginBottom:  10,
+    overflow:      'hidden',
   },
   medBoxHeader: {
-    backgroundColor: COLOR.verde,
-    paddingVertical:  5,
+    backgroundColor:   COLOR.verde,
+    paddingVertical:   5,
     paddingHorizontal: 10,
   },
   medBoxHeaderTexto: {
-    fontSize:   8,
-    fontFamily: 'Helvetica-Bold',
-    color:      COLOR.blanco,
+    fontSize:      8,
+    fontFamily:    'Helvetica-Bold',
+    color:         COLOR.blanco,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
@@ -931,24 +931,22 @@ const estilosFormula = StyleSheet.create({
     color:      COLOR.negro,
     lineHeight: 1.7,
   },
-
-  // Órdenes de exámenes
   ordenBox: {
-    borderWidth:    1,
-    borderColor:    COLOR.azulClaro,
-    borderRadius:   8,
-    marginBottom:   10,
-    overflow:       'hidden',
+    borderWidth:   1,
+    borderColor:   COLOR.azulClaro,
+    borderRadius:  8,
+    marginBottom:  10,
+    overflow:      'hidden',
   },
   ordenHeader: {
-    backgroundColor: COLOR.azulMedio,
-    paddingVertical:  5,
+    backgroundColor:   COLOR.azulMedio,
+    paddingVertical:   5,
     paddingHorizontal: 10,
   },
   ordenHeaderTexto: {
-    fontSize:   8,
-    fontFamily: 'Helvetica-Bold',
-    color:      COLOR.blanco,
+    fontSize:      8,
+    fontFamily:    'Helvetica-Bold',
+    color:         COLOR.blanco,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
@@ -961,8 +959,6 @@ const estilosFormula = StyleSheet.create({
     color:      COLOR.negro,
     lineHeight: 1.5,
   },
-
-  // Recomendaciones
   recomBox: {
     backgroundColor: '#FFF7ED',
     borderRadius:    6,
@@ -972,19 +968,17 @@ const estilosFormula = StyleSheet.create({
     borderLeftColor: '#F97316',
   },
   recomTitulo: {
-    fontSize:   8,
-    fontFamily: 'Helvetica-Bold',
-    color:      '#C2410C',
+    fontSize:      8,
+    fontFamily:    'Helvetica-Bold',
+    color:         '#C2410C',
     textTransform: 'uppercase',
-    marginBottom: 4,
+    marginBottom:  4,
   },
   recomTexto: {
     fontSize:   9,
     color:      COLOR.grisTexto,
     lineHeight: 1.5,
   },
-
-  // Incapacidad
   incapacidadFormula: {
     backgroundColor: '#FEF9C3',
     borderRadius:    6,
@@ -995,29 +989,27 @@ const estilosFormula = StyleSheet.create({
     gap:             8,
   },
   incapacidadBadge: {
-    fontSize:        9,
-    fontFamily:      'Helvetica-Bold',
-    color:           COLOR.blanco,
-    backgroundColor: '#CA8A04',
-    paddingVertical:  3,
+    fontSize:          9,
+    fontFamily:        'Helvetica-Bold',
+    color:             COLOR.blanco,
+    backgroundColor:   '#CA8A04',
+    paddingVertical:   3,
     paddingHorizontal: 8,
-    borderRadius:    4,
+    borderRadius:      4,
   },
   incapacidadDias: {
     fontSize:   9,
     fontFamily: 'Helvetica-Bold',
     color:      '#854D0E',
   },
-
-  // Cierre de la fórmula
   cierreFormula: {
-    marginTop:       10,
-    flexDirection:   'row',
-    justifyContent:  'space-between',
-    alignItems:      'flex-end',
-    paddingTop:      10,
-    borderTopWidth:  1,
-    borderTopColor:  COLOR.grisLinea,
+    marginTop:      10,
+    flexDirection:  'row',
+    justifyContent: 'space-between',
+    alignItems:     'flex-end',
+    paddingTop:     10,
+    borderTopWidth: 1,
+    borderTopColor: COLOR.grisLinea,
   },
   selloBox: {
     backgroundColor: COLOR.azulPale,
@@ -1026,8 +1018,8 @@ const estilosFormula = StyleSheet.create({
     width:           '45%',
   },
   selloTexto: {
-    fontSize: 7,
-    color:    COLOR.grisMuted,
+    fontSize:   7,
+    color:      COLOR.grisMuted,
     lineHeight: 1.5,
   },
   firmaBox: {
@@ -1069,13 +1061,12 @@ const estilosFormula = StyleSheet.create({
 export function PlantillaFormulaPDF({ historia }) {
   if (!historia) return null;
 
-  const medTexto   = extraerTextoMedicamentos(historia.medicamentos_recetados);
-  const edad       = calcularEdad(historia.paciente_fecha_nac);
+  const medTexto     = extraerTextoMedicamentos(historia.medicamentos_recetados);
+  const edad         = calcularEdad(historia.paciente_fecha_nac);
   const fechaEmision = new Date().toLocaleDateString('es-CO', {
     day: '2-digit', month: 'long', year: 'numeric',
   });
 
-  // Si no hay medicamentos ni órdenes, no tiene sentido generar este documento
   if (!medTexto && !historia.ordenes_medicas) return null;
 
   return (
@@ -1087,7 +1078,7 @@ export function PlantillaFormulaPDF({ historia }) {
     >
       <Page size="LETTER" style={estilosFormula.pagina}>
 
-        {/* Banner verde de identificación del documento */}
+        {/* Banner verde */}
         <View style={estilosFormula.bannerFormula}>
           <View>
             <Text style={estilosFormula.bannerTitulo}>Fórmula Médica</Text>
@@ -1103,7 +1094,7 @@ export function PlantillaFormulaPDF({ historia }) {
           </Text>
         </View>
 
-        {/* Datos del médico prescriptor */}
+        {/* Datos del médico */}
         <View style={estilosFormula.pacienteBox}>
           <Text style={estilosFormula.pacienteTitulo}>Médico Prescriptor</Text>
           <Campo
@@ -1111,9 +1102,9 @@ export function PlantillaFormulaPDF({ historia }) {
             valor={historia.medico_nombre_firma
               || `Dr(a). ${historia.medico_nombre} ${historia.medico_apellido}`}
           />
-          <Campo etiqueta="Especialidad"  valor={historia.especialidad} />
-          <Campo etiqueta="C.C."          valor={historia.medico_cedula_firma} />
-          <Campo etiqueta="ReTHUS"        valor={historia.medico_rethus_firma} />
+          <Campo etiqueta="Especialidad" valor={historia.especialidad} />
+          <Campo etiqueta="C.C."         valor={historia.medico_cedula_firma} />
+          <Campo etiqueta="ReTHUS"       valor={historia.medico_rethus_firma} />
         </View>
 
         {/* Datos del paciente */}
@@ -1133,10 +1124,7 @@ export function PlantillaFormulaPDF({ historia }) {
               />
             </View>
             <View style={base.grid2Item}>
-              <Campo
-                etiqueta="Edad"
-                valor={edad !== null ? `${edad} años` : null}
-              />
+              <Campo etiqueta="Edad" valor={edad !== null ? `${edad} años` : null} />
             </View>
             <View style={base.grid2Item}>
               <Campo etiqueta="EPS" valor={historia.eps_aseguradora} />
@@ -1154,7 +1142,7 @@ export function PlantillaFormulaPDF({ historia }) {
           </View>
         )}
 
-        {/* Medicamentos recetados */}
+        {/* Medicamentos */}
         {medTexto && (
           <View style={estilosFormula.medBox}>
             <View style={estilosFormula.medBoxHeader}>
@@ -1168,7 +1156,7 @@ export function PlantillaFormulaPDF({ historia }) {
           </View>
         )}
 
-        {/* Órdenes médicas / exámenes */}
+        {/* Órdenes médicas */}
         {historia.ordenes_medicas && (
           <View style={estilosFormula.ordenBox}>
             <View style={estilosFormula.ordenHeader}>
@@ -1192,7 +1180,7 @@ export function PlantillaFormulaPDF({ historia }) {
           </View>
         )}
 
-        {/* Incapacidad médica */}
+        {/* Incapacidad */}
         {historia.incapacidad_dias > 0 && (
           <View style={estilosFormula.incapacidadFormula}>
             <Text style={estilosFormula.incapacidadBadge}>INCAPACIDAD</Text>
@@ -1205,7 +1193,6 @@ export function PlantillaFormulaPDF({ historia }) {
 
         {/* Cierre legal */}
         <View style={estilosFormula.cierreFormula}>
-
           <View style={estilosFormula.selloBox}>
             <Text style={estilosFormula.selloTexto}>
               Documento generado por MELIKA Salud Digital.{'\n'}
@@ -1214,7 +1201,6 @@ export function PlantillaFormulaPDF({ historia }) {
               No válido para medicamentos de control especial sin sello físico.
             </Text>
           </View>
-
           <View style={estilosFormula.firmaBox}>
             <View style={estilosFormula.firmaLineaF} />
             <Text style={estilosFormula.firmaNombreF}>
@@ -1230,7 +1216,6 @@ export function PlantillaFormulaPDF({ historia }) {
               </Text>
             )}
           </View>
-
         </View>
 
         {/* Advertencia legal */}
@@ -1241,7 +1226,6 @@ export function PlantillaFormulaPDF({ historia }) {
           </Text>
         </View>
 
-        {/* Pie de página con numeración */}
         <PiePagina />
 
       </Page>
