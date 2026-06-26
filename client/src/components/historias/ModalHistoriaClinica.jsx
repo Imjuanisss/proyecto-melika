@@ -1,3 +1,4 @@
+// client/src/components/historias/ModalHistoriaClinica.jsx
 // MELIKA — Modal de creación/visualización/aclaración de Historia Clínica
 // Integra generación de PDF con @react-pdf/renderer
 

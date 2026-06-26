@@ -1,6 +1,8 @@
-/*  Overlay MELIKA — Estilos del Modal de Historia Clínica */
+/* client/src/components/historias/ModalHistoriaClinica.css
+   MELIKA — Estilos del Modal de Historia Clínica
+   Glassmorphism · Variables CSS globales · Sin Tailwind ni Bootstrap */
 
-/*  Overlay */
+/* ── Overlay ──────────────────────────────────────────────────────────────── */
 .mhc-overlay {
   position:         fixed;
   inset:            0;

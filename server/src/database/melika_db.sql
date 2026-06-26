@@ -453,3 +453,94 @@ CREATE INDEX IF NOT EXISTS idx_historias_tipo        ON historias_clinicas(tipo_
 
 SELECT COUNT(*) FROM documentos_clinicos;
 SELECT COUNT(*) FROM historias_clinicas WHERE tipo_registro IS NOT NULL;
+
+
+-- MELIKA — Migración v3: columna notas_medicas en citas
+-- Ejecutar en Railway/PostgreSQL antes de desplegar el backend actualizado.
+-- Es seguro ejecutarlo múltiples veces (usa IF NOT EXISTS / ADD COLUMN IF NOT EXISTS).
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- El campo notas_medicas permite al médico registrar observaciones de cierre
+-- visibles en la agenda sin necesidad de abrir la historia clínica completa.
+ALTER TABLE citas
+  ADD COLUMN IF NOT EXISTS notas_medicas TEXT;
+
+-- Verificación post-migración
+SELECT column_name, data_type
+FROM information_schema.columns
+WHERE table_name = 'citas'
+  AND column_name = 'notas_medicas';
+-- Debe retornar una fila: notas_medicas | text
+
+-- Bloque 1 — Datos administrativos complementarios
+ALTER TABLE historias_clinicas
+  ADD COLUMN IF NOT EXISTS tipo_consulta                  VARCHAR(20)  DEFAULT 'presencial',
+  ADD COLUMN IF NOT EXISTS eps_aseguradora                VARCHAR(150),
+  ADD COLUMN IF NOT EXISTS contacto_responsable_nombre    VARCHAR(150),
+  ADD COLUMN IF NOT EXISTS contacto_responsable_telefono  VARCHAR(30);
+
+-- Bloque 2 — Anamnesis expandida
+ALTER TABLE historias_clinicas
+  ADD COLUMN IF NOT EXISTS antecedentes_patologicos        TEXT,
+  ADD COLUMN IF NOT EXISTS antecedentes_quirurgicos        TEXT,
+  ADD COLUMN IF NOT EXISTS antecedentes_alergicos          TEXT,
+  ADD COLUMN IF NOT EXISTS antecedentes_familiares         TEXT,
+  ADD COLUMN IF NOT EXISTS antecedentes_ginecoobstetricos  TEXT,
+  ADD COLUMN IF NOT EXISTS habitos                         TEXT;
+
+-- Bloque 3 — Signos vitales numéricos
+ALTER TABLE historias_clinicas
+  ADD COLUMN IF NOT EXISTS tension_arterial_sistolica   FLOAT,
+  ADD COLUMN IF NOT EXISTS tension_arterial_diastolica  FLOAT,
+  ADD COLUMN IF NOT EXISTS frecuencia_cardiaca          INT,
+  ADD COLUMN IF NOT EXISTS frecuencia_respiratoria      INT,
+  ADD COLUMN IF NOT EXISTS temperatura_corporal         FLOAT,
+  ADD COLUMN IF NOT EXISTS peso_kg                      FLOAT,
+  ADD COLUMN IF NOT EXISTS talla_cm                     FLOAT,
+  ADD COLUMN IF NOT EXISTS imc                          FLOAT,
+  ADD COLUMN IF NOT EXISTS exploracion_por_sistemas     TEXT;
+
+-- Bloque 5 — Plan de manejo detallado
+ALTER TABLE historias_clinicas
+  ADD COLUMN IF NOT EXISTS ordenes_medicas   TEXT,
+  ADD COLUMN IF NOT EXISTS recomendaciones   TEXT,
+  ADD COLUMN IF NOT EXISTS incapacidad_dias  INT;
+
+-- Bloque 6 — Cierre legal
+ALTER TABLE historias_clinicas
+  ADD COLUMN IF NOT EXISTS medico_nombre_firma VARCHAR(200),
+  ADD COLUMN IF NOT EXISTS medico_cedula_firma VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS medico_rethus_firma VARCHAR(50);
+
+-- Control de versiones (inmutabilidad legal)
+ALTER TABLE historias_clinicas
+  ADD COLUMN IF NOT EXISTS estado VARCHAR(30) NOT NULL DEFAULT 'activo'
+    CHECK (estado IN ('activo', 'anulado_por_aclaracion')),
+  ADD COLUMN IF NOT EXISTS id_historia_original INT REFERENCES historias_clinicas(id),
+  ADD COLUMN IF NOT EXISTS tipo_registro VARCHAR(30) NOT NULL DEFAULT 'historia_principal'
+    CHECK (tipo_registro IN ('historia_principal', 'nota_aclaracion', 'nota_evolucion'));
+
+-- Tabla de documentos clínicos adjuntos
+CREATE TABLE IF NOT EXISTS documentos_clinicos (
+  id              SERIAL        PRIMARY KEY,
+  id_historia     INT           REFERENCES historias_clinicas(id),
+  id_paciente     INT           NOT NULL REFERENCES usuarios(id),
+  id_medico       INT           REFERENCES medicos(id),
+  tipo_documento  VARCHAR(30)   NOT NULL CHECK (tipo_documento IN (
+                    'historia_clinica','formula_medica','orden_examen','documento_externo')),
+  origen          VARCHAR(20)   NOT NULL CHECK (origen IN ('medico','paciente')),
+  nombre_archivo  VARCHAR(255),
+  url_pdf         TEXT,
+  descripcion     VARCHAR(500),
+  oculto_paciente BOOLEAN       NOT NULL DEFAULT FALSE,
+  created_at      TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at      TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Índices de optimización
+CREATE INDEX IF NOT EXISTS idx_historias_paciente  ON historias_clinicas(id_paciente);
+CREATE INDEX IF NOT EXISTS idx_historias_medico    ON historias_clinicas(id_medico);
+CREATE INDEX IF NOT EXISTS idx_historias_original  ON historias_clinicas(id_historia_original);
+CREATE INDEX IF NOT EXISTS idx_historias_tipo      ON historias_clinicas(tipo_registro);
+CREATE INDEX IF NOT EXISTS idx_docs_clinicos_pac   ON documentos_clinicos(id_paciente);
+CREATE INDEX IF NOT EXISTS idx_docs_clinicos_his   ON documentos_clinicos(id_historia);

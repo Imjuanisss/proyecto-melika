@@ -1,8 +1,13 @@
 // server/src/routes/medicosRoutes.js
+// MELIKA — Rutas de médicos
+// Monta en /medicos (admin) y en /medico (médico autenticado)
+// ─────────────────────────────────────────────────────────────────────────────
 
 const express = require('express');
 const router  = express.Router();
+
 const { verifyToken, isAdmin, isMedico } = require('../middleware/authMiddleware');
+
 const {
   crearMedico,
   activarCuenta,
@@ -15,30 +20,42 @@ const {
   crearFranja,
   listarFranjas,
   eliminarFranja,
-  gestionarCita,          // ← nueva función de gestión profesional
 } = require('../controllers/medicosController');
 
-// ── Pública — activar cuenta médico (no requiere token) ────────────────
+// gestionarCita vive en historiasController (centralizado junto al resto
+// de lógica clínica), pero se expone bajo /medico para que el dashboard
+// del médico pueda consumirlo sin prefijo /historias.
+const { gestionarCita } = require('../controllers/historiasController');
+
+// ── Pública — no requiere token ────────────────────────────────────────────
+// El médico activa su cuenta con el token de invitación que le envió el admin
 router.post('/activar', activarCuenta);
 
-// ── Admin — CRUD de médicos ────────────────────────────────────────────
+// ── Admin — requieren token + rol admin ───────────────────────────────────
 router.get('/',             verifyToken, isAdmin, listarMedicos);
 router.post('/',            verifyToken, isAdmin, crearMedico);
 router.put('/:id',          verifyToken, isAdmin, actualizarMedico);
 router.patch('/:id/estado', verifyToken, isAdmin, toggleEstadoMedico);
 
-// ── Médico autenticado — perfil, agenda, franjas ───────────────────────
-router.get('/perfil',        verifyToken, isMedico, perfilMedico);
-router.get('/agenda',        verifyToken, isMedico, agendaMedico);
-router.get('/agenda/rango',  verifyToken, isMedico, agendaRango);
-router.post('/franjas',      verifyToken, isMedico, crearFranja);
-router.get('/franjas',       verifyToken, isMedico, listarFranjas);
-router.delete('/franjas/:id',verifyToken, isMedico, eliminarFranja);
+// ── Médico autenticado ─────────────────────────────────────────────────────
 
-// ── Médico autenticado — gestión de estado de sus citas ────────────────
-// NOTA: La ruta usa /medico/ (no /medicos/) porque en server.js
-// app.use('/medico', medicosRoutes) apunta a este mismo router.
-// El médico llama a: PATCH /medico/citas/:id/gestionar
+// Perfil propio
+router.get('/perfil', verifyToken, isMedico, perfilMedico);
+
+// Agenda diaria y rango (FullCalendar)
+// ⚠️ CRÍTICO: las rutas estáticas van SIEMPRE antes de las rutas con :id
+router.get('/agenda/rango', verifyToken, isMedico, agendaRango);
+router.get('/agenda',       verifyToken, isMedico, agendaMedico);
+
+// ── Gestión de resultado de una cita ─────────────────────────────────────
+// El DashboardMedico llama: PATCH /medico/citas/:id/gestionar
+// con body { estado: 'completada' | 'no_asistio', notas_medicas: '...' }
 router.patch('/citas/:id/gestionar', verifyToken, isMedico, gestionarCita);
+
+// Franjas de disponibilidad
+// ⚠️ CRÍTICO: /franjas (sin :id) ANTES de /franjas/:id
+router.get('/franjas',        verifyToken, isMedico, listarFranjas);
+router.post('/franjas',       verifyToken, isMedico, crearFranja);
+router.delete('/franjas/:id', verifyToken, isMedico, eliminarFranja);
 
 module.exports = router;
