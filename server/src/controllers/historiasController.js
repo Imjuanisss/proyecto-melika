@@ -207,7 +207,7 @@ async function crearHistoria(req, res) {
 // ─── PUT /historias/:id — Actualizar historia clínica ─────────────────────────
 async function actualizarHistoria(req, res) {
   
-  
+
   const id_usuario = req.usuario.id;
   const { id }     = req.params; // id de la historia clínica principal
 
@@ -795,10 +795,9 @@ async function obtenerDocumentoClinco(req, res) {
 module.exports = {
   // Historias clínicas
   crearHistoria,
-  crearAclaracion,
+  actualizarHistoria, // <-- Corregido: antes decía crearAclaracion
   obtenerHistoria,
-  obtenerHistoriaCompleta,
-  historialPaciente,
+  historialPaciente,  // <-- Corregido: eliminamos obtenerHistoriaCompleta
   gestionarCita,
   // Documentos clínicos
   listarDocumentosClinicos,

@@ -18,9 +18,9 @@ const { verifyToken, isMedico, isPaciente } = require('../middleware/authMiddlew
 const {
   // Historias
   crearHistoria,
-  crearAclaracion,
+  actualizarHistoria, // <-- Corregido: antes era crearAclaracion
   obtenerHistoria,
-  obtenerHistoriaCompleta,
+  // obtenerHistoriaCompleta, <-- Eliminado porque ya no existe en el controlador
   historialPaciente,
   gestionarCita,
   // Documentos clínicos
@@ -48,14 +48,13 @@ router.get('/cita/:id_cita', verifyToken, obtenerHistoria);
 router.post('/', verifyToken, isMedico, crearHistoria);
 
 // GET /historias/:id/completa
-// Retorna historia con datos enriquecidos del paciente (para generar PDF).
-// La ruta dinámica /:id va DESPUÉS de las estáticas.
-router.get('/:id/completa', verifyToken, obtenerHistoriaCompleta);
+// Ruta deshabilitada temporalmente porque la función fue eliminada del controlador
+// router.get('/:id/completa', verifyToken, obtenerHistoriaCompleta);
 
-// POST /historias/:id/aclaracion
-// Agregar nota de aclaración o evolución (append-only — Ley 2015/2020).
-// Solo el médico autor de la historia principal puede crear aclaraciones.
-router.post('/:id/aclaracion', verifyToken, isMedico, crearAclaracion);
+// PUT /historias/:id
+// Actualizar historia clínica (Agregar nota de aclaración o evolución).
+// Corregido para coincidir con el controlador (actualizarHistoria)
+router.put('/:id', verifyToken, isMedico, actualizarHistoria);
 
 // PATCH /historias/gestionar-cita/:id
 // Alias de PATCH /medico/citas/:id/gestionar — centraliza la lógica aquí.

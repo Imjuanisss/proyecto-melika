@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@pdfslick/react": "^4.0.0",
+    "@react-pdf/renderer": "^4.5.1"
+  }
+}
