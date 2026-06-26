@@ -1,4 +1,7 @@
 // client/src/pages/dashboard-medico/DashboardMedico.jsx
+// MELIKA — Dashboard del Médico
+// Cambio v2: el mini-modal inline de historia (8 campos) fue reemplazado
+// por <ModalHistoriaClinica> (wizard 6 pasos, normativa colombiana completa).
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import FullCalendar      from '@fullcalendar/react';
@@ -8,21 +11,10 @@ import interactionPlugin from '@fullcalendar/interaction';
 import esLocale          from '@fullcalendar/core/locales/es';
 import { useAuth }       from '../../context/AuthContext';
 import { api }           from '../../lib/apiClient';
+import ModalHistoriaClinica from '../../components/historias/ModalHistoriaClinica';
 import './DashboardMedico.css';
 
-// ── Valor inicial del formulario de historia ────────────────────────────
-const HISTORIA_INICIAL = {
-  motivo_consulta:         '',
-  anamnesis:               '',
-  examen_fisico:           '',
-  diagnostico_cie10:       '',
-  descripcion_diagnostico: '',
-  plan_tratamiento:        '',
-  medicamentos_recetados:  '',
-  observaciones:           '',
-};
-
-// ── Valor inicial del modal de gestión de cita ──────────────────────────
+// ── Estado inicial del modal de gestión de cita ──────────────────────────────
 const GESTION_INICIAL = {
   estado:        'completada',
   notas_medicas: '',
@@ -40,34 +32,29 @@ export default function DashboardMedico() {
     new Date().toISOString().split('T')[0]
   );
 
-  // ── Citas del día ────────────────────────────────────────────────────
+  // ── Citas del día ─────────────────────────────────────────────────────────
   const [citasDia,   setCitasDia]   = useState([]);
   const [loadingDia, setLoadingDia] = useState(true);
   const [errorDia,   setErrorDia]   = useState(null);
 
-  // ── Franjas de disponibilidad ────────────────────────────────────────
+  // ── Franjas de disponibilidad ─────────────────────────────────────────────
   const [franjas,         setFranjas]         = useState([]);
   const [loadingFranjas,  setLoadingFranjas]  = useState(false);
   const [errorFranjas,    setErrorFranjas]    = useState(null);
   const [nuevaFranja,     setNuevaFranja]     = useState({ hora_inicio: '', hora_fin: '' });
   const [guardandoFranja, setGuardandoFranja] = useState(false);
 
-  // ── Modal historia clínica ───────────────────────────────────────────
-  const [modalHistoria, setModalHistoria] = useState(null);
-  const [historia,      setHistoria]      = useState(null);
-  const [formHistoria,  setFormHistoria]  = useState(HISTORIA_INICIAL);
-  const [modoEdicion,   setModoEdicion]   = useState(false);
-  const [guardandoHist, setGuardandoHist] = useState(false);
-  const [errorHist,     setErrorHist]     = useState(null);
-  const [loadingHist,   setLoadingHist]   = useState(false);
+  // ── Modal historia clínica — ahora usa <ModalHistoriaClinica> ─────────────
+  // Solo necesitamos guardar la cita seleccionada; el componente maneja todo lo demás.
+  const [citaHistoriaAbierta, setCitaHistoriaAbierta] = useState(null);
 
-  // ── Modal gestión de cita (NUEVO) ────────────────────────────────────
-  const [modalGestion,     setModalGestion]     = useState(null); // cita completa
+  // ── Modal gestión de cita ─────────────────────────────────────────────────
+  const [modalGestion,     setModalGestion]     = useState(null);
   const [formGestion,      setFormGestion]      = useState(GESTION_INICIAL);
   const [guardandoGestion, setGuardandoGestion] = useState(false);
   const [errorGestion,     setErrorGestion]     = useState(null);
 
-  // ── Cargar franjas (memoizado) ───────────────────────────────────────
+  // ── Cargar franjas (memoizado) ────────────────────────────────────────────
   const cargarFranjas = useCallback(() => {
     setLoadingFranjas(true);
     setErrorFranjas(null);
@@ -77,7 +64,7 @@ export default function DashboardMedico() {
       .finally(() => setLoadingFranjas(false));
   }, [fechaSeleccionada]);
 
-  // ── Cargar agenda del día ────────────────────────────────────────────
+  // ── Cargar agenda del día ─────────────────────────────────────────────────
   const cargarAgenda = useCallback(() => {
     setLoadingDia(true);
     setErrorDia(null);
@@ -87,7 +74,7 @@ export default function DashboardMedico() {
       .finally(() => setLoadingDia(false));
   }, [fechaSeleccionada]);
 
-  // ── Efecto: cargar citas o franjas según vista activa ───────────────
+  // ── Efecto: cargar citas o franjas según vista activa ────────────────────
   useEffect(() => {
     if (vistaActiva === 'agenda') {
       cargarAgenda();
@@ -96,7 +83,7 @@ export default function DashboardMedico() {
     }
   }, [fechaSeleccionada, vistaActiva, cargarAgenda, cargarFranjas]);
 
-  // ── Handlers del calendario ─────────────────────────────────────────
+  // ── Handlers del calendario ───────────────────────────────────────────────
   function handleDateClick(info)  { setFechaSeleccionada(info.dateStr); }
   function handleEventClick(info) { setFechaSeleccionada(info.event.startStr.split('T')[0]); }
 
@@ -108,7 +95,7 @@ export default function DashboardMedico() {
       .catch(() => failureCallback());
   }
 
-  // ── Crear franja ─────────────────────────────────────────────────────
+  // ── Crear franja ──────────────────────────────────────────────────────────
   async function handleCrearFranja(e) {
     e.preventDefault();
     if (!nuevaFranja.hora_inicio || !nuevaFranja.hora_fin) return;
@@ -130,7 +117,7 @@ export default function DashboardMedico() {
     }
   }
 
-  // ── Eliminar franja ──────────────────────────────────────────────────
+  // ── Eliminar franja ───────────────────────────────────────────────────────
   async function handleEliminarFranja(id) {
     if (!window.confirm('¿Eliminar esta franja de disponibilidad?')) return;
     try {
@@ -142,7 +129,7 @@ export default function DashboardMedico() {
     }
   }
 
-  // ── Abrir modal historia clínica ─────────────────────────────────────
+  // ── Abrir / cerrar ModalHistoriaClinica ──────────────────────────────────
   function abrirHistoria(cita) {
     setModalHistoria(cita);
     setHistoria(null);
@@ -163,7 +150,7 @@ export default function DashboardMedico() {
             diagnostico_cie10:       h.diagnostico_cie10       || '',
             descripcion_diagnostico: h.descripcion_diagnostico || '',
             plan_tratamiento:        h.plan_tratamiento        || '',
-            medicamentos_recetados:  medsTexto                 || '',
+            medicamentos_recetados:  h.medicamentos_recetados  || '',
             observaciones:           h.observaciones           || '',
           });
         } else {
@@ -175,54 +162,27 @@ export default function DashboardMedico() {
   }
 
   function cerrarHistoria() {
-    setModalHistoria(null);
-    setHistoria(null);
-    setFormHistoria(HISTORIA_INICIAL);
-    setModoEdicion(false);
-    setErrorHist(null);
+    setCitaHistoriaAbierta(null);
   }
 
-  // ── Guardar / actualizar historia ────────────────────────────────────
-  async function handleGuardarHistoria() {
-    if (!formHistoria.motivo_consulta.trim()) {
-      setErrorHist('El motivo de consulta es obligatorio.');
-      return;
-    }
-    setGuardandoHist(true);
-    setErrorHist(null);
-
-    try {
-      if (historia) {
-        const res = await api.put(`/historias/${historia.id}`, formHistoria);
-        setHistoria(res.historia);
-      } else {
-        const res = await api.post('/historias', {
-          ...formHistoria,
-          id_cita: modalHistoria.id,
-        });
-        setHistoria(res.historia);
-        setCitasDia(prev =>
-          prev.map(c =>
-            c.id === modalHistoria.id ? { ...c, historia_id: res.historia?.id } : c
-          )
-        );
-      }
-      setModoEdicion(false);
-    } catch (err) {
-      setErrorHist(err.message);
-    } finally {
-      setGuardandoHist(false);
-    }
+  // Callback que se dispara cuando el médico guarda una historia nueva.
+  // Actualiza el indicador de historia en la lista de citas del día
+  // sin necesitar un refetch completo.
+  function alGuardarHistoria(historiaGuardada) {
+    if (!historiaGuardada?.id_cita) return;
+    setCitasDia(prev =>
+      prev.map(c =>
+        c.id === historiaGuardada.id_cita
+          ? { ...c, historia_id: historiaGuardada.id }
+          : c
+      )
+    );
   }
 
-  // ── Abrir modal gestión de cita ───────────────────────────────────────
-  // Pre-carga el estado ACTUAL de la cita para que el médico vea qué
-  // tiene registrado y pueda corregirlo si es necesario.
+  // ── Abrir modal gestión de cita ───────────────────────────────────────────
   function abrirGestion(cita) {
     setModalGestion(cita);
     setFormGestion({
-      // Si la cita está pendiente (sin estado final), defaultear a completada.
-      // Si ya tiene un estado final, mostrarlo seleccionado para posible corrección.
       estado:        cita.estado === 'pendiente' ? 'completada' : cita.estado,
       notas_medicas: cita.notas_medicas || '',
     });
@@ -235,7 +195,7 @@ export default function DashboardMedico() {
     setErrorGestion(null);
   }
 
-  // ── Confirmar gestión de cita (NUEVO) ────────────────────────────────
+  // ── Confirmar gestión de cita ─────────────────────────────────────────────
   async function handleConfirmarGestion() {
     if (!formGestion.estado) return;
     setGuardandoGestion(true);
@@ -247,7 +207,6 @@ export default function DashboardMedico() {
         notas_medicas: formGestion.notas_medicas.trim() || null,
       });
 
-      // Actualizar la cita en la lista local sin recargar
       setCitasDia(prev =>
         prev.map(c =>
           c.id === modalGestion.id
@@ -256,9 +215,7 @@ export default function DashboardMedico() {
         )
       );
 
-      // Refrescar colores del calendario
       calendarRef.current?.getApi().refetchEvents();
-
       cerrarGestion();
     } catch (err) {
       setErrorGestion(err.message || 'Error al gestionar la cita.');
@@ -267,11 +224,12 @@ export default function DashboardMedico() {
     }
   }
 
-  // ── Helpers de formato ───────────────────────────────────────────────
+  // ── Helpers de formato ────────────────────────────────────────────────────
   function formatFecha(fechaStr) {
     if (!fechaStr) return '';
-    const f = new Date(fechaStr + 'T00:00:00');
-    return f.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' });
+    return new Date(fechaStr + 'T00:00:00').toLocaleDateString('es-CO', {
+      weekday: 'long', day: 'numeric', month: 'long',
+    });
   }
 
   function formatHora(horaStr) {
@@ -279,13 +237,11 @@ export default function DashboardMedico() {
     return horaStr.substring(0, 5);
   }
 
-  // El médico puede gestionar cualquier cita que no esté cancelada.
-  // Esto incluye correcciones sobre citas ya completadas o no_asistio.
   function citaEsGestionable(cita) {
     return cita.estado !== 'cancelada';
   }
 
-  // ── Render ───────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <main className="dashboard-medico">
       <div className="contenedor">
@@ -319,7 +275,7 @@ export default function DashboardMedico() {
 
         <div className="dashboard-medico__grid">
 
-          {/* ── Calendario ────────────────────────────────────────────── */}
+          {/* ── Calendario ──────────────────────────────────────────────── */}
           <div className="panel-calendario">
             <h2 className="panel-calendario__titulo">Calendario</h2>
             <FullCalendar
@@ -341,7 +297,7 @@ export default function DashboardMedico() {
             />
           </div>
 
-          {/* ── VISTA: Agenda del día ──────────────────────────────────── */}
+          {/* ── VISTA: Agenda del día ────────────────────────────────────── */}
           {vistaActiva === 'agenda' && (
             <div className="panel-agenda">
               <div className="panel-agenda__cabecera">
@@ -364,7 +320,7 @@ export default function DashboardMedico() {
                   {citasDia.map(cita => (
                     <div key={cita.id} className={`agenda-item agenda-item--${cita.estado}`}>
 
-                      {/* Encabezado: hora + badge de estado */}
+                      {/* Hora + badge de estado */}
                       <div className="agenda-item__encabezado">
                         <span className="agenda-item__hora">{formatHora(cita.hora_inicio)}</span>
                         <span className={`agenda-item__badge agenda-badge--${cita.estado}`}>
@@ -394,7 +350,7 @@ export default function DashboardMedico() {
                       {/* Botones de acción */}
                       {cita.estado !== 'cancelada' && (
                         <div className="agenda-item__acciones">
-                          {/* Botón historia clínica */}
+                          {/* Historia clínica — abre ModalHistoriaClinica completo */}
                           <button
                             className="agenda-item__btn-historia"
                             onClick={() => abrirHistoria(cita)}
@@ -402,7 +358,7 @@ export default function DashboardMedico() {
                             {cita.historia_id ? '📄 Ver historia' : '📝 Historia clínica'}
                           </button>
 
-                          {/* Botón gestionar — solo si la cita aún es gestionable */}
+                          {/* Gestionar cita */}
                           {citaEsGestionable(cita) && (
                             <button
                               className="agenda-item__btn-gestionar"
@@ -421,7 +377,7 @@ export default function DashboardMedico() {
             </div>
           )}
 
-          {/* ── VISTA: Disponibilidad ──────────────────────────────────── */}
+          {/* ── VISTA: Disponibilidad ────────────────────────────────────── */}
           {vistaActiva === 'disponibilidad' && (
             <div className="panel-agenda">
               <div className="panel-agenda__cabecera">
@@ -506,11 +462,27 @@ export default function DashboardMedico() {
         </div>
       </div>
 
-      {/* ══════════════════════════════════════════════════════════════
-          MODAL: GESTIÓN DE CITA (NUEVO)
-          Permite al médico marcar como completada o no asistida,
-          y añadir notas médicas de cierre.
-      ══════════════════════════════════════════════════════════════ */}
+      {/* ══════════════════════════════════════════════════════════════════════
+          MODAL: HISTORIA CLÍNICA COMPLETA (wizard 6 pasos, normativa colombiana)
+          Reemplaza el mini-modal inline que tenía 8 campos solamente.
+          ModalHistoriaClinica maneja internamente:
+            - Carga de datos existentes
+            - Formulario wizard por pasos
+            - Generación de PDF con PlantillaHistoriaPDF
+            - Lógica de aclaraciones (append-only, Ley 2015/2020)
+      ══════════════════════════════════════════════════════════════════════ */}
+      {citaHistoriaAbierta && (
+        <ModalHistoriaClinica
+          cita={citaHistoriaAbierta}
+          onCerrar={cerrarHistoria}
+          onGuardada={alGuardarHistoria}
+        />
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          MODAL: GESTIÓN DE CITA
+          Sin cambios respecto a la versión anterior.
+      ══════════════════════════════════════════════════════════════════════ */}
       {modalGestion && (
         <div className="modal-overlay" onClick={cerrarGestion}>
           <div className="modal-gestion" onClick={e => e.stopPropagation()}>
@@ -534,24 +506,23 @@ export default function DashboardMedico() {
 
             {errorGestion && <div className="historia-error">{errorGestion}</div>}
 
-            {/* Selector de resultado */}
             <div className="modal-gestion__opciones">
               <p className="modal-gestion__label">
                 {modalGestion.estado === 'pendiente'
                   ? '¿Cuál fue el resultado de esta consulta?'
                   : 'Corregir el registro — estado actual: '}
                 {modalGestion.estado !== 'pendiente' && (
-                  <span className={`agenda-badge--${modalGestion.estado}`}
-                        style={{ padding: '2px 8px', borderRadius: '20px', fontSize: '0.72rem', fontWeight: 700 }}>
+                  <span
+                    className={`agenda-badge--${modalGestion.estado}`}
+                    style={{ padding: '2px 8px', borderRadius: '20px', fontSize: '0.72rem', fontWeight: 700 }}
+                  >
                     {modalGestion.estado === 'completada' ? '✓ Completada' : 'No asistió'}
                   </span>
                 )}
               </p>
 
               <div className="modal-gestion__radio-grupo">
-                <label
-                  className={`radio-opcion ${formGestion.estado === 'completada' ? 'radio-opcion--activa' : ''}`}
-                >
+                <label className={`radio-opcion ${formGestion.estado === 'completada' ? 'radio-opcion--activa' : ''}`}>
                   <input
                     type="radio"
                     name="estado_gestion"
@@ -566,9 +537,7 @@ export default function DashboardMedico() {
                   </div>
                 </label>
 
-                <label
-                  className={`radio-opcion ${formGestion.estado === 'no_asistio' ? 'radio-opcion--activa' : ''}`}
-                >
+                <label className={`radio-opcion ${formGestion.estado === 'no_asistio' ? 'radio-opcion--activa' : ''}`}>
                   <input
                     type="radio"
                     name="estado_gestion"
@@ -585,26 +554,21 @@ export default function DashboardMedico() {
               </div>
             </div>
 
-            {/* Notas médicas — disponibles en ambos estados para corrección */}
-            {(formGestion.estado === 'completada' || formGestion.estado === 'no_asistio') && (
-              <div className="modal-gestion__notas">
-                <label className="modal-gestion__label">
-                  Notas de cierre <span className="modal-gestion__opcional">(opcional)</span>
-                </label>
-                <textarea
-                  className="historia-textarea"
-                  rows={3}
-                  placeholder="Observaciones breves para el registro de la consulta…"
-                  value={formGestion.notas_medicas}
-                  onChange={e => setFormGestion(p => ({ ...p, notas_medicas: e.target.value }))}
-                />
-              </div>
-            )}
+            {/* Notas médicas opcionales */}
+            <div className="modal-gestion__notas">
+              <label className="modal-gestion__label">Notas de cierre (opcional)</label>
+              <textarea
+                className="modal-gestion__textarea"
+                rows={3}
+                placeholder="Observaciones de cierre de la cita…"
+                value={formGestion.notas_medicas}
+                onChange={e => setFormGestion(p => ({ ...p, notas_medicas: e.target.value }))}
+              />
+            </div>
 
-            {/* Acciones */}
             <div className="modal-gestion__acciones">
               <button
-                className="btn-gestion-cancelar"
+                className="btn-editar-historia"
                 onClick={cerrarGestion}
                 disabled={guardandoGestion}
               >
@@ -623,167 +587,6 @@ export default function DashboardMedico() {
               </button>
             </div>
 
-          </div>
-        </div>
-      )}
-
-      {/* ══════════════════════════════════════════════════════════════
-          MODAL: HISTORIA CLÍNICA (sin cambios respecto al original)
-      ══════════════════════════════════════════════════════════════ */}
-      {modalHistoria && (
-        <div className="modal-overlay" onClick={cerrarHistoria}>
-          <div className="modal-historia" onClick={e => e.stopPropagation()}>
-
-            <div className="modal-historia__cabecera">
-              <div>
-                <h3>Historia clínica</h3>
-                <p className="modal-historia__meta">
-                  Paciente: {modalHistoria.paciente_nombre} {modalHistoria.paciente_apellido}
-                </p>
-                <p className="modal-historia__meta">
-                  Cita: {formatFecha(fechaSeleccionada)} · {formatHora(modalHistoria.hora_inicio)}
-                </p>
-                {historia?.updated_at && (
-                  <p className="modal-historia__meta">
-                    Última edición: {new Date(historia.updated_at).toLocaleString('es-CO')}
-                  </p>
-                )}
-              </div>
-              <button className="btn-cerrar" onClick={cerrarHistoria}>✕</button>
-            </div>
-
-            {errorHist && <div className="historia-error">{errorHist}</div>}
-
-            {loadingHist ? (
-              <div className="agenda-skeleton" style={{ height: '200px' }} />
-            ) : (
-              <>
-                <div className="historia-campo">
-                  <label>Motivo de consulta <span className="historia-campo__requerido">*</span></label>
-                  <textarea
-                    className="historia-textarea"
-                    rows={3}
-                    value={formHistoria.motivo_consulta}
-                    onChange={e => setFormHistoria(p => ({ ...p, motivo_consulta: e.target.value }))}
-                    disabled={!modoEdicion}
-                    placeholder="Describa el motivo principal de la consulta…"
-                  />
-                </div>
-
-                <div className="historia-campo">
-                  <label>Anamnesis</label>
-                  <textarea
-                    className="historia-textarea"
-                    rows={3}
-                    value={formHistoria.anamnesis}
-                    onChange={e => setFormHistoria(p => ({ ...p, anamnesis: e.target.value }))}
-                    disabled={!modoEdicion}
-                    placeholder="Historia de la enfermedad actual…"
-                  />
-                </div>
-
-                <div className="historia-campo">
-                  <label>Examen físico</label>
-                  <textarea
-                    className="historia-textarea"
-                    rows={2}
-                    value={formHistoria.examen_fisico}
-                    onChange={e => setFormHistoria(p => ({ ...p, examen_fisico: e.target.value }))}
-                    disabled={!modoEdicion}
-                    placeholder="Hallazgos del examen físico…"
-                  />
-                </div>
-
-                <div className="historia-grid-2col">
-                  <div className="historia-campo">
-                    <label>CIE-10</label>
-                    <textarea
-                      className="historia-textarea"
-                      rows={2}
-                      value={formHistoria.diagnostico_cie10}
-                      onChange={e => setFormHistoria(p => ({ ...p, diagnostico_cie10: e.target.value }))}
-                      disabled={!modoEdicion}
-                      placeholder="Ej: J00"
-                    />
-                  </div>
-                  <div className="historia-campo">
-                    <label>Descripción diagnóstico</label>
-                    <textarea
-                      className="historia-textarea"
-                      rows={2}
-                      value={formHistoria.descripcion_diagnostico}
-                      onChange={e => setFormHistoria(p => ({ ...p, descripcion_diagnostico: e.target.value }))}
-                      disabled={!modoEdicion}
-                      placeholder="Nombre y detalle del diagnóstico…"
-                    />
-                  </div>
-                </div>
-
-                <div className="historia-campo">
-                  <label>Plan de tratamiento</label>
-                  <textarea
-                    className="historia-textarea"
-                    rows={2}
-                    value={formHistoria.plan_tratamiento}
-                    onChange={e => setFormHistoria(p => ({ ...p, plan_tratamiento: e.target.value }))}
-                    disabled={!modoEdicion}
-                    placeholder="Tratamiento indicado, conducta a seguir…"
-                  />
-                </div>
-
-                <div className="historia-campo">
-                  <label>Medicamentos recetados</label>
-                  <textarea
-                    className="historia-textarea"
-                    rows={2}
-                    value={formHistoria.medicamentos_recetados}
-                    onChange={e => setFormHistoria(p => ({ ...p, medicamentos_recetados: e.target.value }))}
-                    disabled={!modoEdicion}
-                    placeholder="Nombre, dosis y posología…"
-                  />
-                </div>
-
-                <div className="historia-campo">
-                  <label>Observaciones</label>
-                  <textarea
-                    className="historia-textarea"
-                    rows={2}
-                    value={formHistoria.observaciones}
-                    onChange={e => setFormHistoria(p => ({ ...p, observaciones: e.target.value }))}
-                    disabled={!modoEdicion}
-                    placeholder="Notas adicionales…"
-                  />
-                </div>
-
-                <div className="historia-acciones">
-                  {historia && !modoEdicion ? (
-                    <button className="btn-editar-historia" onClick={() => setModoEdicion(true)}>
-                      ✏️ Editar historia
-                    </button>
-                  ) : (
-                    <>
-                      {historia && (
-                        <button
-                          className="btn-editar-historia"
-                          onClick={() => { setModoEdicion(false); setErrorHist(null); }}
-                        >
-                          Cancelar
-                        </button>
-                      )}
-                      <button
-                        className="btn-guardar-historia"
-                        disabled={guardandoHist || !formHistoria.motivo_consulta.trim()}
-                        onClick={handleGuardarHistoria}
-                      >
-                        {guardandoHist
-                          ? 'Guardando…'
-                          : historia ? 'Actualizar historia' : 'Guardar historia'}
-                      </button>
-                    </>
-                  )}
-                </div>
-              </>
-            )}
           </div>
         </div>
       )}

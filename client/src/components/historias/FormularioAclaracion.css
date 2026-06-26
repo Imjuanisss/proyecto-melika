@@ -1,0 +1,652 @@
+/* client/src/components/historias/FormularioAclaracion.css
+   MELIKA — Modal Formulario de Aclaración / Nota de Evolución
+   Glassmorphism · Variables CSS globales · Sin Tailwind ni librerías externas
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ════════════════════════════════════════════════════════════════════════════
+   1. OVERLAY Y MODAL BASE
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.fa-overlay {
+  position:        fixed;
+  inset:           0;
+  z-index:         1100;
+  background:      rgba(11, 26, 54, 0.72);
+  backdrop-filter: blur(6px);
+  display:         flex;
+  align-items:     flex-start;
+  justify-content: center;
+  padding:         var(--space-6) var(--space-4);
+  overflow-y:      auto;
+  animation:       fa-fade-in 0.22s var(--ease-smooth);
+}
+
+@keyframes fa-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.fa-modal {
+  width:            100%;
+  max-width:        780px;
+  background:       var(--melika-bg);
+  border:           1px solid var(--melika-primary-100);
+  border-radius:    var(--radius-2xl);
+  box-shadow:       0 24px 64px rgba(11, 26, 54, 0.28), 0 4px 16px rgba(11, 26, 54, 0.12);
+  display:          flex;
+  flex-direction:   column;
+  overflow:         hidden;
+  animation:        fa-slide-in 0.28s var(--ease-smooth);
+}
+
+@keyframes fa-slide-in {
+  from { transform: translateY(24px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   2. CABECERA
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.fa-cabecera {
+  display:          flex;
+  justify-content:  space-between;
+  align-items:      flex-start;
+  gap:              var(--space-4);
+  padding:          var(--space-5) var(--space-6);
+  background:       linear-gradient(135deg, var(--melika-primary-700) 0%, var(--melika-primary-900) 100%);
+  border-bottom:    1px solid var(--melika-primary-600);
+}
+
+.fa-cabecera__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.fa-titulo {
+  font-family:   var(--font-display);
+  font-size:     20px;
+  font-weight:   700;
+  color:         #ffffff;
+  margin:        0 0 var(--space-1);
+}
+
+.fa-subtitulo {
+  font-size: 13px;
+  color:     rgba(255, 255, 255, 0.72);
+  margin:    0;
+}
+
+.fa-cerrar {
+  width:         36px;
+  height:        36px;
+  border:        1px solid rgba(255, 255, 255, 0.24);
+  border-radius: var(--radius-full);
+  background:    rgba(255, 255, 255, 0.1);
+  color:         #ffffff;
+  font-size:     16px;
+  cursor:        pointer;
+  flex-shrink:   0;
+  display:       flex;
+  align-items:   center;
+  justify-content: center;
+  transition:    background var(--duration-fast) var(--ease-smooth);
+}
+
+.fa-cerrar:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.fa-cerrar:disabled {
+  opacity: 0.4;
+  cursor:  not-allowed;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   3. INDICADOR DE PASOS
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.fa-pasos {
+  display:          flex;
+  align-items:      center;
+  gap:              0;
+  padding:          var(--space-4) var(--space-6);
+  background:       var(--melika-bg-secondary);
+  border-bottom:    1px solid var(--melika-primary-100);
+  overflow-x:       auto;
+}
+
+.fa-paso {
+  display:        flex;
+  align-items:    center;
+  gap:            var(--space-2);
+  flex:           1;
+  position:       relative;
+  padding-right:  var(--space-3);
+}
+
+/* Línea conectora entre pasos */
+.fa-paso:not(:last-child)::after {
+  content:          '';
+  display:          block;
+  height:           1px;
+  flex:             1;
+  background:       var(--melika-primary-200);
+  margin-left:      var(--space-2);
+}
+
+.fa-paso--completado:not(:last-child)::after {
+  background: var(--melika-accent);
+}
+
+.fa-paso__num {
+  width:            24px;
+  height:           24px;
+  border-radius:    var(--radius-full);
+  background:       var(--melika-primary-100);
+  color:            var(--melika-primary-400);
+  font-size:        11px;
+  font-weight:      700;
+  display:          flex;
+  align-items:      center;
+  justify-content:  center;
+  flex-shrink:      0;
+  transition:       all var(--duration-fast) var(--ease-smooth);
+}
+
+.fa-paso--activo .fa-paso__num {
+  background: var(--melika-accent);
+  color:      #ffffff;
+  box-shadow: 0 0 0 3px rgba(232, 133, 106, 0.28);
+}
+
+.fa-paso--completado .fa-paso__num {
+  background: var(--melika-success, #1A7A52);
+  color:      #ffffff;
+}
+
+.fa-paso__nombre {
+  font-size:   11px;
+  font-weight: 600;
+  color:       var(--melika-text-muted);
+  white-space: nowrap;
+  transition:  color var(--duration-fast) var(--ease-smooth);
+}
+
+.fa-paso--activo .fa-paso__nombre {
+  color: var(--melika-text-primary);
+}
+
+.fa-paso--completado .fa-paso__nombre {
+  color: var(--melika-success, #1A7A52);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   4. MENSAJES DE ESTADO
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.fa-exito {
+  display:       flex;
+  align-items:   center;
+  gap:           var(--space-3);
+  margin:        var(--space-4) var(--space-6) 0;
+  padding:       var(--space-4);
+  background:    var(--melika-success-bg, #D1FAE5);
+  border:        1px solid var(--melika-success, #1A7A52);
+  border-radius: var(--radius-md);
+}
+
+.fa-exito span {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.fa-exito p {
+  font-size:   14px;
+  font-weight: 600;
+  color:       var(--melika-success, #1A7A52);
+  margin:      0;
+}
+
+.fa-error {
+  display:       flex;
+  align-items:   flex-start;
+  gap:           var(--space-3);
+  margin:        var(--space-4) var(--space-6) 0;
+  padding:       var(--space-4);
+  background:    var(--melika-danger-bg, #FEE2E2);
+  border:        1px solid var(--melika-danger, #DC2626);
+  border-radius: var(--radius-md);
+}
+
+.fa-error span { font-size: 20px; flex-shrink: 0; }
+.fa-error p {
+  font-size:   14px;
+  color:       var(--melika-danger, #DC2626);
+  margin:      0;
+  line-height: 1.5;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   5. FORMULARIO Y SECCIONES
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.fa-form {
+  display:        flex;
+  flex-direction: column;
+  flex:           1;
+  min-height:     0;
+}
+
+.fa-seccion {
+  padding:    var(--space-5) var(--space-6);
+  overflow-y: auto;
+  flex:       1;
+}
+
+.fa-seccion__titulo {
+  display:         flex;
+  align-items:     center;
+  gap:             var(--space-3);
+  font-family:     var(--font-display);
+  font-size:       13px;
+  font-weight:     700;
+  color:           var(--melika-primary-700);
+  text-transform:  uppercase;
+  letter-spacing:  0.06em;
+  margin-bottom:   var(--space-4);
+  padding-bottom:  var(--space-3);
+  border-bottom:   2px solid var(--melika-primary-100);
+}
+
+.fa-seccion__titulo span {
+  display:          inline-flex;
+  align-items:      center;
+  justify-content:  center;
+  width:            24px;
+  height:           24px;
+  border-radius:    var(--radius-full);
+  background:       var(--melika-primary-700);
+  color:            #ffffff;
+  font-size:        11px;
+  flex-shrink:      0;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   6. CAMPOS DE FORMULARIO
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.fa-campo {
+  display:        flex;
+  flex-direction: column;
+  gap:            var(--space-1);
+  margin-bottom:  var(--space-4);
+}
+
+.fa-campo__label {
+  font-size:      12px;
+  font-weight:    700;
+  color:          var(--melika-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.fa-campo__req {
+  color:       var(--melika-accent);
+  margin-left: var(--space-1);
+}
+
+.fa-campo__input,
+.fa-campo__textarea {
+  width:            100%;
+  padding:          var(--space-3) var(--space-4);
+  font-family:      var(--font-body);
+  font-size:        14px;
+  color:            var(--melika-text-primary);
+  background:       var(--melika-bg-secondary);
+  border:           1.5px solid var(--melika-primary-200);
+  border-radius:    var(--radius-md);
+  outline:          none;
+  transition:       border-color var(--duration-fast) var(--ease-smooth),
+                    box-shadow   var(--duration-fast) var(--ease-smooth);
+  box-sizing:       border-box;
+}
+
+.fa-campo__input:focus,
+.fa-campo__textarea:focus {
+  border-color: var(--melika-accent);
+  box-shadow:   0 0 0 3px rgba(232, 133, 106, 0.18);
+}
+
+.fa-campo__textarea {
+  resize:    vertical;
+  min-height: 72px;
+  line-height: 1.6;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   7. GRID DE 2 COLUMNAS
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.fa-grid-2 {
+  display:               grid;
+  grid-template-columns: 1fr 1fr;
+  gap:                   0 var(--space-4);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   8. TIPO DE NOTA — RADIO BUTTONS
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.fa-radio-grupo {
+  display: flex;
+  gap:     var(--space-3);
+  flex-wrap: wrap;
+}
+
+.fa-radio {
+  display:        flex;
+  align-items:    center;
+  gap:            var(--space-2);
+  padding:        var(--space-2) var(--space-4);
+  border:         1.5px solid var(--melika-primary-200);
+  border-radius:  var(--radius-full);
+  font-size:      13px;
+  font-weight:    600;
+  color:          var(--melika-text-secondary);
+  cursor:         pointer;
+  background:     var(--melika-bg-secondary);
+  transition:     all var(--duration-fast) var(--ease-smooth);
+  user-select:    none;
+}
+
+.fa-radio input[type="radio"] {
+  display: none;
+}
+
+.fa-radio--activo {
+  background:   var(--melika-primary-50);
+  border-color: var(--melika-primary-600);
+  color:        var(--melika-primary-700);
+  box-shadow:   0 0 0 3px rgba(30, 58, 110, 0.12);
+}
+
+.fa-radio:hover:not(.fa-radio--activo) {
+  border-color: var(--melika-primary-400);
+  background:   var(--melika-primary-50);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   9. SIGNOS VITALES GRID
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.fa-signos-grid {
+  display:               grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap:                   var(--space-3);
+  margin-bottom:         var(--space-5);
+  padding:               var(--space-4);
+  background:            var(--melika-primary-50);
+  border:                1px solid var(--melika-primary-100);
+  border-radius:         var(--radius-lg);
+}
+
+.fa-signo {
+  display:        flex;
+  flex-direction: column;
+  gap:            var(--space-1);
+}
+
+/* Preview del IMC calculado */
+.fa-imc-preview {
+  display:          flex;
+  flex-direction:   column;
+  align-items:      center;
+  justify-content:  center;
+  gap:              2px;
+  background:       #EDE9FE;
+  border:           1px solid #A78BFA;
+  border-radius:    var(--radius-md);
+  padding:          var(--space-3);
+}
+
+.fa-imc-preview__label {
+  font-size:   10px;
+  font-weight: 700;
+  color:       #6D28D9;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.fa-imc-preview__valor {
+  font-family: var(--font-display);
+  font-size:   22px;
+  font-weight: 800;
+  color:       #4C1D95;
+}
+
+.fa-imc-preview__unidad {
+  font-size: 11px;
+  color:     #7C3AED;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   10. CIERRE LEGAL
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.fa-cierre-aviso {
+  display:       flex;
+  align-items:   flex-start;
+  gap:           var(--space-3);
+  padding:       var(--space-4);
+  background:    #FFFBEB;
+  border:        1px solid #FCD34D;
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-5);
+}
+
+.fa-cierre-aviso span { font-size: 20px; flex-shrink: 0; }
+.fa-cierre-aviso p {
+  font-size:   13px;
+  color:       #92400E;
+  margin:      0;
+  line-height: 1.5;
+}
+
+/* Vista previa de la firma */
+.fa-firma-preview {
+  display:        flex;
+  flex-direction: column;
+  align-items:    flex-end;
+  gap:            var(--space-1);
+  margin-top:     var(--space-4);
+  padding:        var(--space-4);
+  background:     var(--melika-bg-secondary);
+  border:         1px solid var(--melika-primary-100);
+  border-radius:  var(--radius-md);
+}
+
+.fa-firma-preview__linea {
+  width:             140px;
+  height:            1px;
+  background:        var(--melika-primary-400);
+  margin-bottom:     var(--space-2);
+}
+
+.fa-firma-preview__nombre {
+  font-family: var(--font-display);
+  font-size:   14px;
+  font-weight: 700;
+  color:       var(--melika-text-primary);
+  margin:      0;
+}
+
+.fa-firma-preview__dato {
+  font-size: 12px;
+  color:     var(--melika-text-muted);
+  margin:    0;
+}
+
+.fa-firma-preview__tipo {
+  font-size:   11px;
+  font-weight: 700;
+  color:       var(--melika-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-top:  var(--space-1);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   11. NAVEGACIÓN ENTRE PASOS
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.fa-navegacion {
+  display:          flex;
+  justify-content:  space-between;
+  align-items:      center;
+  padding:          var(--space-4) var(--space-6);
+  border-top:       1px solid var(--melika-primary-100);
+  background:       var(--melika-bg-secondary);
+  gap:              var(--space-3);
+  flex-shrink:      0;
+}
+
+.fa-navegacion__izq,
+.fa-navegacion__der {
+  display: flex;
+  gap:     var(--space-3);
+}
+
+.fa-btn {
+  display:          inline-flex;
+  align-items:      center;
+  gap:              var(--space-2);
+  padding:          var(--space-3) var(--space-5);
+  border-radius:    var(--radius-md);
+  font-family:      var(--font-display);
+  font-size:        13px;
+  font-weight:      700;
+  cursor:           pointer;
+  border:           1.5px solid transparent;
+  transition:       all var(--duration-fast) var(--ease-smooth);
+  white-space:      nowrap;
+}
+
+.fa-btn:disabled {
+  opacity: 0.5;
+  cursor:  not-allowed;
+}
+
+.fa-btn--ghost {
+  background:   transparent;
+  border-color: var(--melika-primary-200);
+  color:        var(--melika-text-secondary);
+}
+
+.fa-btn--ghost:hover:not(:disabled) {
+  background:   var(--melika-primary-50);
+  border-color: var(--melika-primary-400);
+  color:        var(--melika-text-primary);
+}
+
+.fa-btn--secundario {
+  background:   var(--melika-bg);
+  border-color: var(--melika-primary-300);
+  color:        var(--melika-primary-700);
+}
+
+.fa-btn--secundario:hover:not(:disabled) {
+  background:   var(--melika-primary-50);
+}
+
+.fa-btn--primario {
+  background:   var(--melika-primary-700);
+  border-color: var(--melika-primary-700);
+  color:        #ffffff;
+}
+
+.fa-btn--primario:hover:not(:disabled) {
+  background:   var(--melika-primary-800, #0f2a54);
+}
+
+.fa-btn--guardar {
+  background:   var(--melika-accent);
+  border-color: var(--melika-accent);
+  color:        #ffffff;
+  padding:      var(--space-3) var(--space-6);
+}
+
+.fa-btn--guardar:hover:not(:disabled) {
+  background:   #d4714f;
+  border-color: #d4714f;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   12. SPINNER DE CARGA
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.fa-spinner {
+  display:       inline-block;
+  width:         14px;
+  height:        14px;
+  border:        2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #ffffff;
+  border-radius: var(--radius-full);
+  animation:     fa-spin 0.7s linear infinite;
+  flex-shrink:   0;
+}
+
+@keyframes fa-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   13. RESPONSIVE
+   ════════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 640px) {
+  .fa-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .fa-modal {
+    max-width:     100%;
+    max-height:    96vh;
+    border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+  }
+
+  .fa-grid-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .fa-pasos {
+    gap: var(--space-1);
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .fa-paso__nombre {
+    display: none;
+  }
+
+  .fa-cabecera {
+    padding: var(--space-4);
+  }
+
+  .fa-titulo {
+    font-size: 17px;
+  }
+
+  .fa-seccion {
+    padding: var(--space-4);
+  }
+
+  .fa-navegacion {
+    padding: var(--space-3) var(--space-4);
+    flex-wrap: wrap;
+  }
+
+  .fa-signos-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
