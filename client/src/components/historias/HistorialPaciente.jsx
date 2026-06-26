@@ -1,117 +1,24 @@
 // client/src/components/historias/HistorialPaciente.jsx
 // MELIKA — Historial clínico del paciente
 // Visible desde el Dashboard del paciente y desde el panel del médico (con acceso verificado)
-// Incluye visor PDF embebido con pdfslick v4 y descarga directa con @react-pdf/renderer
+//
+// CORRECCIONES APLICADAS:
+//   - Eliminado componente VisorPDF interno (duplicado) — ahora usa VisorPDFModal compartido
+//   - Eliminado import de usePDFSlick (ya no se usa directamente aquí)
+//   - visorNombre pasado a VisorPDFModal para el nombre de descarga correcto
+//   - visorUrl con revokeObjectURL correcto al cerrar (sin memory leak)
 
 import { useState, useEffect, useCallback } from 'react';
-import { pdf, PDFDownloadLink }  from '@react-pdf/renderer';
-import { usePDFSlick }           from '@pdfslick/react';
-import { useAuth }               from '../../context/AuthContext';
-import { api }                   from '../../lib/apiClient';
+import { pdf, PDFDownloadLink }              from '@react-pdf/renderer';
+import { useAuth }                           from '../../context/AuthContext';
+import { api }                               from '../../lib/apiClient';
+import VisorPDFModal                         from './VisorPDFModal';
 import { PlantillaHistoriaPDF, PlantillaFormulaPDF } from './PlantillaHistoriaPDF';
 import './HistorialPaciente.css';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// VISOR PDF — Modal embebido con pdfslick v4
-// Recibe una URL de blob generada en el cliente
-// ─────────────────────────────────────────────────────────────────────────────
-function VisorPDF({ url, onCerrar }) {
-  const { viewerRef, usePDFSlickStore } = usePDFSlick(url, {
-    singlePageViewer: false,
-    scaleValue:       'page-width',
-  });
-
-  const numPages   = usePDFSlickStore(s => s.numPages);
-  const pageNumber = usePDFSlickStore(s => s.pageNumber);
-  const pdfSlick   = usePDFSlickStore(s => s.pdfSlick);
-
-  function anteriorPagina()  { if (pdfSlick && pageNumber > 1)        pdfSlick.gotoPage(pageNumber - 1); }
-  function siguientePagina() { if (pdfSlick && pageNumber < numPages)  pdfSlick.gotoPage(pageNumber + 1); }
-  function acercar()         { if (pdfSlick) pdfSlick.incrementScale(); }
-  function alejar()          { if (pdfSlick) pdfSlick.decrementScale(); }
-
-  // Cerrar con Escape
-  useEffect(() => {
-    function onKey(e) { if (e.key === 'Escape') onCerrar(); }
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onCerrar]);
-
-  return (
-    <div
-      className="visor-overlay"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Visualizador de documento PDF"
-      onClick={e => { if (e.target === e.currentTarget) onCerrar(); }}
-    >
-      <div className="visor-modal">
-
-        {/* ── Barra de controles glassmorphism ── */}
-        <div className="visor-toolbar glass-toolbar">
-
-          <div className="visor-toolbar__izq">
-            <div className="visor-logo-mini">
-              <span className="visor-logo-mini__m">M</span>ELIKA
-            </div>
-          </div>
-
-          <div className="visor-toolbar__centro">
-            <button
-              className="visor-btn"
-              onClick={anteriorPagina}
-              disabled={pageNumber <= 1}
-              aria-label="Página anterior"
-            >
-              ‹
-            </button>
-            <span className="visor-paginas">
-              {pageNumber} / {numPages || '—'}
-            </span>
-            <button
-              className="visor-btn"
-              onClick={siguientePagina}
-              disabled={pageNumber >= numPages}
-              aria-label="Página siguiente"
-            >
-              ›
-            </button>
-            <div className="visor-separador-v" />
-            <button className="visor-btn" onClick={alejar}  aria-label="Alejar zoom">−</button>
-            <button className="visor-btn" onClick={acercar} aria-label="Acercar zoom">+</button>
-          </div>
-
-          <div className="visor-toolbar__der">
-            <a
-              href={url}
-              download
-              className="visor-btn visor-btn--descarga"
-              aria-label="Descargar PDF"
-            >
-              ⬇
-            </a>
-            <button
-              className="visor-btn visor-btn--cerrar"
-              onClick={onCerrar}
-              aria-label="Cerrar visor"
-            >
-              ✕
-            </button>
-          </div>
-
-        </div>
-
-        {/* ── Área de renderizado del documento ── */}
-        <div className="visor-documento" ref={viewerRef} />
-
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // CAMPO — Etiqueta + valor. Declarado a nivel de módulo para que React
-// no lo recree en cada render (regla react-hooks/no-static-components).
+// no lo recree en cada render.
 // ─────────────────────────────────────────────────────────────────────────────
 function Campo({ etiqueta, valor }) {
   if (!valor && valor !== 0) return null;
@@ -194,25 +101,29 @@ function TarjetaHistoria({ entrada, onVerDetalle, onGenerarPDF, generandoId }) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DETALLE DE HISTORIA — Modal con todos los bloques clínicos
-// Permite ver en pantalla, descargar HC completa y descargar fórmula
+// Permite ver en pantalla, previsualizar con VisorPDFModal, descargar HC y fórmula
 // ─────────────────────────────────────────────────────────────────────────────
 function DetalleHistoria({ historiaId, onCerrar, usuario }) {
-  const [datos,        setDatos]        = useState(null);
-  const [aclaraciones, setAclaraciones] = useState([]);
-  const [loading,      setLoading]      = useState(true);
-  const [error,        setError]        = useState(null);
+  const [datos,         setDatos]         = useState(null);
+  const [aclaraciones,  setAclaraciones]  = useState([]);
+  const [loading,       setLoading]       = useState(true);
+  const [error,         setError]         = useState(null);
 
-  // Estado del visor PDF embebido
-  const [visorUrl,     setVisorUrl]     = useState(null);
+  // Estado del visor PDF (usa VisorPDFModal compartido)
+  const [visorUrl,      setVisorUrl]      = useState(null);
+  const [visorNombre,   setVisorNombre]   = useState('historia.pdf');
   const [visorCargando, setVisorCargando] = useState(false);
 
-  // Cerrar con Escape
+  // Cerrar con Escape (solo cuando no hay visor abierto)
   useEffect(() => {
-    function onKey(e) { if (e.key === 'Escape' && !visorUrl) onCerrar(); }
+    function onKey(e) {
+      if (e.key === 'Escape' && !visorUrl) onCerrar();
+    }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [onCerrar, visorUrl]);
 
+  // Cargar datos de la historia
   useEffect(() => {
     setLoading(true);
     api.get(`/historias/${historiaId}/completa`)
@@ -224,7 +135,7 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
       .finally(() => setLoading(false));
   }, [historiaId]);
 
-  // Genera blob URL y abre el visor pdfslick embebido
+  // Genera blob URL y abre el VisorPDFModal compartido
   async function handleVerPDFEmbebido(tipo) {
     if (!datos) return;
     setVisorCargando(true);
@@ -233,8 +144,13 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
         ? <PlantillaFormulaPDF historia={datos} />
         : <PlantillaHistoriaPDF historia={datos} aclaraciones={aclaraciones} />;
 
-      const blob    = await pdf(documento).toBlob();
-      const blobUrl = URL.createObjectURL(blob);
+      const blob     = await pdf(documento).toBlob();
+      const blobUrl  = URL.createObjectURL(blob);
+      const nombre   = tipo === 'formula'
+        ? `Formula-${datos.id}-${datos.paciente_apellido}.pdf`
+        : `HC-${datos.id}-${datos.paciente_apellido}.pdf`;
+
+      setVisorNombre(nombre);
       setVisorUrl(blobUrl);
     } catch (err) {
       console.error('Error generando PDF para visor:', err);
@@ -244,14 +160,16 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
     }
   }
 
+  // Cerrar visor y liberar memoria del blob
   function cerrarVisor() {
     if (visorUrl) {
-      URL.revokeObjectURL(visorUrl); // liberar memoria
+      URL.revokeObjectURL(visorUrl);
       setVisorUrl(null);
     }
+    setVisorNombre('historia.pdf');
   }
 
-  // Extrae texto de medicamentos desde el campo JSONB
+  // Extrae texto plano de medicamentos desde el campo JSONB
   function extraerMedTexto(campo) {
     if (!campo) return '';
     if (typeof campo === 'string') return campo;
@@ -259,15 +177,21 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
     return '';
   }
 
-  const medTexto  = datos ? extraerMedTexto(datos.medicamentos_recetados) : '';
+  const medTexto   = datos ? extraerMedTexto(datos.medicamentos_recetados) : '';
   const hayFormula = medTexto || datos?.ordenes_medicas;
 
   return (
     <>
-      {/* Visor PDF embebido */}
-      {visorUrl && <VisorPDF url={visorUrl} onCerrar={cerrarVisor} />}
+      {/* VisorPDFModal compartido — se monta sobre este modal */}
+      {visorUrl && (
+        <VisorPDFModal
+          url={visorUrl}
+          onCerrar={cerrarVisor}
+          nombreArchivo={visorNombre}
+        />
+      )}
 
-      {/* Modal overlay */}
+      {/* Modal overlay de detalle */}
       <div
         className="hp-overlay"
         role="dialog"
@@ -289,7 +213,7 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
 
             <div className="hp-detalle-cabecera__acciones">
 
-              {/* Botón: previsualizar en visor embebido */}
+              {/* Botón: previsualizar historia en visor embebido */}
               {datos && (
                 <button
                   className="hp-btn hp-btn--visor"
@@ -300,7 +224,7 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
                 </button>
               )}
 
-              {/* Botón: descargar Historia Clínica */}
+              {/* Botón: descargar Historia Clínica completa */}
               {datos && (
                 <PDFDownloadLink
                   document={
@@ -332,9 +256,6 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
                 <button
                   className="hp-btn hp-btn--aclaracion"
                   onClick={() => {
-                    // El botón expone la ruta de aclaración — la lógica de formulario
-                    // se implementa en FormularioAclaracion (FASE 5).
-                    // Aquí usamos un evento personalizado para comunicarlo al padre.
                     window.dispatchEvent(
                       new CustomEvent('melika:abrir-aclaracion', {
                         detail: { historiaId: datos.id, pacienteId: datos.id_paciente },
@@ -374,8 +295,15 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
                     <Campo etiqueta="Documento"     valor={`${datos.paciente_tipo_doc || 'CC'} ${datos.paciente_num_doc}`} />
                     <Campo etiqueta="EPS"           valor={datos.eps_aseguradora} />
                     <Campo etiqueta="Tipo consulta" valor={datos.tipo_cita === 'teleconsulta' ? '💻 Teleconsulta' : '🏥 Presencial'} />
-                    <Campo etiqueta="Fecha"         valor={datos.fecha_cita ? new Date(datos.fecha_cita + 'T00:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' }) : null} />
-                    <Campo etiqueta="Hora"          valor={datos.hora_inicio?.substring(0, 5)} />
+                    <Campo
+                      etiqueta="Fecha"
+                      valor={datos.fecha_cita
+                        ? new Date(datos.fecha_cita + 'T00:00:00').toLocaleDateString('es-CO', {
+                            day: '2-digit', month: 'long', year: 'numeric',
+                          })
+                        : null}
+                    />
+                    <Campo etiqueta="Hora" valor={datos.hora_inicio?.substring(0, 5)} />
                   </div>
                 </div>
 
@@ -395,7 +323,8 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
                 </div>
 
                 {/* BLOQUE 3 — Examen físico */}
-                {(datos.tension_arterial_sistolica || datos.frecuencia_cardiaca || datos.peso_kg || datos.temperatura_corporal) && (
+                {(datos.tension_arterial_sistolica || datos.frecuencia_cardiaca
+                  || datos.peso_kg || datos.temperatura_corporal) && (
                   <div className="hp-bloque">
                     <h3 className="hp-bloque__titulo">
                       <span>3</span> Examen Físico
@@ -504,7 +433,8 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
                   <div className="hp-firma">
                     <div className="hp-firma__linea" />
                     <p className="hp-firma__nombre">
-                      {datos.medico_nombre_firma || `Dr(a). ${datos.medico_nombre} ${datos.medico_apellido}`}
+                      {datos.medico_nombre_firma
+                        || `Dr(a). ${datos.medico_nombre} ${datos.medico_apellido}`}
                     </p>
                     {datos.medico_cedula_firma && (
                       <p className="hp-firma__dato">C.C. {datos.medico_cedula_firma}</p>
@@ -572,47 +502,53 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
 export default function HistorialPaciente({ idPaciente }) {
   const { usuario } = useAuth();
 
-  const [entradas,      setEntradas]      = useState([]);
-  const [loading,       setLoading]       = useState(true);
-  const [error,         setError]         = useState(null);
-  const [detalleId,     setDetalleId]     = useState(null);
-  const [generandoPdf,  setGenerandoPdf]  = useState(null); // ID de la historia que está generando PDF
+  const [entradas,     setEntradas]     = useState([]);
+  const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState(null);
+  const [detalleId,    setDetalleId]    = useState(null);
+  const [generandoPdf, setGenerandoPdf] = useState(null); // ID de la historia en generación
 
-  // Si viene idPaciente externo (médico viendo a un paciente), usa ese.
-  // Si no, usa el ID del propio usuario autenticado (paciente viendo su historial).
   const idTarget = idPaciente || usuario?.id;
 
-  // ── Carga del historial ────────────────────────────────────────────────────
-  useEffect(() => {
+  // ── Cargar el historial clínico ───────────────────────────────────────────
+  const cargarHistorial = useCallback(() => {
     if (!idTarget) return;
     setLoading(true);
     setError(null);
-
     api.get(`/historias/paciente/${idTarget}`)
       .then(data => setEntradas(Array.isArray(data) ? data : []))
       .catch(() => setError('No se pudo cargar el historial clínico. Intenta de nuevo.'))
       .finally(() => setLoading(false));
   }, [idTarget]);
 
+  useEffect(() => {
+    cargarHistorial();
+  }, [cargarHistorial]);
 
-  
+  // Escuchar cuando FormularioAclaracion crea una nota — recargar el listado
+  useEffect(() => {
+    function onAclaracionCreada() {
+      cargarHistorial();
+    }
+    window.addEventListener('melika:aclaracion-creada', onAclaracionCreada);
+    return () => window.removeEventListener('melika:aclaracion-creada', onAclaracionCreada);
+  }, [cargarHistorial]);
 
-  // ── Generar y descargar PDF directo desde tarjeta (sin abrir detalle) ──────
-  // Estrategia: fetch de datos completos → generar blob → descargar
+  // ── Generar y descargar PDF directo desde la tarjeta ─────────────────────
   const handleGenerarPDF = useCallback(async (entrada) => {
     setGenerandoPdf(entrada.id);
     try {
-      const data = await api.get(`/historias/${entrada.id}/completa`);
+      const data         = await api.get(`/historias/${entrada.id}/completa`);
       const historia     = data.historia;
       const aclaraciones = data.aclaraciones || [];
 
-      const blob     = await pdf(
+      const blob = await pdf(
         <PlantillaHistoriaPDF historia={historia} aclaraciones={aclaraciones} />
       ).toBlob();
 
-      const blobUrl  = URL.createObjectURL(blob);
-      const enlace   = document.createElement('a');
-      enlace.href    = blobUrl;
+      const blobUrl = URL.createObjectURL(blob);
+      const enlace  = document.createElement('a');
+      enlace.href     = blobUrl;
       enlace.download = `HC-${historia.id}-${historia.paciente_apellido}.pdf`;
       document.body.appendChild(enlace);
       enlace.click();
@@ -627,9 +563,7 @@ export default function HistorialPaciente({ idPaciente }) {
     }
   }, []);
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // RENDER
-  // ─────────────────────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────
 
   if (loading) {
     return (
@@ -662,7 +596,6 @@ export default function HistorialPaciente({ idPaciente }) {
 
       <div className="hp-contenedor">
 
-        {/* Cabecera */}
         <div className="hp-cabecera">
           <div>
             <h2 className="hp-cabecera__titulo">📋 Historial Clínico</h2>
@@ -674,7 +607,6 @@ export default function HistorialPaciente({ idPaciente }) {
           </div>
         </div>
 
-        {/* Lista o estado vacío */}
         {entradas.length === 0 ? (
           <div className="hp-vacio">
             <span className="hp-vacio__icono">🏥</span>
