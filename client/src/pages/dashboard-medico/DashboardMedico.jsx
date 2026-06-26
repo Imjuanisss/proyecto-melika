@@ -131,7 +131,34 @@ export default function DashboardMedico() {
 
   // ── Abrir / cerrar ModalHistoriaClinica ──────────────────────────────────
   function abrirHistoria(cita) {
-    setCitaHistoriaAbierta(cita);
+    setModalHistoria(cita);
+    setHistoria(null);
+    setFormHistoria(HISTORIA_INICIAL);
+    setModoEdicion(false);
+    setErrorHist(null);
+    setLoadingHist(true);
+
+    api.get(`/historias/cita/${cita.id}`)
+      .then(data => {
+        const h = data.historia;
+        setHistoria(h || null);
+        if (h) {
+          setFormHistoria({
+            motivo_consulta:         h.motivo_consulta         || '',
+            anamnesis:               h.anamnesis               || '',
+            examen_fisico:           h.examen_fisico           || '',
+            diagnostico_cie10:       h.diagnostico_cie10       || '',
+            descripcion_diagnostico: h.descripcion_diagnostico || '',
+            plan_tratamiento:        h.plan_tratamiento        || '',
+            medicamentos_recetados:  h.medicamentos_recetados  || '',
+            observaciones:           h.observaciones           || '',
+          });
+        } else {
+          setModoEdicion(true);
+        }
+      })
+      .catch(() => setErrorHist('No se pudo cargar la historia clínica.'))
+      .finally(() => setLoadingHist(false));
   }
 
   function cerrarHistoria() {

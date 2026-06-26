@@ -135,21 +135,10 @@ async function crearHistoria(req, res) {
       });
     }
 
-    // Calcular IMC si vienen peso y talla
-    let imc = null;
-    const pesoNum  = parseFloat(peso_kg);
-    const tallaNum = parseFloat(talla_cm);
-    if (pesoNum > 0 && tallaNum > 0) {
-      imc = parseFloat((pesoNum / Math.pow(tallaNum / 100, 2)).toFixed(2));
-    }
+    const id_paciente = citaRes.rows[0].id_paciente;
 
-    // medicamentos_recetados llega como texto libre desde el formulario.
-    // Se guarda como JSONB { "texto": "..." } para mantener compatibilidad
-    // con el esquema migrado y la lógica de extracción del frontend.
-    let medicamentosJson = null;
-    if (medicamentos_recetados?.trim()) {
-      medicamentosJson = JSON.stringify({ texto: medicamentos_recetados.trim() });
-    }
+    // ── Conversión JSONB: texto libre → objeto JSON válido para PostgreSQL ──
+    const medicamentosParaBD = normalizarMedicamentosParaBD(medicamentos_recetados);
 
     const nueva = await pool.query(
       `INSERT INTO historias_clinicas (
@@ -185,47 +174,16 @@ async function crearHistoria(req, res) {
       ) RETURNING *`,
       [
         id_cita,
-        cita.id_paciente,
+        id_paciente,
         id_medico,
-        tipo_consulta                  || 'presencial',
-        eps_aseguradora                || null,
-        contacto_responsable_nombre    || null,
-        contacto_responsable_telefono  || null,
         motivo_consulta.trim(),
-        anamnesis                      || null,
-        antecedentes_patologicos       || null,
-        antecedentes_quirurgicos       || null,
-        antecedentes_alergicos         || null,
-        antecedentes_familiares        || null,
-        antecedentes_ginecoobstetricos || null,
-        habitos                        || null,
-        (tension_arterial_sistolica  != null && tension_arterial_sistolica  !== '')
-          ? parseFloat(tension_arterial_sistolica)  : null,
-        (tension_arterial_diastolica != null && tension_arterial_diastolica !== '')
-          ? parseFloat(tension_arterial_diastolica) : null,
-        (frecuencia_cardiaca         != null && frecuencia_cardiaca         !== '')
-          ? parseInt(frecuencia_cardiaca)           : null,
-        (frecuencia_respiratoria     != null && frecuencia_respiratoria     !== '')
-          ? parseInt(frecuencia_respiratoria)       : null,
-        (temperatura_corporal        != null && temperatura_corporal        !== '')
-          ? parseFloat(temperatura_corporal)        : null,
-        pesoNum  > 0 ? pesoNum  : null,
-        tallaNum > 0 ? tallaNum : null,
-        imc,
-        exploracion_por_sistemas  || null,
-        examen_fisico             || null,
-        diagnostico_cie10         || null,
-        descripcion_diagnostico   || null,
-        plan_tratamiento          || null,
-        medicamentosJson,
-        ordenes_medicas           || null,
-        recomendaciones           || null,
-        (incapacidad_dias != null && incapacidad_dias !== '')
-          ? parseInt(incapacidad_dias) : null,
-        observaciones             || null,
-        medico_nombre_firma       || null,
-        medico_cedula_firma       || null,
-        medico_rethus_firma       || null,
+        anamnesis?.trim()               || null,
+        examen_fisico?.trim()           || null,
+        diagnostico_cie10?.trim()       || null,
+        descripcion_diagnostico?.trim() || null,
+        plan_tratamiento?.trim()        || null,
+        medicamentosParaBD,                        // JSONB normalizado
+        observaciones?.trim()           || null,
       ]
     );
 
@@ -245,13 +203,10 @@ async function crearHistoria(req, res) {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// POST /historias/:id/aclaracion
-// Agregar nota de aclaración o evolución (append-only — Ley 2015/2020)
-// El registro original NUNCA se modifica. Se inserta una fila nueva vinculada.
-// Solo el médico autor de la historia principal puede crear aclaraciones.
-// ─────────────────────────────────────────────────────────────────────────────
-async function crearAclaracion(req, res) {
+
+// ─── PUT /historias/:id — Actualizar historia clínica ─────────────────────────
+async function actualizarHistoria(req, res) {
+  const { id }     = req.params;
   const id_usuario = req.usuario.id;
   const { id }     = req.params; // id de la historia clínica principal
 
@@ -313,33 +268,15 @@ async function crearAclaracion(req, res) {
        WHERE id = $1 AND tipo_registro = 'historia_principal'`,
       [id]
     );
-
-    if (historiaOriginal.rows.length === 0) {
-      return res.status(404).json({
-        mensaje: 'Historia clínica principal no encontrada.',
-      });
+    if (historiaRes.rows.length === 0) {
+      return res.status(404).json({ mensaje: 'Historia clínica no encontrada.' });
+    }
+    if (historiaRes.rows[0].id_medico !== id_medico) {
+      return res.status(403).json({ mensaje: 'No puedes editar una historia clínica que no es tuya.' });
     }
 
-    const historia = historiaOriginal.rows[0];
-
-    if (historia.id_medico !== id_medico) {
-      return res.status(403).json({
-        mensaje: 'Solo el médico autor puede agregar aclaraciones a esta historia.',
-      });
-    }
-
-    // Calcular IMC si vienen datos
-    let imc = null;
-    const pesoNum  = parseFloat(peso_kg);
-    const tallaNum = parseFloat(talla_cm);
-    if (pesoNum > 0 && tallaNum > 0) {
-      imc = parseFloat((pesoNum / Math.pow(tallaNum / 100, 2)).toFixed(2));
-    }
-
-    let medicamentosJson = null;
-    if (medicamentos_recetados?.trim()) {
-      medicamentosJson = JSON.stringify({ texto: medicamentos_recetados.trim() });
-    }
+    // ── Conversión JSONB ─────────────────────────────────────────────────────
+    const medicamentosParaBD = normalizarMedicamentosParaBD(medicamentos_recetados);
 
     const aclaracion = await pool.query(
       `INSERT INTO historias_clinicas (
@@ -372,48 +309,22 @@ async function crearAclaracion(req, res) {
         $32, $33, $34
       ) RETURNING *`,
       [
-        historia.id_cita,
-        historia.id_paciente,
-        id_medico,
-        tipo_registro,
-        historia.id,
         motivo_consulta.trim(),
-        anamnesis                      || null,
-        antecedentes_patologicos       || null,
-        antecedentes_quirurgicos       || null,
-        antecedentes_alergicos         || null,
-        antecedentes_familiares        || null,
-        antecedentes_ginecoobstetricos || null,
-        habitos                        || null,
-        (tension_arterial_sistolica  != null && tension_arterial_sistolica  !== '')
-          ? parseFloat(tension_arterial_sistolica)  : null,
-        (tension_arterial_diastolica != null && tension_arterial_diastolica !== '')
-          ? parseFloat(tension_arterial_diastolica) : null,
-        (frecuencia_cardiaca         != null && frecuencia_cardiaca         !== '')
-          ? parseInt(frecuencia_cardiaca)           : null,
-        (frecuencia_respiratoria     != null && frecuencia_respiratoria     !== '')
-          ? parseInt(frecuencia_respiratoria)       : null,
-        (temperatura_corporal        != null && temperatura_corporal        !== '')
-          ? parseFloat(temperatura_corporal)        : null,
-        pesoNum  > 0 ? pesoNum  : null,
-        tallaNum > 0 ? tallaNum : null,
-        imc,
-        exploracion_por_sistemas  || null,
-        examen_fisico             || null,
-        diagnostico_cie10         || null,
-        descripcion_diagnostico   || null,
-        plan_tratamiento          || null,
-        medicamentosJson,
-        ordenes_medicas           || null,
-        recomendaciones           || null,
-        (incapacidad_dias != null && incapacidad_dias !== '')
-          ? parseInt(incapacidad_dias) : null,
-        observaciones             || null,
-        medico_nombre_firma       || null,
-        medico_cedula_firma       || null,
-        medico_rethus_firma       || null,
+        anamnesis?.trim()               || null,
+        examen_fisico?.trim()           || null,
+        diagnostico_cie10?.trim()       || null,
+        descripcion_diagnostico?.trim() || null,
+        plan_tratamiento?.trim()        || null,
+        medicamentosParaBD,
+        observaciones?.trim()           || null,
+        id,
       ]
     );
+
+    const historiaRespuesta = {
+      ...actualizada.rows[0],
+      medicamentos_recetados: normalizarMedicamentosParaFrontend(actualizada.rows[0].medicamentos_recetados),
+    };
 
     return res.status(201).json({
       mensaje: 'Nota de aclaración/evolución registrada exitosamente.',
@@ -427,11 +338,20 @@ async function crearAclaracion(req, res) {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GET /historias/cita/:id_cita
-// Retorna la historia principal de una cita + sus aclaraciones.
-// Accesible para: el paciente dueño o el médico de la cita.
-// ─────────────────────────────────────────────────────────────────────────────
+
+// ─── GET /historias/cita/:id_cita — Obtener historia por cita ─────────────────
+//
+// Esta ruta la usan TANTO médicos como pacientes:
+//   - El médico la usa para revisar/editar la historia que él mismo creó.
+//   - El paciente la usa para consultar su propia historia clínica desde
+//     "Mis citas", una vez que la consulta quedó marcada como completada.
+//
+// Por eso es indispensable validar que quien pregunta tiene derecho a ver
+// ESA historia puntual, y no cualquier id_cita que se le ocurra probar:
+//   - paciente → solo si la historia es suya (id_paciente coincide con su id).
+//   - médico   → solo si él fue quien la elaboró (id_medico le pertenece).
+//   - admin    → acceso total (soporte/auditoría).
+// ──────────────────────────────────────────────────────────────────────────────
 async function obtenerHistoria(req, res) {
   const { id_cita }    = req.params;
   const id_usuario_auth = req.usuario.id;
@@ -507,93 +427,8 @@ async function obtenerHistoria(req, res) {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GET /historias/:id/completa
-// Retorna la historia con TODOS los datos del paciente enriquecidos
-// más sus aclaraciones/notas de evolución.
-// Usado para generar el PDF desde el frontend (HistorialPaciente y ModalHistoriaClinica).
-// ─────────────────────────────────────────────────────────────────────────────
-async function obtenerHistoriaCompleta(req, res) {
-  const { id }      = req.params;
-  const id_usuario  = req.usuario.id;
-  const rol         = req.usuario.rol;
 
-  try {
-    const historiaRes = await pool.query(
-      `SELECT
-          hc.*,
-          up.nombre           AS paciente_nombre,
-          up.primer_apellido  AS paciente_apellido,
-          up.tipo_documento   AS paciente_tipo_doc,
-          up.numero_documento AS paciente_num_doc,
-          up.fecha_nacimiento AS paciente_fecha_nac,
-          up.telefono         AS paciente_telefono,
-          up.direccion        AS paciente_direccion,
-          up.ciudad           AS paciente_ciudad,
-          up.genero           AS paciente_genero,
-          um.nombre           AS medico_nombre,
-          um.primer_apellido  AS medico_apellido,
-          e.nombre            AS especialidad,
-          c.fecha             AS fecha_cita,
-          c.hora_inicio,
-          c.tipo_consulta     AS tipo_cita
-       FROM historias_clinicas hc
-       JOIN usuarios       up ON hc.id_paciente    = up.id
-       JOIN medicos        m  ON hc.id_medico      = m.id
-       JOIN usuarios       um ON m.id_usuario      = um.id
-       JOIN especialidades e  ON m.id_especialidad = e.id
-       JOIN citas          c  ON hc.id_cita        = c.id
-       WHERE hc.id = $1`,
-      [id]
-    );
-
-    if (historiaRes.rows.length === 0) {
-      return res.status(404).json({ mensaje: 'Historia clínica no encontrada.' });
-    }
-
-    const historia = historiaRes.rows[0];
-
-    // ── Verificar acceso RBAC ─────────────────────────────────────────────
-    if (rol === 'paciente' && historia.id_paciente !== id_usuario) {
-      return res.status(403).json({ mensaje: 'No tienes permiso para ver este documento.' });
-    }
-
-    if (rol === 'medico') {
-      const id_medico = await resolverIdMedico(id_usuario);
-      if (!id_medico) {
-        return res.status(403).json({ mensaje: 'No tienes perfil de médico registrado.' });
-      }
-      const tieneAcceso =
-        historia.id_medico === id_medico ||
-        (await citaExisteEntreAmbosPorPaciente(historia.id_paciente, id_medico));
-      if (!tieneAcceso) {
-        return res.status(403).json({
-          mensaje: 'No tienes acceso a este expediente clínico.',
-        });
-      }
-    }
-
-    // ── Obtener aclaraciones vinculadas ───────────────────────────────────
-    const aclaRes = await pool.query(
-      `SELECT * FROM historias_clinicas
-       WHERE id_historia_original = $1
-         AND tipo_registro IN ('nota_aclaracion', 'nota_evolucion')
-       ORDER BY created_at ASC`,
-      [historia.id]
-    );
-
-    return res.json({ historia, aclaraciones: aclaRes.rows });
-  } catch (err) {
-    console.error('Error en obtenerHistoriaCompleta:', err.message);
-    return res.status(500).json({ mensaje: 'Error al obtener los datos del documento.' });
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// GET /historias/paciente/:id_paciente
-// Lista el historial completo de un paciente (solo historias principales).
-// Accesible para: el propio paciente o un médico con al menos una cita vinculada.
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── GET /historias/paciente/:id_paciente — Historial completo del paciente ────
 async function historialPaciente(req, res) {
   const id_usuario_auth = req.usuario.id;
   const rol             = req.usuario.rol;
