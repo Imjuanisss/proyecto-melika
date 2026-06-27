@@ -10,7 +10,7 @@ import 'swiper/css/pagination';
 
 export default function SliderInicio() {
   return (
-    <div className="slider-container" style={{ width: '100%', height: '400px' }}>
+    <div className="slider-container" style={{ width: '100%' }}>
       <Swiper
         // Aquí le inyectamos los módulos
         modules={[Autoplay, Pagination]}
@@ -29,7 +29,7 @@ export default function SliderInicio() {
             // Recuerda poner tus imágenes reales en la carpeta public
             src="/imagenes/clinica-fachada.jpg" 
             alt="Fachada de la clínica" 
-            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            style={{ width: '100%', height: 'auto', objectFit: 'contain' }}
           />
         </SwiperSlide>
 
@@ -38,7 +38,7 @@ export default function SliderInicio() {
           <img 
             src="/imagenes/consultorio.jpg" 
             alt="Consultorio médico" 
-            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            style={{ width: '100%', height: 'auto', objectFit: 'contain' }}
           />
         </SwiperSlide>
 
@@ -47,7 +47,7 @@ export default function SliderInicio() {
           <img 
             src="/imagenes/equipo-medico.jpg" 
             alt="Nuestro equipo" 
-            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            style={{ width: '100%', height: 'auto', objectFit: 'contain' }}
           />
         </SwiperSlide>
       </Swiper>
