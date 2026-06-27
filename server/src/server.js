@@ -21,6 +21,7 @@ const allowedOrigins = [
 
 app.use(cors({ 
   origin: (origin, callback) => {
+    
     // Permitir peticiones sin origen (como Postman o el mismo servidor)
     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
