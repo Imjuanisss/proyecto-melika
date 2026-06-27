@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Boton from '../../components/ui/Boton';
+import SliderInicio from '../../components/SliderInicio'; // ← IMPORTAMOS EL SLIDER
 
 import './Inicio.css';
 
@@ -136,6 +137,11 @@ export default function Inicio() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* ── AQUÍ INSERTAMOS EL SLIDER QUE CREASTE ── */}
+        <div style={{ marginTop: '2rem', marginBottom: '2rem' }}>
+          <SliderInicio />
         </div>
 
         <div className="hero-pasos__divisor" />
