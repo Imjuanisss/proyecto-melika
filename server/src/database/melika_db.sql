@@ -567,3 +567,7 @@ SELECT indexname, indexdef
 FROM pg_indexes
 WHERE tablename = 'historias_clinicas'
   AND indexname = 'uq_historia_principal_por_cita';
+
+
+  ALTER TABLE franjas_horarias 
+ADD COLUMN estado VARCHAR(20) DEFAULT 'disponible';
