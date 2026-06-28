@@ -11,6 +11,23 @@ import {
   StyleSheet,
 } from '@react-pdf/renderer';
 
+// Función auxiliar para calcular la edad exacta a partir de la fecha de nacimiento
+const calcularEdad = (fechaNac) => {
+  if (!fechaNac) return '—';
+  const nacimiento = new Date(fechaNac);
+  const hoy = new Date();
+  
+  let edad = hoy.getFullYear() - nacimiento.getFullYear();
+  const diferenciaMeses = hoy.getMonth() - nacimiento.getMonth();
+  
+  // Si no ha cumplido años este año todavía, restamos un año
+  if (diferenciaMeses < 0 || (diferenciaMeses === 0 && hoy.getDate() < nacimiento.getDate())) {
+    edad--;
+  }
+  
+  return `${edad} años`;
+};
+
 // ─── Paleta de colores MELIKA para PDF ───────────────────────────────────────
 const COLOR = {
   azulPrimario: '#0B1A36',
@@ -1095,16 +1112,16 @@ export const PlantillaFormulaPDF = ({ historia, recetas = [] }) => {
 
         <Text style={formulaStyles.docTitle}>FÓRMULA MÉDICA</Text>
 
-        {/* ── DATOS DEL PACIENTE ── */}
+       {/* ── DATOS DEL PACIENTE ── */}
         <View style={formulaStyles.pacienteBox}>
           <View style={formulaStyles.pacienteCol}>
             <Text style={formulaStyles.text}><Text style={formulaStyles.bold}>Paciente:</Text> {historia?.paciente_nombre} {historia?.paciente_apellido}</Text>
             <Text style={formulaStyles.text}><Text style={formulaStyles.bold}>Documento:</Text> {historia?.paciente_tipo_doc} {historia?.paciente_num_doc}</Text>
-            <Text style={formulaStyles.text}><Text style={formulaStyles.bold}>Aseguradora:</Text> {historia?.eps_aseguradora || 'Particular'}</Text>
+            <Text style={formulaStyles.text}><Text style={formulaStyles.bold}>Edad:</Text> {calcularEdad(historia?.paciente_fecha_nac)}   |   <Text style={formulaStyles.bold}>Género:</Text> {historia?.paciente_genero || '—'}</Text>
           </View>
           <View style={formulaStyles.pacienteCol}>
             <Text style={formulaStyles.text}><Text style={formulaStyles.bold}>Fecha:</Text> {historia?.fecha_cita || new Date().toISOString().split('T')[0]}</Text>
-            <Text style={formulaStyles.text}><Text style={formulaStyles.bold}>Diagnóstico:</Text> {historia?.diagnostico_cie10 || 'No especificado'}</Text>
+            <Text style={formulaStyles.text}><Text style={formulaStyles.bold}>Aseguradora:</Text> {historia?.eps_aseguradora || 'Particular'}</Text>
             <Text style={formulaStyles.text}><Text style={formulaStyles.bold}>N° Historia:</Text> HC-{historia?.id}</Text>
           </View>
         </View>
@@ -1196,10 +1213,21 @@ export const PlantillaExamenesPDF = ({ historia, examenes = [] }) => {
 
         <Text style={examStyles.docTitle}>ORDEN DE EXÁMENES / AYUDAS DIAGNÓSTICAS</Text>
 
-        {/* PACIENTE Y MOTIVO */}
+        
+       {/* PACIENTE Y MOTIVO */}
         <View style={examStyles.infoBox}>
-          <Text style={examStyles.text}><Text style={examStyles.bold}>Paciente:</Text> {historia?.paciente_nombre} {historia?.paciente_apellido} | <Text style={examStyles.bold}>ID:</Text> {historia?.paciente_num_doc}</Text>
-          <Text style={examStyles.text}><Text style={examStyles.bold}>Justificación Clínica:</Text> {historia?.diagnostico_cie10 || 'Estudio de control y seguimiento'}</Text>
+          <Text style={examStyles.text}>
+            <Text style={examStyles.bold}>Paciente:</Text> {historia?.paciente_nombre} {historia?.paciente_apellido}  |  
+            <Text style={examStyles.bold}> Documento:</Text> {historia?.paciente_tipo_doc} {historia?.paciente_num_doc}
+          </Text>
+          <Text style={examStyles.text}>
+            <Text style={examStyles.bold}>Edad:</Text> {calcularEdad(historia?.paciente_fecha_nac)}  |  
+            <Text style={examStyles.bold}> Género:</Text> {historia?.paciente_genero || '—'}  |  
+            <Text style={examStyles.bold}> Aseguradora:</Text> {historia?.eps_aseguradora || 'Particular'}
+          </Text>
+          <Text style={examStyles.text}>
+            <Text style={examStyles.bold}>Justificación Clínica:</Text> {historia?.diagnostico_cie10} - {historia?.descripcion_diagnostico || 'Estudio de control'}
+          </Text>
         </View>
 
         {/* LISTA DE EXÁMENES */}
