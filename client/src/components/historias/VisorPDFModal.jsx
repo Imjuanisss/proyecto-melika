@@ -1,9 +1,5 @@
 // client/src/components/historias/VisorPDFModal.jsx
-// MELIKA — Visor PDF nativo con <iframe>
-// Reemplaza pdfslick que es incompatible con React 19.
-// El navegador renderiza el PDF directamente desde la blobUrl.
-// Al cerrar, el componente padre llama URL.revokeObjectURL(url).
-
+// MELIKA — Visor PDF nativo
 import { useEffect } from 'react';
 import './VisorPDFModal.css';
 
@@ -71,13 +67,28 @@ export default function VisorPDFModal({ url, onCerrar, nombreArchivo = 'document
 
         </div>
 
-        {/* ── Área de renderizado — iframe nativo del navegador ── */}
-        <div className="visor-documento">
-          <iframe
-            src={url}
-            title={nombreArchivo}
+        {/* ── Área de renderizado — Forzamos el tipo application/pdf ── */}
+        <div className="visor-documento" style={{ height: 'calc(100% - 60px)', width: '100%' }}>
+          <object
+            data={url}
+            type="application/pdf"
             className="visor-iframe"
-          />
+            style={{ width: '100%', height: '100%', border: 'none' }}
+          >
+            {/* Mensaje de respaldo por si el navegador o el celular bloquea el visor */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '2rem', textAlign: 'center', backgroundColor: '#f1f5f9' }}>
+              <p style={{ color: '#475569', marginBottom: '1rem' }}>
+                Tu navegador actual no soporta la previsualización directa de PDFs.
+              </p>
+              <a 
+                href={url} 
+                download={nombreArchivo}
+                style={{ backgroundColor: '#f97316', color: 'white', padding: '10px 20px', borderRadius: '8px', textDecoration: 'none', fontWeight: 'bold' }}
+              >
+                ⬇ Descargar el archivo para verlo
+              </a>
+            </div>
+          </object>
         </div>
 
       </div>

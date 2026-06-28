@@ -1058,177 +1058,184 @@ const estilosFormula = StyleSheet.create({
   },
 });
 
-export function PlantillaFormulaPDF({ historia }) {
-  if (!historia) return null;
+// ─────────────────────────────────────────────────────────────────────────────
+// PLANTILLA 2: FÓRMULA MÉDICA (Receta)
+// ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// PLANTILLA 2: FÓRMULA MÉDICA (Receta)
+// ─────────────────────────────────────────────────────────────────────────────
 
-  const medTexto     = extraerTextoMedicamentos(historia.medicamentos_recetados);
-  const edad         = calcularEdad(historia.paciente_fecha_nac);
-  const fechaEmision = new Date().toLocaleDateString('es-CO', {
-    day: '2-digit', month: 'long', year: 'numeric',
-  });
 
-  if (!medTexto && !historia.ordenes_medicas) return null;
+export const PlantillaFormulaPDF = ({ historia, recetas = [] }) => {
+  // Verificamos si hay recetas en formato antiguo (texto) por retrocompatibilidad
+  const tieneRecetasNuevas = recetas && recetas.length > 0;
+  let medicamentosAntiguos = '';
+  if (!tieneRecetasNuevas && historia?.medicamentos_recetados) {
+    medicamentosAntiguos = typeof historia.medicamentos_recetados === 'object' 
+      ? historia.medicamentos_recetados.texto 
+      : historia.medicamentos_recetados;
+  }
 
   return (
-    <Document
-      title={`Formula-${historia.id} — ${historia.paciente_nombre} ${historia.paciente_apellido}`}
-      author="MELIKA Salud Digital"
-      subject="Fórmula Médica"
-      creator="MELIKA — Resolución 1995/1999"
-    >
-      <Page size="LETTER" style={estilosFormula.pagina}>
-
-        {/* Banner verde */}
-        <View style={estilosFormula.bannerFormula}>
+    <Document>
+      <Page size="LETTER" style={formulaStyles.page}>
+        
+        {/* ── ENCABEZADO: Datos de la Clínica y Médico ── */}
+        <View style={formulaStyles.header}>
           <View>
-            <Text style={estilosFormula.bannerTitulo}>Fórmula Médica</Text>
-            <Text style={estilosFormula.bannerSub}>
-              Caldas, Antioquia · Emitida: {fechaEmision}
-            </Text>
-            <Text style={estilosFormula.bannerSub}>
-              Consecutivo: FM-{String(historia.id).padStart(6, '0')}
-            </Text>
+            <Text style={formulaStyles.titleLogo}>MELIKA</Text>
+            <Text style={formulaStyles.subTitle}>Sistema de Gestión Clínica</Text>
           </View>
-          <Text style={estilosFormula.bannerLogo}>
-            <Text style={estilosFormula.bannerLogoAccento}>M</Text>ELIKA
-          </Text>
-        </View>
-
-        {/* Datos del médico */}
-        <View style={estilosFormula.pacienteBox}>
-          <Text style={estilosFormula.pacienteTitulo}>Médico Prescriptor</Text>
-          <Campo
-            etiqueta="Médico"
-            valor={historia.medico_nombre_firma
-              || `Dr(a). ${historia.medico_nombre} ${historia.medico_apellido}`}
-          />
-          <Campo etiqueta="Especialidad" valor={historia.especialidad} />
-          <Campo etiqueta="C.C."         valor={historia.medico_cedula_firma} />
-          <Campo etiqueta="ReTHUS"       valor={historia.medico_rethus_firma} />
-        </View>
-
-        {/* Datos del paciente */}
-        <View style={estilosFormula.pacienteBox}>
-          <Text style={estilosFormula.pacienteTitulo}>Paciente</Text>
-          <View style={base.grid2}>
-            <View style={base.grid2Item}>
-              <Campo
-                etiqueta="Nombre"
-                valor={`${historia.paciente_nombre} ${historia.paciente_apellido}`}
-              />
-            </View>
-            <View style={base.grid2Item}>
-              <Campo
-                etiqueta="Documento"
-                valor={`${historia.paciente_tipo_doc || 'CC'} ${historia.paciente_num_doc}`}
-              />
-            </View>
-            <View style={base.grid2Item}>
-              <Campo etiqueta="Edad" valor={edad !== null ? `${edad} años` : null} />
-            </View>
-            <View style={base.grid2Item}>
-              <Campo etiqueta="EPS" valor={historia.eps_aseguradora} />
-            </View>
+          <View style={{ alignItems: 'flex-end' }}>
+            <Text style={formulaStyles.medicoNombre}>Dr(a). {historia?.medico_nombre} {historia?.medico_apellido}</Text>
+            <Text style={formulaStyles.medicoInfo}>{historia?.especialidad}</Text>
+            <Text style={formulaStyles.medicoInfo}>Reg: {historia?.medico_rethus_firma || 'N/A'}</Text>
           </View>
         </View>
 
-        {/* Diagnóstico de referencia */}
-        {historia.diagnostico_cie10 && (
-          <View style={[base.cie10Fila, { marginBottom: 10 }]}>
-            <Text style={base.cie10Codigo}>{historia.diagnostico_cie10}</Text>
-            <Text style={base.cie10Desc}>
-              {historia.descripcion_diagnostico || 'Diagnóstico de referencia'}
-            </Text>
-          </View>
-        )}
+        <Text style={formulaStyles.docTitle}>FÓRMULA MÉDICA</Text>
 
-        {/* Medicamentos */}
-        {medTexto && (
-          <View style={estilosFormula.medBox}>
-            <View style={estilosFormula.medBoxHeader}>
-              <Text style={estilosFormula.medBoxHeaderTexto}>
-                Medicamentos Recetados — Rx
-              </Text>
-            </View>
-            <View style={estilosFormula.medBoxCuerpo}>
-              <Text style={estilosFormula.medTextoContenido}>{medTexto}</Text>
-            </View>
+        {/* ── DATOS DEL PACIENTE ── */}
+        <View style={formulaStyles.pacienteBox}>
+          <View style={formulaStyles.pacienteCol}>
+            <Text style={formulaStyles.text}><Text style={formulaStyles.bold}>Paciente:</Text> {historia?.paciente_nombre} {historia?.paciente_apellido}</Text>
+            <Text style={formulaStyles.text}><Text style={formulaStyles.bold}>Documento:</Text> {historia?.paciente_tipo_doc} {historia?.paciente_num_doc}</Text>
+            <Text style={formulaStyles.text}><Text style={formulaStyles.bold}>Aseguradora:</Text> {historia?.eps_aseguradora || 'Particular'}</Text>
           </View>
-        )}
-
-        {/* Órdenes médicas */}
-        {historia.ordenes_medicas && (
-          <View style={estilosFormula.ordenBox}>
-            <View style={estilosFormula.ordenHeader}>
-              <Text style={estilosFormula.ordenHeaderTexto}>
-                Órdenes Médicas — Exámenes de Laboratorio / Imágenes
-              </Text>
-            </View>
-            <View style={estilosFormula.ordenCuerpo}>
-              <Text style={estilosFormula.ordenTexto}>{historia.ordenes_medicas}</Text>
-            </View>
-          </View>
-        )}
-
-        {/* Recomendaciones */}
-        {historia.recomendaciones && (
-          <View style={estilosFormula.recomBox}>
-            <Text style={estilosFormula.recomTitulo}>
-              Recomendaciones y Signos de Alarma
-            </Text>
-            <Text style={estilosFormula.recomTexto}>{historia.recomendaciones}</Text>
-          </View>
-        )}
-
-        {/* Incapacidad */}
-        {historia.incapacidad_dias > 0 && (
-          <View style={estilosFormula.incapacidadFormula}>
-            <Text style={estilosFormula.incapacidadBadge}>INCAPACIDAD</Text>
-            <Text style={estilosFormula.incapacidadDias}>
-              {historia.incapacidad_dias} día(s) a partir del{' '}
-              {formatFecha(historia.fecha_cita)}
-            </Text>
-          </View>
-        )}
-
-        {/* Cierre legal */}
-        <View style={estilosFormula.cierreFormula}>
-          <View style={estilosFormula.selloBox}>
-            <Text style={estilosFormula.selloTexto}>
-              Documento generado por MELIKA Salud Digital.{'\n'}
-              Válido únicamente con firma del médico prescriptor.{'\n'}
-              Res. 1995/1999 · Ley 2015/2020 · Colombia.{'\n'}
-              No válido para medicamentos de control especial sin sello físico.
-            </Text>
-          </View>
-          <View style={estilosFormula.firmaBox}>
-            <View style={estilosFormula.firmaLineaF} />
-            <Text style={estilosFormula.firmaNombreF}>
-              {historia.medico_nombre_firma
-                || `Dr(a). ${historia.medico_nombre} ${historia.medico_apellido}`}
-            </Text>
-            {historia.especialidad && (
-              <Text style={estilosFormula.firmaDatoF}>{historia.especialidad}</Text>
-            )}
-            {historia.medico_rethus_firma && (
-              <Text style={estilosFormula.firmaDatoF}>
-                ReTHUS: {historia.medico_rethus_firma}
-              </Text>
-            )}
+          <View style={formulaStyles.pacienteCol}>
+            <Text style={formulaStyles.text}><Text style={formulaStyles.bold}>Fecha:</Text> {historia?.fecha_cita || new Date().toISOString().split('T')[0]}</Text>
+            <Text style={formulaStyles.text}><Text style={formulaStyles.bold}>Diagnóstico:</Text> {historia?.diagnostico_cie10 || 'No especificado'}</Text>
+            <Text style={formulaStyles.text}><Text style={formulaStyles.bold}>N° Historia:</Text> HC-{historia?.id}</Text>
           </View>
         </View>
 
-        {/* Advertencia legal */}
-        <View style={estilosFormula.advertenciaFormula}>
-          <Text style={estilosFormula.advertenciaTexto}>
-            Este documento es de uso médico confidencial y tiene reserva legal (Ley 23/1981 · Art. 34).
-            Su divulgación no autorizada está prohibida. Conserve este documento en lugar seguro.
-          </Text>
+        {/* ── LISTA DE MEDICAMENTOS (Rx) ── */}
+        <View style={formulaStyles.rxContainer}>
+          <Text style={formulaStyles.rxIcon}>Rx</Text>
+          
+          {tieneRecetasNuevas ? (
+            recetas.map((r, index) => (
+              <View key={index} style={formulaStyles.recetaItem}>
+                <Text style={formulaStyles.medName}>
+                  {index + 1}. {r.medicamento}
+                </Text>
+                <View style={formulaStyles.medDetailsBox}>
+                  <Text style={formulaStyles.text}><Text style={formulaStyles.bold}>Dosis:</Text> {r.dosis}   |   <Text style={formulaStyles.bold}>Frecuencia:</Text> {r.frecuencia}</Text>
+                  <Text style={formulaStyles.text}><Text style={formulaStyles.bold}>Duración:</Text> {r.duracion}   |   <Text style={formulaStyles.bold}>Vía:</Text> {r.via_administracion}</Text>
+                  {r.indicaciones && (
+                    <Text style={formulaStyles.indicaciones}>Indicaciones: {r.indicaciones}</Text>
+                  )}
+                </View>
+              </View>
+            ))
+          ) : (
+            <Text style={formulaStyles.text}>{medicamentosAntiguos}</Text>
+          )}
         </View>
 
-        <PiePagina />
+        {/* ── PIE DE PÁGINA: Firma y validez ── */}
+        <View style={formulaStyles.footerFormula}>
+          <View style={formulaStyles.firmaCaja}>
+            <Text style={formulaStyles.firmaLinea}>____________________________________</Text>
+            <Text style={formulaStyles.firmaNombre}>Firma del Médico Autorizado</Text>
+            <Text style={formulaStyles.firmaDetalle}>{historia?.medico_nombre_firma || `Dr(a). ${historia?.medico_nombre} ${historia?.medico_apellido}`}</Text>
+            <Text style={formulaStyles.firmaDetalle}>C.P: {historia?.medico_cedula_firma || 'N/A'}</Text>
+          </View>
+          <View style={formulaStyles.validezCaja}>
+            <Text style={formulaStyles.validezTexto}>Válido por 30 días a partir de la fecha de expedición.</Text>
+          </View>
+        </View>
 
       </Page>
     </Document>
   );
-}
+};
+
+// ── Estilos encapsulados solo para la Fórmula Médica ──
+const formulaStyles = StyleSheet.create({
+  page: { padding: 40, fontFamily: 'Helvetica', backgroundColor: '#ffffff' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', borderBottom: '2px solid #2563eb', paddingBottom: 15, marginBottom: 15 },
+  titleLogo: { fontSize: 24, fontWeight: 'bold', color: '#2563eb', letterSpacing: 1.5 },
+  subTitle: { fontSize: 10, color: '#64748b', marginTop: 2 },
+  medicoNombre: { fontSize: 12, fontWeight: 'bold', color: '#1e293b' },
+  medicoInfo: { fontSize: 9, color: '#475569', marginTop: 2 },
+  docTitle: { fontSize: 14, fontWeight: 'bold', textAlign: 'center', marginVertical: 10, color: '#0f172a', letterSpacing: 1 },
+  pacienteBox: { flexDirection: 'row', backgroundColor: '#f8fafc', padding: 12, borderRadius: 6, marginBottom: 20, border: '1px solid #e2e8f0' },
+  pacienteCol: { width: '50%' },
+  text: { fontSize: 10, color: '#334155', marginBottom: 4, lineHeight: 1.4 },
+  bold: { fontWeight: 'bold', color: '#0f172a' },
+  rxContainer: { marginTop: 10, paddingLeft: 10 },
+  rxIcon: { fontSize: 28, fontWeight: 'bold', color: '#cbd5e1', marginBottom: 15 },
+  recetaItem: { marginBottom: 15, paddingBottom: 10, borderBottom: '1px dashed #e2e8f0' },
+  medName: { fontSize: 12, fontWeight: 'bold', color: '#1e293b', marginBottom: 4 },
+  medDetailsBox: { paddingLeft: 15 },
+  indicaciones: { fontSize: 9, color: '#64748b', marginTop: 4, fontStyle: 'italic' },
+  footerFormula: { position: 'absolute', bottom: 40, left: 40, right: 40 },
+  firmaCaja: { width: 200, alignItems: 'center' },
+  firmaLinea: { color: '#000', marginBottom: 5 },
+  firmaNombre: { fontSize: 9, fontWeight: 'bold', color: '#1e293b' },
+  firmaDetalle: { fontSize: 8, color: '#475569', marginTop: 2 },
+  validezCaja: { marginTop: 20, borderTop: '1px solid #cbd5e1', paddingTop: 10, alignItems: 'center' },
+  validezTexto: { fontSize: 9, fontStyle: 'italic', color: '#64748b' }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PLANTILLA 3: ORDEN DE EXÁMENES (Laboratorios/Imágenes)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const PlantillaExamenesPDF = ({ historia, examenes = [] }) => {
+  return (
+    <Document>
+      <Page size="LETTER" style={examStyles.page}>
+        
+        {/* ENCABEZADO */}
+        <View style={examStyles.header}>
+          <Text style={examStyles.titleLogo}>MELIKA - ORDEN MÉDICA</Text>
+          <Text style={examStyles.medicoNombre}>Dr(a). {historia?.medico_nombre} {historia?.medico_apellido}</Text>
+        </View>
+
+        <Text style={examStyles.docTitle}>ORDEN DE EXÁMENES / AYUDAS DIAGNÓSTICAS</Text>
+
+        {/* PACIENTE Y MOTIVO */}
+        <View style={examStyles.infoBox}>
+          <Text style={examStyles.text}><Text style={examStyles.bold}>Paciente:</Text> {historia?.paciente_nombre} {historia?.paciente_apellido} | <Text style={examStyles.bold}>ID:</Text> {historia?.paciente_num_doc}</Text>
+          <Text style={examStyles.text}><Text style={examStyles.bold}>Justificación Clínica:</Text> {historia?.diagnostico_cie10 || 'Estudio de control y seguimiento'}</Text>
+        </View>
+
+        {/* LISTA DE EXÁMENES */}
+        <View style={examStyles.listaContainer}>
+          {examenes.map((ex, index) => (
+            <View key={index} style={examStyles.examenItem}>
+              <Text style={examStyles.exName}>{index + 1}. {ex.nombre_examen}</Text>
+              <Text style={examStyles.exDetalle}>Observaciones: {ex.observaciones || 'N/A'}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* PIE DE PÁGINA */}
+        <View style={examStyles.footer}>
+          <Text style={examStyles.firmaLinea}>____________________________________</Text>
+          <Text style={examStyles.firmaNombre}>Firma y Sello del Médico</Text>
+        </View>
+      </Page>
+    </Document>
+  );
+};
+
+const examStyles = StyleSheet.create({
+  page: { padding: 40, fontFamily: 'Helvetica' },
+  header: { borderBottom: '2px solid #059669', paddingBottom: 10, marginBottom: 20 },
+  titleLogo: { fontSize: 18, fontWeight: 'bold', color: '#059669' },
+  medicoNombre: { fontSize: 11, color: '#475569' },
+  docTitle: { fontSize: 14, fontWeight: 'bold', textAlign: 'center', marginBottom: 20 },
+  infoBox: { backgroundColor: '#f0fdf4', padding: 10, marginBottom: 20 },
+  text: { fontSize: 10, marginBottom: 3 },
+  bold: { fontWeight: 'bold' },
+  listaContainer: { marginTop: 10 },
+  examenItem: { marginBottom: 15, paddingBottom: 5, borderBottom: '1px solid #e2e8f0' },
+  exName: { fontSize: 12, fontWeight: 'bold', color: '#064e3b' },
+  exDetalle: { fontSize: 9, color: '#64748b', fontStyle: 'italic' },
+  footer: { position: 'absolute', bottom: 60, left: 40 },
+  firmaLinea: { marginBottom: 5 },
+  firmaNombre: { fontSize: 10 }
+});

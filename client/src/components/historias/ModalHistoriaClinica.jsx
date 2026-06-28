@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { useAuth } from '../../context/AuthContext';
 import { api }    from '../../lib/apiClient';
-import { PlantillaHistoriaPDF, PlantillaFormulaPDF } from './PlantillaHistoriaPDF';
+import { PlantillaHistoriaPDF, PlantillaFormulaPDF, PlantillaExamenesPDF } from './PlantillaHistoriaPDF';
 import './ModalHistoriaClinica.css';
 
 const FORM_INICIAL = {
@@ -248,6 +248,7 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
             </p>
           </div>
           <div className="mhc-cabecera__acciones">
+            {/* 1. Botón Historia */}
             {historiaFull && !modoEdicion && !modoAclaracion && (
               <PDFDownloadLink
                 document={<PlantillaHistoriaPDF historia={historiaFull} aclaraciones={aclaraciones} />}
@@ -257,19 +258,33 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
                 {({ loading: pdfLoading }) => pdfLoading ? 'Generando…' : '⬇ Historia PDF'}
               </PDFDownloadLink>
             )}
-            {historiaFull && historiaFull.medicamentos_recetados && !modoEdicion && !modoAclaracion && (
+            
+            {/* 2. Botón Fórmula */}
+            {historiaFull && recetas.length > 0 && !modoEdicion && !modoAclaracion && (
               <PDFDownloadLink
-                document={<PlantillaFormulaPDF historia={historiaFull} />}
+                document={<PlantillaFormulaPDF historia={historiaFull} recetas={recetas} />}
                 fileName={`Formula-${historiaFull.id}-${historiaFull.paciente_apellido}.pdf`}
                 className="mhc-btn mhc-btn--formula"
               >
                 {({ loading: pdfLoading }) => pdfLoading ? 'Generando…' : '💊 Fórmula PDF'}
               </PDFDownloadLink>
             )}
+
+            {/* 3. NUEVO: Botón Exámenes */}
+            {historiaFull && examenes.length > 0 && !modoEdicion && !modoAclaracion && (
+              <PDFDownloadLink
+                document={<PlantillaExamenesPDF historia={historiaFull} examenes={examenes} />}
+                fileName={`Examenes-${historiaFull.id}-${historiaFull.paciente_apellido}.pdf`}
+                className="mhc-btn mhc-btn--formula" 
+                style={{ backgroundColor: '#059669', color: 'white' }}
+              >
+                {({ loading: pdfLoading }) => pdfLoading ? 'Generando…' : '🔬 Órdenes PDF'}
+              </PDFDownloadLink>
+            )}
+
             <button className="mhc-cerrar" onClick={onCerrar} aria-label="Cerrar">✕</button>
           </div>
         </div>
-
         <div className="mhc-cuerpo">
           {loading ? (
             <div className="mhc-loading">

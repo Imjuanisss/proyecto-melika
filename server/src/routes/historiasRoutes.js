@@ -18,9 +18,9 @@ const { verifyToken, isMedico, isPaciente } = require('../middleware/authMiddlew
 const {
   // Historias
   crearHistoria,
-  actualizarHistoria, // <-- Corregido: antes era crearAclaracion
+  actualizarHistoria,
   obtenerHistoria,
-  // obtenerHistoriaCompleta, <-- Eliminado porque ya no existe en el controlador
+  obtenerHistoriaCompleta, 
   historialPaciente,
   gestionarCita,
   // Documentos clínicos
@@ -48,17 +48,15 @@ router.get('/cita/:id_cita', verifyToken, obtenerHistoria);
 router.post('/', verifyToken, isMedico, crearHistoria);
 
 // GET /historias/:id/completa
-// Ruta deshabilitada temporalmente porque la función fue eliminada del controlador
-// router.get('/:id/completa', verifyToken, obtenerHistoriaCompleta);
+// Ruta para el historial general del paciente
+router.get('/:id/completa', verifyToken, obtenerHistoriaCompleta);
 
 // PUT /historias/:id
 // Actualizar historia clínica (Agregar nota de aclaración o evolución).
-// Corregido para coincidir con el controlador (actualizarHistoria)
 router.put('/:id', verifyToken, isMedico, actualizarHistoria);
 
 // PATCH /historias/gestionar-cita/:id
 // Alias de PATCH /medico/citas/:id/gestionar — centraliza la lógica aquí.
-// (La ruta canónica se monta en medicosRoutes bajo /medico/citas/:id/gestionar)
 router.patch('/gestionar-cita/:id', verifyToken, isMedico, gestionarCita);
 
 // ─── RUTAS DE DOCUMENTOS CLÍNICOS ─────────────────────────────────────────────

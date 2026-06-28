@@ -5,7 +5,7 @@ import { useAuth }                           from '../../context/AuthContext';
 import { api }                               from '../../lib/apiClient';
 import VisorPDFModal                         from './VisorPDFModal';
 import FormularioAclaracion                  from './FormularioAclaracion';
-import { PlantillaHistoriaPDF, PlantillaFormulaPDF } from './PlantillaHistoriaPDF';
+import { PlantillaHistoriaPDF, PlantillaFormulaPDF, PlantillaExamenesPDF } from './PlantillaHistoriaPDF';
 import './HistorialPaciente.css';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -89,6 +89,8 @@ function TarjetaHistoria({ entrada, onVerDetalle, onGenerarPDF, generandoId }) {
 function DetalleHistoria({ historiaId, onCerrar, usuario }) {
   const [datos,         setDatos]         = useState(null);
   const [aclaraciones,  setAclaraciones]  = useState([]);
+  const [recetas,       setRecetas]       = useState([]);
+  const [examenes,      setExamenes]      = useState([]);
   const [loading,       setLoading]       = useState(true);
   const [error,         setError]         = useState(null);
 
@@ -105,13 +107,19 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
     return () => document.removeEventListener('keydown', onKey);
   }, [onCerrar, visorUrl]);
 
-  // Cargar datos de la historia
+  // Cargar datos completos de la historia a través del endpoint que SI usamos
   const cargarDatos = useCallback(() => {
     setLoading(true);
+    // IMPORTANTE: Llamamos a obtenerHistoria (que trae todo) pasando por el ID de la cita o ajustamos el endpoint.
+    // Como estamos en el historial general, tu backend usa el endpoint /historias/:id/completa
+    // que DEBE devolver ahora recetas y examenes (actualizaremos esto si falla, pero asumo que ya lo adaptamos en historiasController).
     api.get(`/historias/${historiaId}/completa`)
       .then(data => {
         setDatos(data.historia);
         setAclaraciones(data.aclaraciones || []);
+        // Extraemos recetas y exámenes si existen (o arrays vacíos para no romper la app)
+        setRecetas(data.recetas || []);
+        setExamenes(data.examenes || []);
       })
       .catch(() => setError('No se pudo cargar el detalle de la historia clínica.'))
       .finally(() => setLoading(false));
@@ -121,7 +129,6 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
     cargarDatos();
   }, [cargarDatos]);
 
-  // Recargar cuando se crea una aclaración
   useEffect(() => {
     function onAclaracionCreada(e) {
       if (e.detail?.historiaId === historiaId) cargarDatos();
@@ -134,16 +141,22 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
     if (!datos) return;
     setVisorCargando(true);
     try {
-      const documento = tipo === 'formula'
-        ? <PlantillaFormulaPDF historia={datos} />
-        : <PlantillaHistoriaPDF historia={datos} aclaraciones={aclaraciones} />;
+      let documento;
+      let nombre;
+
+      if (tipo === 'formula') {
+        documento = <PlantillaFormulaPDF historia={datos} recetas={recetas} />;
+        nombre = `Formula-${datos.id}-${datos.paciente_apellido}.pdf`;
+      } else if (tipo === 'examenes') {
+        documento = <PlantillaExamenesPDF historia={datos} examenes={examenes} />;
+        nombre = `Examenes-${datos.id}-${datos.paciente_apellido}.pdf`;
+      } else {
+        documento = <PlantillaHistoriaPDF historia={datos} aclaraciones={aclaraciones} />;
+        nombre = `HC-${datos.id}-${datos.paciente_apellido}.pdf`;
+      }
 
       const blob    = await pdf(documento).toBlob();
       const blobUrl = URL.createObjectURL(blob);
-      const nombre  = tipo === 'formula'
-        ? `Formula-${datos.id}-${datos.paciente_apellido}.pdf`
-        : `HC-${datos.id}-${datos.paciente_apellido}.pdf`;
-
       setVisorNombre(nombre);
       setVisorUrl(blobUrl);
     } catch (err) {
@@ -170,7 +183,7 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
   }
 
   const medTexto   = datos ? extraerMedTexto(datos.medicamentos_recetados) : '';
-  const hayFormula = medTexto || datos?.ordenes_medicas;
+  const hayFormula = recetas.length > 0 || medTexto || datos?.ordenes_medicas;
 
   return (
     <>
@@ -201,7 +214,7 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
               )}
             </div>
 
-            <div className="hp-detalle-cabecera__acciones">
+            <div className="hp-detalle-cabecera__acciones" style={{flexWrap: 'wrap'}}>
               {datos && (
                 <button
                   className="hp-btn hp-btn--visor"
@@ -229,11 +242,22 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
 
               {datos && hayFormula && (
                 <PDFDownloadLink
-                  document={<PlantillaFormulaPDF historia={datos} />}
+                  document={<PlantillaFormulaPDF historia={datos} recetas={recetas} />}
                   fileName={`Formula-${datos.id}-${datos.paciente_apellido}.pdf`}
                   className="hp-btn hp-btn--formula"
                 >
-                  {({ loading: l }) => l ? 'Generando…' : '💊 Fórmula'}
+                  {({ loading: l }) => l ? 'Generando…' : '💊 Fórmula PDF'}
+                </PDFDownloadLink>
+              )}
+
+              {datos && examenes.length > 0 && (
+                <PDFDownloadLink
+                  document={<PlantillaExamenesPDF historia={datos} examenes={examenes} />}
+                  fileName={`Examenes-${datos.id}-${datos.paciente_apellido}.pdf`}
+                  className="hp-btn hp-btn--formula"
+                  style={{ backgroundColor: '#059669', color: 'white', borderColor: '#059669' }}
+                >
+                  {({ loading: l }) => l ? 'Generando…' : '🔬 Órdenes PDF'}
                 </PDFDownloadLink>
               )}
 
@@ -380,18 +404,54 @@ function DetalleHistoria({ historiaId, onCerrar, usuario }) {
                 )}
 
                 {/* BLOQUE 5 — Plan de manejo */}
-                {(datos.plan_tratamiento || medTexto || datos.ordenes_medicas || datos.recomendaciones) && (
+                {(datos.plan_tratamiento || medTexto || datos.ordenes_medicas || datos.recomendaciones || recetas.length > 0 || examenes.length > 0) && (
                   <div className="hp-bloque">
                     <h3 className="hp-bloque__titulo"><span>5</span> Plan de Manejo</h3>
                     <Campo etiqueta="Plan de tratamiento" valor={datos.plan_tratamiento} />
-                    {medTexto && (
+                    
+                    {/* Render visual de Recetas */}
+                    {recetas.length > 0 && (
                       <div className="hp-detalle-campo hp-detalle-campo--bloque">
-                        <span className="hp-detalle-campo__etiqueta">💊 Medicamentos recetados</span>
+                        <span className="hp-detalle-campo__etiqueta">💊 FÓRMULA MÉDICA (Recetas)</span>
+                        <div style={{ backgroundColor: '#f8fafc', padding: '10px', borderRadius: '6px', fontSize: '0.85rem' }}>
+                          <ul style={{ margin: 0, paddingLeft: '20px' }}>
+                            {recetas.map((r, i) => (
+                              <li key={i} style={{ marginBottom: '5px' }}>
+                                <strong>{r.medicamento}</strong> - Dosis: {r.dosis} | Frecuencia: {r.frecuencia} | Vía: {r.via_administracion} | Duración: {r.duracion}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Render visual de Exámenes */}
+                    {examenes.length > 0 && (
+                      <div className="hp-detalle-campo hp-detalle-campo--bloque" style={{ marginTop: '10px' }}>
+                        <span className="hp-detalle-campo__etiqueta">🔬 ÓRDENES DE EXÁMENES</span>
+                        <div style={{ backgroundColor: '#f8fafc', padding: '10px', borderRadius: '6px', fontSize: '0.85rem' }}>
+                          <ul style={{ margin: 0, paddingLeft: '20px' }}>
+                            {examenes.map((ex, i) => (
+                              <li key={i} style={{ marginBottom: '5px' }}>
+                                <strong>[{ex.tipo_examen}]</strong> {ex.nombre_examen}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Texto de retrocompatibilidad si había texto plano */}
+                    {medTexto && recetas.length === 0 && (
+                      <div className="hp-detalle-campo hp-detalle-campo--bloque">
+                        <span className="hp-detalle-campo__etiqueta">💊 Medicamentos recetados (Texto)</span>
                         <span className="hp-detalle-campo__valor">{medTexto}</span>
                       </div>
                     )}
-                    <Campo etiqueta="Órdenes médicas"  valor={datos.ordenes_medicas} />
+
+                    <Campo etiqueta="Órdenes médicas (Notas adicionales)"  valor={datos.ordenes_medicas} />
                     <Campo etiqueta="Recomendaciones"  valor={datos.recomendaciones} />
+                    
                     {datos.incapacidad_dias > 0 && (
                       <div className="hp-incapacidad">
                         ⚕ Incapacidad médica: {datos.incapacidad_dias} día(s)

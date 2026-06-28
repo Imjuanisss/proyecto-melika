@@ -568,6 +568,31 @@ FROM pg_indexes
 WHERE tablename = 'historias_clinicas'
   AND indexname = 'uq_historia_principal_por_cita';
 
+nuevos datos para meter 
 
   ALTER TABLE franjas_horarias 
 ADD COLUMN estado VARCHAR(20) DEFAULT 'disponible';
+
+-- 1. Tabla para las Fórmulas Médicas (Recetas)
+CREATE TABLE recetas_medicas (
+    id SERIAL PRIMARY KEY,
+    id_historia INTEGER REFERENCES historias_clinicas(id) ON DELETE CASCADE,
+    medicamento VARCHAR(150) NOT NULL,
+    dosis VARCHAR(100) NOT NULL,       -- ej: '500 mg'
+    frecuencia VARCHAR(100) NOT NULL,  -- ej: 'Cada 8 horas'
+    duracion VARCHAR(100) NOT NULL,    -- ej: 'Por 5 días'
+    via_administracion VARCHAR(50),    -- ej: 'Oral', 'Intravenosa'
+    indicaciones TEXT,                 -- ej: 'Tomar después de las comidas'
+    fecha_emision TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 2. Tabla para las Órdenes de Exámenes Médicos
+CREATE TABLE ordenes_examenes (
+    id SERIAL PRIMARY KEY,
+    id_historia INTEGER REFERENCES historias_clinicas(id) ON DELETE CASCADE,
+    tipo_examen VARCHAR(100) NOT NULL,   -- ej: 'Laboratorio', 'Imagenología'
+    nombre_examen VARCHAR(150) NOT NULL, -- ej: 'Cuadro Hemático', 'Radiografía de Tórax'
+    justificacion_clinica TEXT,          -- Razón por la que se pide el examen
+    fecha_emision TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+  
