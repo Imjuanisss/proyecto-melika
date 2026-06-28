@@ -1,6 +1,7 @@
 /* client/src/pages/admin/gestionhorarios/HorariosAdmin.css
-   MELIKA — Gestión de horarios admin (refactorizado)
-   ─────────────────────────────────────────────────── */
+   MELIKA — Gestión de horarios admin
+   Rediseño profesional: ClockPicker, modal limpio, previews de franja
+   ─────────────────────────────────────────────────────────────────── */
 
 .horarios-admin { max-width: 1200px; }
 
@@ -36,14 +37,14 @@
 
 .horarios-leyenda {
   display:       flex;
-  gap:           var(--space-4);
+  gap:           var(--space-5);
   margin-bottom: var(--space-4);
   flex-wrap:     wrap;
   align-items:   center;
 }
 
 .leyenda-item {
-  font-size:   13px;
+  font-size:   0.82rem;
   font-weight: 600;
   font-family: var(--font-display);
   color:       var(--melika-text-secondary);
@@ -51,6 +52,21 @@
   align-items: center;
   gap:         var(--space-2);
 }
+
+.leyenda-item--muted {
+  color:       var(--melika-text-muted);
+  font-weight: 500;
+}
+
+.leyenda-dot {
+  width:         10px;
+  height:        10px;
+  border-radius: 50%;
+  flex-shrink:   0;
+}
+
+.leyenda-dot--libre    { background: #1A7A52; }
+.leyenda-dot--reservada { background: #E8856A; }
 
 /* ── Calendario ─────────────────────────────────────────── */
 
@@ -60,61 +76,199 @@
   border-radius: var(--radius-xl);
   padding:       var(--space-6);
   box-shadow:    var(--shadow-sm);
-  max-width:     100%;
   overflow-x:    hidden;
 }
-
-.horarios-admin .fc,
-.horarios-admin .fc * { max-width: 100%; }
 
 .horarios-admin .fc .fc-toolbar-title {
   font-size: clamp(14px, 1.5vw, 18px);
 }
 
-/* ── Detalle evento ──────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════
+   BOTONES COMPARTIDOS DEL MÓDULO
+   ═══════════════════════════════════════════════════════════ */
 
-.horarios-detalle {
+.ha-btn-primario {
+  font-family:   var(--font-display);
+  font-size:     0.88rem;
+  font-weight:   700;
+  color:         #fff;
+  background:    var(--melika-primary-600, #1a7a52);
+  border:        none;
+  border-radius: var(--radius-sm);
+  padding:       var(--space-2) var(--space-5);
+  cursor:        pointer;
+  transition:    background 0.15s;
+}
+
+.ha-btn-primario:hover:not(:disabled) { background: var(--melika-primary-700, #145c3e); }
+.ha-btn-primario:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.ha-btn-secundario {
+  font-family:   var(--font-display);
+  font-size:     0.88rem;
+  font-weight:   600;
+  color:         var(--melika-text-secondary);
+  background:    transparent;
+  border:        1.5px solid var(--melika-primary-100, #c8e8d8);
+  border-radius: var(--radius-sm);
+  padding:       var(--space-2) var(--space-5);
+  cursor:        pointer;
+  transition:    all 0.15s;
+}
+
+.ha-btn-secundario:hover:not(:disabled) {
+  border-color: var(--melika-primary-300);
+  color:        var(--melika-text-primary);
+}
+
+.ha-btn-secundario:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.ha-btn-danger {
+  font-family:   var(--font-display);
+  font-size:     0.88rem;
+  font-weight:   700;
+  color:         var(--melika-error, #dc2626);
+  background:    var(--melika-error-bg, #fef2f2);
+  border:        1.5px solid var(--melika-error, #dc2626);
+  border-radius: var(--radius-sm);
+  padding:       var(--space-2) var(--space-5);
+  cursor:        pointer;
+  transition:    all 0.15s;
+}
+
+.ha-btn-danger:hover { background: #fee2e2; }
+
+.ha-btn-cerrar {
+  background:    var(--melika-bg-secondary, #f8fafb);
+  border:        1px solid var(--melika-border, #e2e8f0);
+  border-radius: var(--radius-sm);
+  width:         30px;
+  height:        30px;
+  display:       flex;
+  align-items:   center;
+  justify-content: center;
+  cursor:        pointer;
+  color:         var(--melika-text-muted);
+  transition:    all 0.12s;
+  flex-shrink:   0;
+}
+
+.ha-btn-cerrar:hover {
+  background:   var(--melika-error-bg, #fef2f2);
+  border-color: var(--melika-error, #dc2626);
+  color:        var(--melika-error, #dc2626);
+}
+
+/* ── Error ─────────────────────────────────────────────── */
+
+.ha-error {
+  background:    var(--melika-error-bg, #fef2f2);
+  color:         var(--melika-error, #dc2626);
+  border:        1px solid var(--melika-error, #dc2626);
+  border-radius: var(--radius-sm);
+  padding:       var(--space-3) var(--space-4);
+  font-size:     0.85rem;
+  font-weight:   500;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MODAL DETALLE DE EVENTO
+   ═══════════════════════════════════════════════════════════ */
+
+.ha-modal-detalle {
+  max-width:      400px !important;
+  display:        flex;
+  flex-direction: column;
+  gap:            0;
+  padding:        0 !important;
+}
+
+.ha-modal-detalle__header {
+  display:         flex;
+  justify-content: space-between;
+  align-items:     flex-start;
+  padding:         var(--space-5) var(--space-5) var(--space-4);
+  border-bottom:   1px solid var(--melika-primary-50);
+}
+
+.ha-modal-detalle__titulo {
+  font-size:     1rem;
+  font-weight:   700;
+  color:         var(--melika-text-primary);
+  margin:        0 0 var(--space-1);
+}
+
+.ha-modal-detalle__medico {
+  font-size: 0.82rem;
+  color:     var(--melika-text-secondary);
+  margin:    0;
+}
+
+.ha-modal-detalle__body {
+  padding:        var(--space-4) var(--space-5);
   display:        flex;
   flex-direction: column;
   gap:            var(--space-3);
-  margin-bottom:  var(--space-4);
-  padding:        var(--space-4);
-  background:     var(--melika-bg-secondary);
-  border-radius:  var(--radius-md);
-  font-size:      14px;
-  color:          var(--melika-text-secondary);
 }
 
-.horarios-detalle strong { color: var(--melika-text-primary); }
+.ha-modal-detalle__footer {
+  display:         flex;
+  justify-content: flex-end;
+  gap:             var(--space-3);
+  padding:         var(--space-4) var(--space-5) var(--space-5);
+  border-top:      1px solid var(--melika-primary-50);
+}
+
+/* Datos del detalle */
+.ha-dato {
+  display:         flex;
+  justify-content: space-between;
+  align-items:     baseline;
+  gap:             var(--space-3);
+}
+
+.ha-dato__label {
+  font-size:   0.78rem;
+  font-weight: 600;
+  color:       var(--melika-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space:    nowrap;
+  flex-shrink:    0;
+}
+
+.ha-dato__valor {
+  font-size:   0.88rem;
+  color:       var(--melika-text-primary);
+  text-align:  right;
+  line-height: 1.4;
+}
+
+.ha-badge {
+  font-size:   0.72rem;
+  font-weight: 700;
+  padding:     3px 10px;
+  border-radius: 20px;
+}
+
+.ha-badge--verde   { background: #d1fae5; color: #065f46; }
+.ha-badge--naranja { background: #fed7aa; color: #92400e; }
 
 /* ═══════════════════════════════════════════════════════════
-   MODAL WIDE — ancho máximo, sin overflow que corte selects
-   Los select nativos del sistema operativo nunca se cortan.
+   MODAL PRINCIPAL — Semana / Franja puntual
    ═══════════════════════════════════════════════════════════ */
 
-.horarios-modal-wide {
-  background:    var(--melika-bg);
-  border-radius: var(--radius-xl);
-  box-shadow:    var(--shadow-xl);
-  /* Ancho generoso para mostrar la tabla de días completa */
-  width:         min(96vw, 1000px);
-  max-height:    92vh;
-  display:       flex;
+.ha-modal-wide {
+  background:     var(--melika-bg);
+  border-radius:  var(--radius-xl);
+  box-shadow:     var(--shadow-xl);
+  width:          min(96vw, 860px);
+  max-height:     92vh;
+  display:        flex;
   flex-direction: column;
-  /* SIN overflow-y: auto en el contenedor raíz — cada sección maneja su propio scroll */
 }
 
-.horarios-modal-wide__body {
-  padding:    var(--space-5) var(--space-6);
-  overflow-y: auto;          /* Solo el body hace scroll, no el modal completo */
-  flex:       1;
-  /* Importantísimo: el overflow-y aquí no corta los <select> nativos del SO,
-     que se renderizan fuera del stacking context del modal */
-}
-
-/* ── Header del modal ────────────────────────────────────── */
-
-.horarios-modal__header {
+.ha-modal-wide__header {
   display:         flex;
   justify-content: space-between;
   align-items:     flex-start;
@@ -123,52 +277,32 @@
   flex-shrink:     0;
 }
 
-.horarios-modal__titulo {
-  font-size:     1.15rem;
-  font-weight:   700;
-  color:         var(--melika-text-primary);
-  margin:        0 0 var(--space-1);
+.ha-modal-wide__titulo {
+  font-size:   1.1rem;
+  font-weight: 700;
+  color:       var(--melika-text-primary);
+  margin:      0 0 var(--space-1);
 }
 
-.horarios-modal__sub {
-  font-size: 0.82rem;
+.ha-modal-wide__sub {
+  font-size: 0.8rem;
   color:     var(--melika-text-muted);
   margin:    0;
 }
 
-.btn-cerrar-modal {
-  background:    transparent;
-  border:        1px solid var(--melika-border);
-  border-radius: var(--radius-sm);
-  width:         30px;
-  height:        30px;
-  display:       flex;
-  align-items:   center;
-  justify-content: center;
-  cursor:        pointer;
-  font-size:     0.9rem;
-  color:         var(--melika-text-muted);
-  transition:    all 0.12s;
-  flex-shrink:   0;
-}
-
-.btn-cerrar-modal:hover {
-  background:   var(--melika-error-bg);
-  border-color: var(--melika-error);
-  color:        var(--melika-error);
-}
-
-/* ── Tabs de modo ────────────────────────────────────────── */
-
-.horarios-modo-tabs {
+/* Tabs del modal */
+.ha-modal-wide__tabs {
   display:       flex;
   gap:           0;
-  padding:       var(--space-4) var(--space-6) 0;
+  padding:       0 var(--space-6);
   border-bottom: 1px solid var(--melika-primary-50);
   flex-shrink:   0;
 }
 
-.horarios-modo-tab {
+.ha-tab {
+  display:       flex;
+  align-items:   center;
+  gap:           var(--space-2);
   font-family:   var(--font-display);
   font-size:     0.88rem;
   font-weight:   600;
@@ -180,66 +314,226 @@
   cursor:        pointer;
   transition:    all 0.15s;
   margin-bottom: -1px;
+  white-space:   nowrap;
 }
 
-.horarios-modo-tab:hover { color: var(--melika-text-secondary); }
-.horarios-modo-tab--activo {
+.ha-tab:hover { color: var(--melika-text-secondary); }
+
+.ha-tab--activo {
   color:              var(--melika-primary);
   border-bottom-color: var(--melika-primary);
 }
 
-/* ── Puntual form ────────────────────────────────────────── */
-
-.horarios-puntual {
-  display:        flex;
-  flex-direction: column;
-  gap:            var(--space-4);
+/* Body del modal — hace scroll solo aquí */
+.ha-modal-wide__body {
+  padding:    var(--space-5) var(--space-6);
+  overflow-y: auto;
+  flex:       1;
 }
 
-.horarios-fila-2 {
+/* ═══════════════════════════════════════════════════════════
+   FRANJA PUNTUAL
+   ═══════════════════════════════════════════════════════════ */
+
+.ha-puntual {
+  display:        flex;
+  flex-direction: column;
+  gap:            var(--space-5);
+}
+
+.ha-puntual__seccion {
+  display:        flex;
+  flex-direction: column;
+  gap:            var(--space-3);
+}
+
+.ha-puntual__seccion-titulo {
+  font-size:     0.75rem;
+  font-weight:   700;
+  color:         var(--melika-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin:        0;
+  padding-bottom: var(--space-2);
+  border-bottom:  1px solid var(--melika-primary-50);
+}
+
+.ha-puntual__fila-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap:     var(--space-4);
   align-items: start;
 }
 
-.horarios-preview-pill {
-  padding:       var(--space-2) var(--space-4);
-  background:    var(--melika-primary-50, #f0faf6);
-  border:        1px solid var(--melika-primary-100);
-  border-radius: var(--radius-md);
-  font-size:     0.83rem;
-  color:         var(--melika-text-secondary);
-  text-align:    center;
+.ha-puntual__campo {
+  display:        flex;
+  flex-direction: column;
+  gap:            var(--space-1);
 }
 
-.horarios-preview-pill strong { color: var(--melika-primary); }
+.ha-puntual__label {
+  font-size:   0.75rem;
+  font-weight: 700;
+  color:       var(--melika-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
 
-.horarios-dia__check-descanso {
+.ha-puntual__select {
+  width:         100%;
+  border:        1px solid var(--melika-primary-100, #c8e8d8);
+  border-radius: var(--radius-sm);
+  padding:       var(--space-2) var(--space-3);
+  font-size:     0.88rem;
+  font-family:   var(--font-body);
+  background:    var(--melika-bg, #fff);
+  color:         var(--melika-text-primary);
+  outline:       none;
+  transition:    border-color 0.15s;
+}
+
+.ha-puntual__select:focus {
+  border-color: var(--melika-primary-300, #6bc8a0);
+}
+
+/* Campo ClockPicker dentro del puntual */
+.ha-campo-clock {
+  display:        flex;
+  flex-direction: column;
+  gap:            var(--space-1);
+}
+
+.ha-campo-clock__label {
+  font-size:   0.75rem;
+  font-weight: 700;
+  color:       var(--melika-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Preview de franjas */
+.ha-franja-preview {
+  display:       flex;
+  align-items:   center;
+  gap:           var(--space-3);
+  padding:       var(--space-3) var(--space-4);
+  background:    var(--melika-primary-50, #f0faf6);
+  border:        1px solid var(--melika-primary-100, #c8e8d8);
+  border-radius: var(--radius-md);
+}
+
+.ha-franja-preview__num {
+  font-size:   1.8rem;
+  font-weight: 800;
+  color:       var(--melika-primary);
+  font-family: var(--font-display);
+  line-height: 1;
+}
+
+.ha-franja-preview__info {
+  display:        flex;
+  flex-direction: column;
+  gap:            2px;
+  font-size:      0.85rem;
+  color:          var(--melika-text-secondary);
+}
+
+.ha-franja-preview__fecha {
+  font-size:  0.76rem;
+  color:      var(--melika-text-muted);
+}
+
+/* Toggle de descanso */
+.ha-puntual__toggle-descanso {
   display:     flex;
   align-items: center;
   gap:         var(--space-2);
-  font-size:   0.83rem;
+  font-size:   0.85rem;
   font-weight: 600;
   color:       var(--melika-text-secondary);
   cursor:      pointer;
+  user-select: none;
 }
 
-.horarios-dia__check-descanso input {
-  accent-color: var(--melika-accent);
-  width:  15px;
-  height: 15px;
+.ha-puntual__toggle-descanso input[type="checkbox"] {
+  accent-color: var(--melika-accent, #e8856a);
+  width:        15px;
+  height:       15px;
+}
+
+.ha-puntual__toggle-descanso svg { color: var(--melika-text-muted); }
+
+.ha-puntual__toggle-descanso--disabled {
+  opacity:        0.4;
+  cursor:         not-allowed;
+  pointer-events: none;
+}
+
+/* Horas de descanso */
+.ha-puntual__descanso-horas {
+  display:       grid;
+  grid-template-columns: 1fr 1fr;
+  gap:           var(--space-4);
+  padding:       var(--space-3) var(--space-4);
+  background:    rgba(180, 83, 9, 0.04);
+  border:        1px dashed rgba(180, 83, 9, 0.22);
+  border-radius: var(--radius-sm);
+}
+
+/* Acciones del modal puntual */
+.ha-puntual__acciones {
+  display:         flex;
+  justify-content: flex-end;
+  gap:             var(--space-3);
+  padding-top:     var(--space-4);
+  border-top:      1px solid var(--melika-primary-50);
+  flex-shrink:     0;
+}
+
+/* Resultado del puntual */
+.ha-puntual__resultado {
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  gap:            var(--space-3);
+  padding:        var(--space-10) var(--space-4);
+  text-align:     center;
+}
+
+.ha-puntual__resultado-icono { color: var(--melika-primary); }
+
+.ha-puntual__resultado h4 {
+  font-size:  1.05rem;
+  font-weight: 700;
+  color:       var(--melika-text-primary);
+  margin:      0;
+}
+
+.ha-puntual__resultado p {
+  font-size: 0.88rem;
+  color:     var(--melika-text-secondary);
+  margin:    0;
+}
+
+.ha-puntual__resultado-acciones {
+  display:    flex;
+  gap:        var(--space-3);
+  margin-top: var(--space-2);
 }
 
 /* ── Responsive ─────────────────────────────────────────── */
 
-@media (max-width: 1040px) {
-  .horarios-modal-wide { width: 98vw; }
-  .horarios-modal-wide__body { padding: var(--space-4); }
-}
+@media (max-width: 720px) {
+  .ha-modal-wide         { width: 98vw; }
+  .ha-modal-wide__body   { padding: var(--space-4); }
+  .ha-modal-wide__header { padding: var(--space-4) var(--space-4) var(--space-3); }
+  .ha-modal-wide__tabs   { padding: 0 var(--space-4); }
 
-@media (max-width: 640px) {
-  .horarios-fila-2           { grid-template-columns: 1fr; }
-  .horarios-cabecera-acciones { flex-direction: column; align-items: stretch; }
-  .horarios-modal__header    { flex-direction: column; gap: var(--space-3); }
+  .ha-puntual__fila-2         { grid-template-columns: 1fr; }
+  .ha-puntual__descanso-horas { grid-template-columns: 1fr; }
+
+  .horarios-cabecera-acciones {
+    flex-direction: column;
+    align-items:    stretch;
+  }
 }
