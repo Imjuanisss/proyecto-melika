@@ -6,14 +6,15 @@ import '../login/Login.css';
 export default function Registro() {
   const navigate = useNavigate();
 
-  // Se añaden tipo_documento (con el default de la DB) y numero_documento al estado inicial
   const [form, setForm] = useState({
     nombre: '', 
     primer_apellido: '', 
     email: '', 
     password: '',
     tipo_documento: 'CC',
-    numero_documento: ''
+    numero_documento: '',
+    fecha_nacimiento: '', // <-- NUEVO CAMPO
+    genero: 'M'           // <-- NUEVO CAMPO
   });
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState(null);
@@ -27,9 +28,17 @@ export default function Registro() {
     setLoading(true);
     setError(null);
 
+    // Validación básica de edad (opcional pero recomendada)
+    const fechaNac = new Date(form.fecha_nacimiento);
+    const hoy = new Date();
+    if (fechaNac > hoy) {
+      setError('La fecha de nacimiento no puede ser en el futuro.');
+      setLoading(false);
+      return;
+    }
+
     try {
       await api.post('/auth/register', form);
-      // Redirigir a verificación con el email
       navigate(`/verificar?email=${encodeURIComponent(form.email)}`);
     } catch (err) {
       setError(err.message);
@@ -66,7 +75,6 @@ export default function Registro() {
             />
           </div>
 
-          {/* Nuevos campos alineados con las restricciones de la Base de Datos */}
           <div className="auth-campo">
             <label>Tipo de documento</label>
             <select 
@@ -88,6 +96,33 @@ export default function Registro() {
               onChange={handleChange} placeholder="Ej: 1234567890" required
             />
           </div>
+
+          {/* ─── NUEVOS CAMPOS CLÍNICOS ─── */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div className="auth-campo">
+              <label>Fecha de Nacimiento</label>
+              <input
+                type="date" name="fecha_nacimiento" value={form.fecha_nacimiento}
+                onChange={handleChange} required
+                max={new Date().toISOString().split("T")[0]} // No permite fechas futuras
+              />
+            </div>
+
+            <div className="auth-campo">
+              <label>Género</label>
+              <select 
+                name="genero" 
+                value={form.genero} 
+                onChange={handleChange} 
+                required
+              >
+                <option value="M">Masculino</option>
+                <option value="F">Femenino</option>
+                <option value="O">Otro</option>
+              </select>
+            </div>
+          </div>
+          {/* ──────────────────────────────── */}
 
           <div className="auth-campo">
             <label>Correo electrónico</label>

@@ -1,3 +1,4 @@
+// server/src/controllers/authController.js
 const pool   = require('../config/db');
 const bcrypt = require('bcrypt');
 const jwt    = require('jsonwebtoken');
@@ -81,10 +82,12 @@ function templateRecuperacion(nombre, codigo) {
 // ─── REGISTRO ─────────────────────────────────────────────────────────────
 
 async function register(req, res) {
-  const { nombre, primer_apellido, email, password, tipo_documento, numero_documento } = req.body;
+  // 🛠️ SE AÑADEN fecha_nacimiento Y genero AL DESTRUCTURING
+  const { nombre, primer_apellido, email, password, tipo_documento, numero_documento, fecha_nacimiento, genero } = req.body;
 
-  if (!nombre || !primer_apellido || !email || !password || !tipo_documento || !numero_documento) {
-    return res.status(400).json({ mensaje: 'Todos los campos son obligatorios, incluyendo identificación.' });
+  // Validación de campos obligatorios actualizada
+  if (!nombre || !primer_apellido || !email || !password || !tipo_documento || !numero_documento || !fecha_nacimiento || !genero) {
+    return res.status(400).json({ mensaje: 'Todos los campos son obligatorios, incluyendo fecha de nacimiento y género.' });
   }
 
   if (password.length < 6) {
@@ -112,11 +115,12 @@ async function register(req, res) {
 
     const hash = await bcrypt.hash(password, 10);
 
+    // 🛠️ SE ACTUALIZA EL INSERT PARA INCLUIR fecha_nacimiento Y genero ($7 Y $8)
     await pool.query(
       `INSERT INTO usuarios
-         (nombre, primer_apellido, email, password_hash, rol, activo, verificado, tipo_documento, numero_documento)
-       VALUES ($1, $2, $3, $4, 'paciente', FALSE, FALSE, $5, $6)`,
-      [nombre, primer_apellido, email, hash, tipo_documento, numero_documento]
+         (nombre, primer_apellido, email, password_hash, rol, activo, verificado, tipo_documento, numero_documento, fecha_nacimiento, genero)
+       VALUES ($1, $2, $3, $4, 'paciente', FALSE, FALSE, $5, $6, $7, $8)`,
+      [nombre, primer_apellido, email, hash, tipo_documento, numero_documento, fecha_nacimiento, genero]
     );
 
     const codigo = generarCodigo();
@@ -133,9 +137,6 @@ async function register(req, res) {
       [email, codigo, expira]
     );
 
-    // Envío vía Gmail API (HTTPS). Se espera (await): la API responde en
-    // milisegundos, sin riesgo de quedarse colgada como el socket SMTP
-    // contra un firewall que descarta los paquetes en silencio.
     let correoEnviado = true;
     try {
       await enviarCorreo({
@@ -382,7 +383,6 @@ async function solicitarRecuperacion(req, res) {
       console.error(`❌ [Gmail API] Error enviando recuperación a ${email}:`, emailError.message);
     }
 
-    // Respuesta siempre genérica por seguridad (no revela si el correo existe o no).
     return res.json({ mensaje: 'Si el correo está registrado, recibirás un código en breve.' });
   } catch (error) {
     console.error('Error en solicitarRecuperacion:', error.message);
