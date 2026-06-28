@@ -1,0 +1,427 @@
+/* client/src/components/horarios/HorariosSemana.css
+   MELIKA — Configurador semanal de horarios
+   Diseño en tabla compacta: todo visible, sin overflow que corte selects
+   ─────────────────────────────────────────────────────────────────────── */
+
+.sh-root {
+  display:        flex;
+  flex-direction: column;
+  gap:            var(--space-4);
+}
+
+/* ── Cabecera del formulario ──────────────────────────────────────────── */
+
+.sh-cabecera-form {
+  display:   flex;
+  gap:       var(--space-4);
+  flex-wrap: wrap;
+  align-items: flex-end;
+  padding:   var(--space-4);
+  background: var(--melika-bg-secondary, #f8fafb);
+  border:    1px solid var(--melika-primary-50, #e8f5f0);
+  border-radius: var(--radius-md);
+}
+
+.sh-campo {
+  display:        flex;
+  flex-direction: column;
+  gap:            var(--space-1);
+  min-width:      180px;
+}
+
+.sh-label {
+  font-size:   0.78rem;
+  font-weight: 700;
+  color:       var(--melika-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sh-select,
+.sh-input-fecha {
+  border:        1px solid var(--melika-primary-100, #c8e8d8);
+  border-radius: var(--radius-sm);
+  padding:       var(--space-2) var(--space-3);
+  font-size:     0.88rem;
+  font-family:   var(--font-body);
+  background:    var(--melika-bg, #fff);
+  color:         var(--melika-text-primary);
+  outline:       none;
+  transition:    border-color 0.15s;
+  width:         100%;
+}
+
+.sh-select:focus,
+.sh-input-fecha:focus {
+  border-color: var(--melika-primary-300, #6bc8a0);
+}
+
+.sh-hint {
+  font-size:  0.74rem;
+  color:      var(--melika-primary);
+  font-weight: 600;
+}
+
+/* ── Plantillas ───────────────────────────────────────────────────────── */
+
+.sh-plantillas {
+  display:     flex;
+  align-items: center;
+  gap:         var(--space-2);
+  flex-wrap:   wrap;
+}
+
+.sh-plantillas__label {
+  font-size:   0.76rem;
+  font-weight: 700;
+  color:       var(--melika-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.sh-plantilla-btn {
+  font-family:   var(--font-display);
+  font-size:     0.78rem;
+  font-weight:   600;
+  color:         var(--melika-primary);
+  background:    #fff;
+  border:        1.5px solid var(--melika-primary-100, #c8e8d8);
+  border-radius: var(--radius-sm);
+  padding:       4px 10px;
+  cursor:        pointer;
+  transition:    all 0.12s;
+  white-space:   nowrap;
+}
+
+.sh-plantilla-btn:hover {
+  background:   var(--melika-primary-50, #f0faf6);
+  border-color: var(--melika-primary-200);
+}
+
+/* ── Error ────────────────────────────────────────────────────────────── */
+
+.sh-error {
+  background:    var(--melika-error-bg, #fef2f2);
+  color:         var(--melika-error, #dc2626);
+  border:        1px solid var(--melika-error, #dc2626);
+  border-radius: var(--radius-sm);
+  padding:       var(--space-3) var(--space-4);
+  font-size:     0.85rem;
+  font-weight:   500;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   TABLA DE DÍAS — diseño compacto tipo grid
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.sh-tabla {
+  border:        1px solid var(--melika-primary-100, #c8e8d8);
+  border-radius: var(--radius-md);
+  overflow:      hidden; /* Sólo clip visual del borde, los selects van dentro del flujo */
+  background:    var(--melika-bg, #fff);
+}
+
+/* Columnas: día | inicio | fin | descanso-check | ini-desc | fin-desc | preview | acción */
+.sh-tabla__header,
+.sh-tabla__fila {
+  display:     grid;
+  grid-template-columns: 140px 120px 120px 100px 120px 120px 72px 36px;
+  align-items: center;
+  gap:         var(--space-2);
+  padding:     0 var(--space-3);
+}
+
+.sh-tabla__header {
+  background:    var(--melika-primary-25, #f4faf7);
+  border-bottom: 1px solid var(--melika-primary-100, #c8e8d8);
+  padding-top:    var(--space-2);
+  padding-bottom: var(--space-2);
+}
+
+.sh-tabla__header > div {
+  font-size:      0.72rem;
+  font-weight:    700;
+  color:          var(--melika-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sh-tabla__fila {
+  border-bottom:  1px solid var(--melika-primary-50, #e8f5f0);
+  padding-top:    var(--space-3);
+  padding-bottom: var(--space-3);
+  transition:     background 0.12s;
+}
+
+.sh-tabla__fila:last-child { border-bottom: none; }
+
+.sh-tabla__fila--activa  { background: var(--melika-bg, #fff); }
+.sh-tabla__fila--inactiva { background: var(--melika-bg-secondary, #f8fafb); }
+
+.sh-tabla__fila--activa:hover { background: #fafffe; }
+
+/* Columnas específicas — anchos definidos en grid-template-columns del header/fila */
+.sh-tabla__col-preview { text-align: center; }
+.sh-tabla__col-accion  { display: flex; justify-content: center; }
+
+.sh-tabla__vacio {
+  font-size: 0.8rem;
+  color:     var(--melika-text-muted);
+  display:   block;
+  text-align: center;
+}
+
+/* ── Toggle día ───────────────────────────────────────────────────────── */
+
+.sh-toggle-dia {
+  display:     flex;
+  flex-direction: column;
+  gap:         2px;
+  cursor:      pointer;
+  user-select: none;
+}
+
+.sh-toggle-dia input[type="checkbox"] {
+  accent-color: var(--melika-primary);
+  width:  15px;
+  height: 15px;
+  cursor: pointer;
+  display: none; /* Lo reemplazamos con la fila completa */
+}
+
+/* Usando la fila completa como toggle */
+.sh-toggle-dia {
+  display:     flex;
+  flex-direction: row;
+  align-items: center;
+  gap:         var(--space-2);
+}
+
+.sh-toggle-dia input[type="checkbox"] {
+  display: inline-block;
+}
+
+.sh-toggle-dia__nombre {
+  font-size:   0.88rem;
+  font-weight: 700;
+  color:       var(--melika-text-primary);
+}
+
+.sh-toggle-dia__fecha {
+  font-size:  0.72rem;
+  color:      var(--melika-text-muted);
+  margin-left: auto;
+}
+
+/* ── Toggle descanso ──────────────────────────────────────────────────── */
+
+.sh-toggle-descanso {
+  display:     flex;
+  align-items: center;
+  gap:         var(--space-2);
+  cursor:      pointer;
+  font-size:   0.78rem;
+  font-weight: 600;
+  color:       var(--melika-text-secondary);
+  user-select: none;
+}
+
+.sh-toggle-descanso input[type="checkbox"] {
+  accent-color: var(--melika-accent, #e8856a);
+  width:  14px;
+  height: 14px;
+  cursor: pointer;
+}
+
+.sh-toggle-descanso--disabled {
+  opacity: 0.4;
+  cursor:  not-allowed;
+}
+
+.sh-toggle-descanso--disabled input { cursor: not-allowed; }
+
+/* ── Select de hora (inline select nativo) ────────────────────────────── */
+
+.sh-select-hora {
+  display:        flex;
+  flex-direction: column;
+  gap:            var(--space-1);
+  width:          100%;
+}
+
+.sh-select-hora__label {
+  font-size:   0.72rem;
+  font-weight: 600;
+  color:       var(--melika-text-muted);
+}
+
+.sh-select-hora__select {
+  width:         100%;
+  border:        1px solid var(--melika-primary-100, #c8e8d8);
+  border-radius: var(--radius-sm);
+  padding:       5px var(--space-2);
+  font-size:     0.83rem;
+  font-family:   var(--font-body);
+  background:    var(--melika-bg, #fff);
+  color:         var(--melika-text-primary);
+  outline:       none;
+  cursor:        pointer;
+  transition:    border-color 0.15s;
+  /* Los selects nativos nunca quedan cortados por overflow del padre */
+}
+
+.sh-select-hora__select:focus {
+  border-color: var(--melika-primary-300, #6bc8a0);
+  box-shadow:   0 0 0 2px rgba(26, 122, 82, 0.12);
+}
+
+.sh-select-hora__select:disabled {
+  background: var(--melika-bg-secondary, #f8fafb);
+  color:      var(--melika-text-muted);
+  cursor:     not-allowed;
+  opacity:    0.6;
+}
+
+.sh-select-hora__select--placeholder {
+  color: var(--melika-text-muted);
+}
+
+/* ── Badge preview ────────────────────────────────────────────────────── */
+
+.sh-preview-badge {
+  display:       inline-block;
+  background:    var(--melika-primary-50, #f0faf6);
+  color:         var(--melika-primary);
+  border:        1px solid var(--melika-primary-100, #c8e8d8);
+  border-radius: 20px;
+  font-size:     0.72rem;
+  font-weight:   700;
+  padding:       2px 8px;
+  white-space:   nowrap;
+}
+
+/* ── Botón copiar ─────────────────────────────────────────────────────── */
+
+.sh-btn-copiar {
+  background:    transparent;
+  border:        1px dashed var(--melika-primary-200, #8ed4b8);
+  border-radius: var(--radius-sm);
+  color:         var(--melika-primary);
+  font-size:     1rem;
+  width:         28px;
+  height:        28px;
+  display:       flex;
+  align-items:   center;
+  justify-content: center;
+  cursor:        pointer;
+  transition:    all 0.12s;
+}
+
+.sh-btn-copiar:hover {
+  background:   var(--melika-primary-50, #f0faf6);
+  border-color: var(--melika-primary-300);
+  border-style: solid;
+}
+
+/* ── Acciones finales ─────────────────────────────────────────────────── */
+
+.sh-acciones {
+  display:         flex;
+  justify-content: flex-end;
+  gap:             var(--space-3);
+  padding-top:     var(--space-3);
+  border-top:      1px solid var(--melika-primary-50, #e8f5f0);
+}
+
+.sh-btn {
+  font-family:   var(--font-display);
+  font-size:     0.9rem;
+  font-weight:   600;
+  border-radius: var(--radius-sm);
+  padding:       var(--space-2) var(--space-5);
+  cursor:        pointer;
+  transition:    all 0.15s;
+  border:        none;
+}
+
+.sh-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.sh-btn--primario {
+  background: var(--melika-primary-600, #1a7a52);
+  color:      #fff;
+}
+
+.sh-btn--primario:hover:not(:disabled) {
+  background: var(--melika-primary-700, #145c3e);
+}
+
+.sh-btn--secundario {
+  background:   transparent;
+  color:        var(--melika-text-secondary);
+  border:       1.5px solid var(--melika-primary-100, #c8e8d8);
+}
+
+.sh-btn--secundario:hover:not(:disabled) {
+  border-color: var(--melika-primary-300);
+  color:        var(--melika-text-primary);
+}
+
+/* ── Resultado ────────────────────────────────────────────────────────── */
+
+.sh-resultado {
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  gap:            var(--space-3);
+  padding:        var(--space-8) var(--space-4);
+  text-align:     center;
+}
+
+.sh-resultado__icono   { font-size: 2.5rem; }
+.sh-resultado__titulo  { font-size: 1.1rem; font-weight: 700; color: var(--melika-text-primary); margin: 0; }
+.sh-resultado__detalle { font-size: 0.9rem; color: var(--melika-text-secondary); margin: 0; }
+.sh-resultado__detalle strong { color: var(--melika-primary); }
+.sh-resultado__acciones { display: flex; gap: var(--space-3); margin-top: var(--space-2); }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   RESPONSIVE — tablets
+   ═══════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 900px) {
+  .sh-tabla__header,
+  .sh-tabla__fila {
+    grid-template-columns: 120px 100px 100px 90px 100px 100px 60px 32px;
+    gap: var(--space-1);
+    padding: 0 var(--space-2);
+  }
+
+  .sh-tabla__header { display: none; } /* En móvil ocultamos el header de tabla */
+}
+
+@media (max-width: 720px) {
+  /* En pantallas pequeñas pasamos a layout por card por día */
+  .sh-tabla__header { display: none; }
+
+  .sh-tabla__fila {
+    grid-template-columns: 1fr;
+    gap:     var(--space-3);
+    padding: var(--space-4);
+    border-bottom: 2px solid var(--melika-primary-50, #e8f5f0);
+  }
+
+  .sh-tabla__col-hora,
+  .sh-tabla__col-descanso,
+  .sh-tabla__col-preview,
+  .sh-tabla__col-accion {
+    width: 100%;
+  }
+
+  .sh-tabla__fila--inactiva .sh-tabla__col-hora,
+  .sh-tabla__fila--inactiva .sh-tabla__col-descanso {
+    display: none;
+  }
+
+  .sh-cabecera-form { flex-direction: column; }
+  .sh-campo { min-width: unset; width: 100%; }
+}

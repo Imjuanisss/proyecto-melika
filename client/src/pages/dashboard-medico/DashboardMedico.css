@@ -789,3 +789,101 @@
   border:        1px dashed rgba(180, 83, 9, 0.25);
   border-radius: var(--radius-sm);
 }
+
+/* ── Sub-tabs de disponibilidad (Diaria / Semanal) ──────────────────── */
+ 
+.dispo-subtabs {
+  display:       flex;
+  gap:           0;
+  border-bottom: 1px solid var(--melika-primary-50);
+  margin-bottom: var(--space-4);
+}
+ 
+.dispo-subtab {
+  font-family:   var(--font-display);
+  font-size:     0.83rem;
+  font-weight:   600;
+  color:         var(--melika-text-muted);
+  background:    transparent;
+  border:        none;
+  border-bottom: 2px solid transparent;
+  padding:       var(--space-2) var(--space-4);
+  cursor:        pointer;
+  transition:    all 0.15s;
+  margin-bottom: -1px;
+  white-space:   nowrap;
+}
+ 
+.dispo-subtab:hover { color: var(--melika-text-secondary); }
+ 
+.dispo-subtab--activo {
+  color:              var(--melika-primary-600, #1a7a52);
+  border-bottom-color: var(--melika-primary-600, #1a7a52);
+}
+ 
+/* ── Wrap semanal dentro del panel de agenda ────────────────────────── */
+ 
+.dispo-semanal-wrap {
+  display:        flex;
+  flex-direction: column;
+  gap:            var(--space-3);
+}
+ 
+/* El componente HorariosSemana dentro del panel
+   necesita que los selects de hora queden visibles.
+   El panel-agenda tiene overflow visible por defecto — ok. */
+ 
+.dispo-semanal-wrap .sh-root {
+  /* Limitar el ancho de la tabla al panel disponible */
+  max-width: 100%;
+  overflow-x: auto; /* Scroll horizontal en pantallas pequeñas */
+}
+ 
+.dispo-semanal-wrap .sh-tabla {
+  min-width: 700px; /* La tabla necesita al menos 700px para verse bien */
+}
+ 
+/* En el dashboard, el panel derecho es de 360px.
+   La tabla semanal necesita más espacio — expandimos el grid cuando
+   el médico está en la vista semanal */
+.dashboard-medico__grid:has(.dispo-semanal-wrap) {
+  grid-template-columns: 1fr 600px;
+}
+ 
+@media (max-width: 1100px) {
+  .dashboard-medico__grid:has(.dispo-semanal-wrap) {
+    grid-template-columns: 1fr;
+  }
+}
+ 
+@media (max-width: 900px) {
+  .dashboard-medico__grid { grid-template-columns: 1fr; }
+}
+
+
+/* ── Interactividad y destaque visual en FullCalendar para mejor UX ────── */
+
+.panel-calendario .fc-dia-activo {
+  background-color: var(--melika-primary-50, #f0faf6) !important;
+  box-shadow: inset 0 0 0 2px var(--melika-accent, #e8856a) !important;
+  transition: all 0.2s ease;
+  border-radius: var(--radius-sm);
+}
+
+.panel-calendario .fc-day:hover {
+  background-color: var(--melika-bg-secondary);
+  cursor: pointer;
+}
+
+.panel-calendario .fc-event {
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  padding: 1px 3px;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.panel-calendario .fc-event:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+}

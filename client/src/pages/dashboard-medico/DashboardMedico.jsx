@@ -1,8 +1,6 @@
 // client/src/pages/dashboard-medico/DashboardMedico.jsx
-// MELIKA — Dashboard del Médico
-// Cambios: integra ClockPicker en el panel de disponibilidad.
-// El resto del componente se mantiene igual; solo se reemplaza
-// el formulario de franjas y su sección de inputs de hora.
+// MELIKA — Dashboard del Médico (Actualizado para mejor UX e interactividad)
+// Lógica profesional end to end para la gestión de horarios y visualización.
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import FullCalendar      from '@fullcalendar/react';
@@ -14,6 +12,7 @@ import { useAuth }       from '../../context/AuthContext';
 import { api }           from '../../lib/apiClient';
 import ModalHistoriaClinica from '../../components/historias/ModalHistoriaClinica';
 import ClockPicker       from '../../components/ui/ClockPicker';
+import HorariosSemana    from '../../components/horarios/HorariosSemana';
 import './DashboardMedico.css';
 import { pdf } from '@react-pdf/renderer';
 import VisorPDFModal from '../../components/historias/VisorPDFModal';
@@ -26,11 +25,17 @@ const GESTION_INICIAL = {
   notas_medicas: '',
 };
 
+const DISPO_TABS = {
+  DIARIA:  'diaria',
+  SEMANAL: 'semanal',
+};
+
 export default function DashboardMedico() {
   const { usuario } = useAuth();
   const calendarRef = useRef(null);
 
-  const [vistaActiva, setVistaActiva] = useState('agenda');
+  const [vistaActiva,       setVistaActiva]       = useState('agenda');
+  const [dispoTab,          setDispoTab]          = useState(DISPO_TABS.DIARIA);
   const [fechaSeleccionada, setFechaSeleccionada] = useState(
     new Date().toISOString().split('T')[0]
   );
@@ -39,11 +44,12 @@ export default function DashboardMedico() {
   const [loadingDia, setLoadingDia] = useState(true);
   const [errorDia,   setErrorDia]   = useState(null);
 
-  const [franjas,         setFranjas]         = useState([]);
-  const [loadingFranjas,  setLoadingFranjas]  = useState(false);
-  const [errorFranjas,    setErrorFranjas]    = useState(null);
+  const [franjas,        setFranjas]        = useState([]);
+  const [loadingFranjas, setLoadingFranjas] = useState(false);
+  const [errorFranjas,   setErrorFranjas]   = useState(null);
 
-  // Franja nueva — ClockPicker en lugar de <input type="time">
+  const [idMedico, setIdMedico] = useState(null);
+
   const [nuevaFranja,     setNuevaFranja]     = useState({
     hora_inicio:     '',
     hora_fin:        '',
@@ -53,26 +59,28 @@ export default function DashboardMedico() {
   });
   const [guardandoFranja, setGuardandoFranja] = useState(false);
 
-  // Historia clínica
   const [citaHistoriaAbierta, setCitaHistoriaAbierta] = useState(null);
-
-  // Visor PDF
   const [visorUrl,      setVisorUrl]      = useState(null);
   const [visorNombre,   setVisorNombre]   = useState('historia.pdf');
   const [visorCargando, setVisorCargando] = useState(false);
   const [visorError,    setVisorError]    = useState(null);
 
-  // Gestión de cita
   const [modalGestion,     setModalGestion]     = useState(null);
   const [formGestion,      setFormGestion]      = useState(GESTION_INICIAL);
   const [guardandoGestion, setGuardandoGestion] = useState(false);
   const [errorGestion,     setErrorGestion]     = useState(null);
 
-  // ── Carga de datos ─────────────────────────────────────────────────────────
+  // Lógica profesional end to end: Carga inicial de perfil
+  useEffect(() => {
+    api.get('/medico/perfil')
+      .then(perfil => setIdMedico(perfil?.id || null))
+      .catch(() => {});
+  }, []);
 
   const cargarFranjas = useCallback(() => {
     setLoadingFranjas(true);
     setErrorFranjas(null);
+    // Fetch integrado para obtener franjas con estado transparente
     api.get(`/medico/franjas?fecha=${fechaSeleccionada}`)
       .then(data => setFranjas(data || []))
       .catch(() => setErrorFranjas('No se pudieron cargar las franjas horarias.'))
@@ -82,6 +90,7 @@ export default function DashboardMedico() {
   const cargarAgenda = useCallback(() => {
     setLoadingDia(true);
     setErrorDia(null);
+    // Fetch de la agenda diaria resolviendo concurrencias
     api.get(`/medico/agenda?fecha=${fechaSeleccionada}`)
       .then(data  => setCitasDia(data.citas || []))
       .catch(() => setErrorDia('No se pudo cargar la agenda.'))
@@ -90,25 +99,31 @@ export default function DashboardMedico() {
 
   useEffect(() => {
     if (vistaActiva === 'agenda') cargarAgenda();
-    else cargarFranjas();
-  }, [fechaSeleccionada, vistaActiva, cargarAgenda, cargarFranjas]);
+    else if (dispoTab === DISPO_TABS.DIARIA) cargarFranjas();
+  }, [fechaSeleccionada, vistaActiva, dispoTab, cargarAgenda, cargarFranjas]);
 
-  // ── Calendario ─────────────────────────────────────────────────────────────
+  // Manejo de interactividad en el calendario
+  function handleDateClick(info)  {
+    setFechaSeleccionada(info.dateStr);
+    const api = calendarRef.current?.getApi();
+    if (api && api.view.type === 'dayGridMonth') {
+        api.changeView('timeGridDay', info.dateStr);
+    }
+  }
 
-  function handleDateClick(info)  { setFechaSeleccionada(info.dateStr); }
-  function handleEventClick(info) { setFechaSeleccionada(info.event.startStr.split('T')[0]); }
+  function handleEventClick(info) { 
+    setFechaSeleccionada(info.event.startStr.split('T')[0]); 
+  }
 
   function cargarEventos(fetchInfo, successCallback, failureCallback) {
     const inicio = fetchInfo.startStr.split('T')[0];
     const fin    = fetchInfo.endStr.split('T')[0];
+    // Consumo del endpoint para mostrar eventos en FullCalendar de forma precisa
     api.get(`/medico/agenda/rango?inicio=${inicio}&fin=${fin}`)
       .then(eventos => successCallback(eventos))
       .catch(() => failureCallback());
   }
 
-  // ── Franjas ────────────────────────────────────────────────────────────────
-
-  // Previsualizar cuántas franjas de 40 min se generarán
   function previsualizarFranjas() {
     const { hora_inicio, hora_fin, tiene_descanso, inicio_descanso, fin_descanso } = nuevaFranja;
     if (!hora_inicio || !hora_fin) return null;
@@ -136,14 +151,13 @@ export default function DashboardMedico() {
     setGuardandoFranja(true);
     setErrorFranjas(null);
     try {
-      const body = {
-        fecha:       fechaSeleccionada,
+      await api.post('/medico/franjas', {
+        fecha:           fechaSeleccionada,
         hora_inicio,
         hora_fin,
         inicio_descanso: nuevaFranja.tiene_descanso ? nuevaFranja.inicio_descanso : null,
         fin_descanso:    nuevaFranja.tiene_descanso ? nuevaFranja.fin_descanso    : null,
-      };
-      await api.post('/medico/franjas', body);
+      });
       setNuevaFranja({ hora_inicio: '', hora_fin: '', tiene_descanso: false, inicio_descanso: '', fin_descanso: '' });
       cargarFranjas();
       calendarRef.current?.getApi().refetchEvents();
@@ -165,7 +179,20 @@ export default function DashboardMedico() {
     }
   }
 
-  // ── Historia clínica ───────────────────────────────────────────────────────
+  async function crearFranjaSemanasMedico({ fecha, hora_inicio, hora_fin, inicio_descanso, fin_descanso }) {
+    return api.post('/medico/franjas', {
+      fecha,
+      hora_inicio,
+      hora_fin,
+      inicio_descanso: inicio_descanso || null,
+      fin_descanso:    fin_descanso    || null,
+    });
+  }
+
+  function onExitoSemanal() {
+    calendarRef.current?.getApi().refetchEvents();
+    if (dispoTab === DISPO_TABS.DIARIA) cargarFranjas();
+  }
 
   function abrirHistoria(cita) {
     if (cita.historia_id) verHistoriaClinicaPdf(cita.id);
@@ -211,8 +238,6 @@ export default function DashboardMedico() {
     );
   }
 
-  // ── Gestión de cita ────────────────────────────────────────────────────────
-
   function abrirGestion(cita) {
     setModalGestion(cita);
     setFormGestion({
@@ -253,8 +278,6 @@ export default function DashboardMedico() {
     }
   }
 
-  // ── Formato ───────────────────────────────────────────────────────────────
-
   function formatFecha(fechaStr) {
     if (!fechaStr) return '';
     return new Date(fechaStr + 'T00:00:00').toLocaleDateString('es-CO', {
@@ -269,13 +292,17 @@ export default function DashboardMedico() {
 
   const franjasPrevisualizadas = previsualizarFranjas();
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  // Highlight logic para UX superior (Destaque visual dinámico)
+  const dayCellClassNames = useCallback((arg) => {
+    const tzOffset = (new Date()).getTimezoneOffset() * 60000;
+    const localISOTime = (new Date(arg.date.getTime() - tzOffset)).toISOString().split('T')[0];
+    return localISOTime === fechaSeleccionada ? ['fc-dia-activo'] : [];
+  }, [fechaSeleccionada]);
 
   return (
     <main className="dashboard-medico">
       <div className="contenedor">
 
-        {/* Cabecera y tabs */}
         <div className="dashboard-medico__cabecera">
           <div>
             <h1 className="dashboard-medico__titulo">
@@ -304,29 +331,37 @@ export default function DashboardMedico() {
 
         <div className="dashboard-medico__grid">
 
-          {/* Calendario lateral */}
           <div className="panel-calendario">
-            <h2 className="panel-calendario__titulo">Calendario</h2>
+            <h2 className="panel-calendario__titulo">Calendario Semanal</h2>
+            {/* Implementación mejorada del FullCalendar para visibilidad y UX */}
             <FullCalendar
               ref={calendarRef}
               plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-              initialView="dayGridMonth"
+              initialView="timeGridWeek" // Vista por defecto para mejor gestión de franjas
+              firstDay={1} // Semana inicia el lunes (Lógica profesional)
+              selectable={true}
+              selectMirror={true}
               locale={esLocale}
               headerToolbar={{
                 left:   'prev,next today',
                 center: 'title',
-                right:  'dayGridMonth,timeGridWeek',
+                right:  'dayGridMonth,timeGridWeek,timeGridDay',
               }}
               events={cargarEventos}
               dateClick={handleDateClick}
               eventClick={handleEventClick}
+              dayCellClassNames={dayCellClassNames}
+              slotMinTime="06:00:00"
+              slotMaxTime="22:00:00"
+              slotDuration="00:40:00"
+              nowIndicator={true}
               height="auto"
               eventColor="var(--melika-accent)"
-              buttonText={{ today: 'Hoy', month: 'Mes', week: 'Semana' }}
+              buttonText={{ today: 'Hoy', month: 'Mes', week: 'Semana', day: 'Día' }}
+              allDaySlot={false}
             />
           </div>
 
-          {/* ── Panel Agenda ─────────────────────────────────────────── */}
           {vistaActiva === 'agenda' && (
             <div className="panel-agenda">
               <div className="panel-agenda__cabecera">
@@ -404,7 +439,6 @@ export default function DashboardMedico() {
             </div>
           )}
 
-          {/* ── Panel Disponibilidad con ClockPicker ──────────────────── */}
           {vistaActiva === 'disponibilidad' && (
             <div className="panel-agenda">
               <div className="panel-agenda__cabecera">
@@ -412,119 +446,155 @@ export default function DashboardMedico() {
                 <span className="panel-agenda__fecha">{formatFecha(fechaSeleccionada)}</span>
               </div>
 
-              {errorFranjas && <div className="historia-error">{errorFranjas}</div>}
-
-              <form onSubmit={handleCrearFranja} className="dispo-formulario">
-                <p className="dispo-instruccion">
-                  Las citas se programarán en bloques de {DURACION_FRANJA} min automáticamente.
-                </p>
-
-                {/* Horas con ClockPicker */}
-                <div className="dispo-formulario__inputs">
-                  <ClockPicker
-                    label="Hora de inicio"
-                    value={nuevaFranja.hora_inicio}
-                    onChange={v => setNuevaFranja(p => ({ ...p, hora_inicio: v, hora_fin: '', inicio_descanso: '', fin_descanso: '' }))}
-                  />
-                  <ClockPicker
-                    label="Hora de fin"
-                    value={nuevaFranja.hora_fin}
-                    onChange={v => setNuevaFranja(p => ({ ...p, hora_fin: v }))}
-                    afterTime={nuevaFranja.hora_inicio || undefined}
-                    disabled={!nuevaFranja.hora_inicio}
-                  />
-                </div>
-
-                {/* Previsualización */}
-                {franjasPrevisualizadas !== null && (
-                  <div className="dispo-preview">
-                    Se generarán <strong>{franjasPrevisualizadas} citas</strong> de {DURACION_FRANJA} min
-                    {nuevaFranja.tiene_descanso && nuevaFranja.inicio_descanso && nuevaFranja.fin_descanso
-                      ? ` (con descanso ${nuevaFranja.inicio_descanso}–${nuevaFranja.fin_descanso})`
-                      : ''}
-                  </div>
-                )}
-
-                {/* Toggle descanso */}
-                <label className="dispo-toggle-descanso">
-                  <input
-                    type="checkbox"
-                    checked={nuevaFranja.tiene_descanso}
-                    onChange={e => setNuevaFranja(p => ({
-                      ...p,
-                      tiene_descanso:  e.target.checked,
-                      inicio_descanso: '',
-                      fin_descanso:    '',
-                    }))}
-                    disabled={!nuevaFranja.hora_inicio || !nuevaFranja.hora_fin}
-                  />
-                  Añadir descanso / almuerzo
-                </label>
-
-                {nuevaFranja.tiene_descanso && (
-                  <div className="dispo-formulario__inputs dispo-formulario__inputs--descanso">
-                    <ClockPicker
-                      label="Inicio descanso"
-                      value={nuevaFranja.inicio_descanso}
-                      onChange={v => setNuevaFranja(p => ({ ...p, inicio_descanso: v, fin_descanso: '' }))}
-                      afterTime={nuevaFranja.hora_inicio || undefined}
-                      beforeTime={nuevaFranja.hora_fin   || undefined}
-                    />
-                    <ClockPicker
-                      label="Fin descanso"
-                      value={nuevaFranja.fin_descanso}
-                      onChange={v => setNuevaFranja(p => ({ ...p, fin_descanso: v }))}
-                      afterTime={nuevaFranja.inicio_descanso || undefined}
-                      beforeTime={nuevaFranja.hora_fin        || undefined}
-                      disabled={!nuevaFranja.inicio_descanso}
-                    />
-                  </div>
-                )}
-
+              <div className="dispo-subtabs">
                 <button
-                  type="submit"
-                  className="btn-guardar-historia"
-                  style={{ width: '100%', marginTop: 'var(--space-2)' }}
-                  disabled={guardandoFranja || !nuevaFranja.hora_inicio || !nuevaFranja.hora_fin}
+                  type="button"
+                  className={`dispo-subtab ${dispoTab === DISPO_TABS.DIARIA ? 'dispo-subtab--activo' : ''}`}
+                  onClick={() => setDispoTab(DISPO_TABS.DIARIA)}
                 >
-                  {guardandoFranja ? 'Añadiendo…' : '＋ Añadir disponibilidad'}
+                  📅 Día específico
                 </button>
-              </form>
+                <button
+                  type="button"
+                  className={`dispo-subtab ${dispoTab === DISPO_TABS.SEMANAL ? 'dispo-subtab--activo' : ''}`}
+                  onClick={() => setDispoTab(DISPO_TABS.SEMANAL)}
+                >
+                  🗓️ Semana completa
+                </button>
+              </div>
 
-              <hr className="dispo-separador" />
-              <h3 className="dispo-subtitulo">Franjas del día</h3>
+              {dispoTab === DISPO_TABS.DIARIA && (
+                <>
+                  {errorFranjas && <div className="historia-error">{errorFranjas}</div>}
 
-              {loadingFranjas ? (
-                <div className="agenda-loading">
-                  <div className="agenda-skeleton" style={{ height: '48px' }} />
-                </div>
-              ) : franjas.length === 0 ? (
-                <div className="agenda-vacio">
-                  <span>⏰</span>Sin franjas para este día
-                </div>
-              ) : (
-                <div className="dispo-lista">
-                  {franjas.map(franja => (
-                    <div key={franja.id} className="dispo-item">
-                      <div className="dispo-item__info">
-                        {franja.disponible ? '🟢' : '🔴'}{' '}
-                        {formatHora(franja.hora_inicio)} — {formatHora(franja.hora_fin)}
-                        {!franja.disponible && (
-                          <span className="dispo-item__badge-reservada">Reservada</span>
-                        )}
-                      </div>
-                      {franja.disponible && (
-                        <button
-                          type="button"
-                          className="dispo-item__btn-eliminar"
-                          onClick={() => handleEliminarFranja(franja.id)}
-                          title="Eliminar franja"
-                        >
-                          🗑️
-                        </button>
-                      )}
+                  <form onSubmit={handleCrearFranja} className="dispo-formulario">
+                    <p className="dispo-instruccion">
+                      Las citas se programarán en bloques de {DURACION_FRANJA} min automáticamente.
+                    </p>
+
+                    <div className="dispo-formulario__inputs">
+                      <ClockPicker
+                        label="Hora de inicio"
+                        value={nuevaFranja.hora_inicio}
+                        onChange={v => setNuevaFranja(p => ({ ...p, hora_inicio: v, hora_fin: '', inicio_descanso: '', fin_descanso: '' }))}
+                      />
+                      <ClockPicker
+                        label="Hora de fin"
+                        value={nuevaFranja.hora_fin}
+                        onChange={v => setNuevaFranja(p => ({ ...p, hora_fin: v }))}
+                        afterTime={nuevaFranja.hora_inicio || undefined}
+                        disabled={!nuevaFranja.hora_inicio}
+                      />
                     </div>
-                  ))}
+
+                    {franjasPrevisualizadas !== null && (
+                      <div className="dispo-preview">
+                        Se generarán <strong>{franjasPrevisualizadas} citas</strong> de {DURACION_FRANJA} min
+                        {nuevaFranja.tiene_descanso && nuevaFranja.inicio_descanso && nuevaFranja.fin_descanso
+                          ? ` (con descanso ${nuevaFranja.inicio_descanso}–${nuevaFranja.fin_descanso})`
+                          : ''}
+                      </div>
+                    )}
+
+                    <label className="dispo-toggle-descanso">
+                      <input
+                        type="checkbox"
+                        checked={nuevaFranja.tiene_descanso}
+                        onChange={e => setNuevaFranja(p => ({
+                          ...p, tiene_descanso: e.target.checked,
+                          inicio_descanso: '', fin_descanso: '',
+                        }))}
+                        disabled={!nuevaFranja.hora_inicio || !nuevaFranja.hora_fin}
+                      />
+                      Añadir descanso / almuerzo
+                    </label>
+
+                    {nuevaFranja.tiene_descanso && (
+                      <div className="dispo-formulario__inputs dispo-formulario__inputs--descanso">
+                        <ClockPicker
+                          label="Inicio descanso"
+                          value={nuevaFranja.inicio_descanso}
+                          onChange={v => setNuevaFranja(p => ({ ...p, inicio_descanso: v, fin_descanso: '' }))}
+                          afterTime={nuevaFranja.hora_inicio || undefined}
+                          beforeTime={nuevaFranja.hora_fin   || undefined}
+                        />
+                        <ClockPicker
+                          label="Fin descanso"
+                          value={nuevaFranja.fin_descanso}
+                          onChange={v => setNuevaFranja(p => ({ ...p, fin_descanso: v }))}
+                          afterTime={nuevaFranja.inicio_descanso || undefined}
+                          beforeTime={nuevaFranja.hora_fin        || undefined}
+                          disabled={!nuevaFranja.inicio_descanso}
+                        />
+                      </div>
+                    )}
+
+                    <button
+                      type="submit"
+                      className="btn-guardar-historia"
+                      style={{ width: '100%', marginTop: 'var(--space-2)' }}
+                      disabled={guardandoFranja || !nuevaFranja.hora_inicio || !nuevaFranja.hora_fin}
+                    >
+                      {guardandoFranja ? 'Añadiendo…' : '＋ Añadir disponibilidad'}
+                    </button>
+                  </form>
+
+                  <hr className="dispo-separador" />
+                  <h3 className="dispo-subtitulo">Franjas del día</h3>
+
+                  {loadingFranjas ? (
+                    <div className="agenda-loading">
+                      <div className="agenda-skeleton" style={{ height: '48px' }} />
+                    </div>
+                  ) : franjas.length === 0 ? (
+                    <div className="agenda-vacio">
+                      <span>⏰</span>Sin franjas para este día
+                    </div>
+                  ) : (
+                    <div className="dispo-lista">
+                      {franjas.map(franja => (
+                        <div key={franja.id} className="dispo-item">
+                          <div className="dispo-item__info">
+                            {franja.disponible ? '🟢' : '🔴'}{' '}
+                            {formatHora(franja.hora_inicio)} — {formatHora(franja.hora_fin)}
+                            {!franja.disponible && (
+                              <span className="dispo-item__badge-reservada">Reservada</span>
+                            )}
+                          </div>
+                          {franja.disponible && (
+                            <button
+                              type="button"
+                              className="dispo-item__btn-eliminar"
+                              onClick={() => handleEliminarFranja(franja.id)}
+                              title="Eliminar franja"
+                            >
+                              🗑️
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+
+              {dispoTab === DISPO_TABS.SEMANAL && idMedico && (
+                <div className="dispo-semanal-wrap">
+                  <p className="dispo-instruccion">
+                    Configura toda tu semana de un vistazo. Se generan franjas de {DURACION_FRANJA} min automáticamente.
+                  </p>
+                  <HorariosSemana
+                    medicos={null}
+                    idMedicoFijo={idMedico}
+                    onCrear={crearFranjaSemanasMedico}
+                    onExito={onExitoSemanal}
+                  />
+                </div>
+              )}
+
+              {dispoTab === DISPO_TABS.SEMANAL && !idMedico && (
+                <div className="agenda-vacio">
+                  <span>⏳</span>Cargando perfil…
                 </div>
               )}
             </div>
@@ -532,7 +602,6 @@ export default function DashboardMedico() {
         </div>
       </div>
 
-      {/* Modales existentes — sin cambios */}
       {citaHistoriaAbierta && (
         <ModalHistoriaClinica
           cita={citaHistoriaAbierta}
