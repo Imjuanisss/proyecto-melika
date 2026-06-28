@@ -1,5 +1,8 @@
 // client/src/pages/dashboard-medico/DashboardMedico.jsx
 // MELIKA — Dashboard del Médico
+// Cambios: integra ClockPicker en el panel de disponibilidad.
+// El resto del componente se mantiene igual; solo se reemplaza
+// el formulario de franjas y su sección de inputs de hora.
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import FullCalendar      from '@fullcalendar/react';
@@ -10,10 +13,13 @@ import esLocale          from '@fullcalendar/core/locales/es';
 import { useAuth }       from '../../context/AuthContext';
 import { api }           from '../../lib/apiClient';
 import ModalHistoriaClinica from '../../components/historias/ModalHistoriaClinica';
+import ClockPicker       from '../../components/ui/ClockPicker';
 import './DashboardMedico.css';
 import { pdf } from '@react-pdf/renderer';
 import VisorPDFModal from '../../components/historias/VisorPDFModal';
 import { PlantillaHistoriaPDF } from '../../components/historias/PlantillaHistoriaPDF';
+
+const DURACION_FRANJA = 40;
 
 const GESTION_INICIAL = {
   estado:        'completada',
@@ -36,25 +42,33 @@ export default function DashboardMedico() {
   const [franjas,         setFranjas]         = useState([]);
   const [loadingFranjas,  setLoadingFranjas]  = useState(false);
   const [errorFranjas,    setErrorFranjas]    = useState(null);
-  const [nuevaFranja,     setNuevaFranja]     = useState({ hora_inicio: '', hora_fin: '' });
+
+  // Franja nueva — ClockPicker en lugar de <input type="time">
+  const [nuevaFranja,     setNuevaFranja]     = useState({
+    hora_inicio:     '',
+    hora_fin:        '',
+    tiene_descanso:  false,
+    inicio_descanso: '',
+    fin_descanso:    '',
+  });
   const [guardandoFranja, setGuardandoFranja] = useState(false);
 
-  // Modal para CREAR historia clínica (formulario)
+  // Historia clínica
   const [citaHistoriaAbierta, setCitaHistoriaAbierta] = useState(null);
 
-  // Estados para VER historia (Visor PDF)
+  // Visor PDF
   const [visorUrl,      setVisorUrl]      = useState(null);
   const [visorNombre,   setVisorNombre]   = useState('historia.pdf');
   const [visorCargando, setVisorCargando] = useState(false);
-  // FIX: visorError ahora se muestra en el JSX (sección del visor)
   const [visorError,    setVisorError]    = useState(null);
 
+  // Gestión de cita
   const [modalGestion,     setModalGestion]     = useState(null);
   const [formGestion,      setFormGestion]      = useState(GESTION_INICIAL);
   const [guardandoGestion, setGuardandoGestion] = useState(false);
   const [errorGestion,     setErrorGestion]     = useState(null);
 
-  // ── Carga de datos ────────────────────────────────────────────────────────
+  // ── Carga de datos ─────────────────────────────────────────────────────────
 
   const cargarFranjas = useCallback(() => {
     setLoadingFranjas(true);
@@ -75,14 +89,11 @@ export default function DashboardMedico() {
   }, [fechaSeleccionada]);
 
   useEffect(() => {
-    if (vistaActiva === 'agenda') {
-      cargarAgenda();
-    } else {
-      cargarFranjas();
-    }
+    if (vistaActiva === 'agenda') cargarAgenda();
+    else cargarFranjas();
   }, [fechaSeleccionada, vistaActiva, cargarAgenda, cargarFranjas]);
 
-  // ── Handlers del calendario ───────────────────────────────────────────────
+  // ── Calendario ─────────────────────────────────────────────────────────────
 
   function handleDateClick(info)  { setFechaSeleccionada(info.dateStr); }
   function handleEventClick(info) { setFechaSeleccionada(info.event.startStr.split('T')[0]); }
@@ -95,20 +106,45 @@ export default function DashboardMedico() {
       .catch(() => failureCallback());
   }
 
-  // ── Franjas de disponibilidad ─────────────────────────────────────────────
+  // ── Franjas ────────────────────────────────────────────────────────────────
+
+  // Previsualizar cuántas franjas de 40 min se generarán
+  function previsualizarFranjas() {
+    const { hora_inicio, hora_fin, tiene_descanso, inicio_descanso, fin_descanso } = nuevaFranja;
+    if (!hora_inicio || !hora_fin) return null;
+    const [ih, im] = hora_inicio.split(':').map(Number);
+    const [fh, fm] = hora_fin.split(':').map(Number);
+    const totalMin = (fh * 60 + fm) - (ih * 60 + im);
+    if (totalMin <= 0) return null;
+    let descMin = 0;
+    if (tiene_descanso && inicio_descanso && fin_descanso) {
+      const [dih, dim] = inicio_descanso.split(':').map(Number);
+      const [dfh, dfm] = fin_descanso.split(':').map(Number);
+      descMin = (dfh * 60 + dfm) - (dih * 60 + dim);
+    }
+    return Math.floor((totalMin - Math.max(0, descMin)) / DURACION_FRANJA);
+  }
 
   async function handleCrearFranja(e) {
     e.preventDefault();
-    if (!nuevaFranja.hora_inicio || !nuevaFranja.hora_fin) return;
+    const { hora_inicio, hora_fin } = nuevaFranja;
+    if (!hora_inicio || !hora_fin) return;
+    if (hora_inicio >= hora_fin) {
+      setErrorFranjas('La hora de inicio debe ser anterior a la de fin.');
+      return;
+    }
     setGuardandoFranja(true);
     setErrorFranjas(null);
     try {
-      await api.post('/medico/franjas', {
+      const body = {
         fecha:       fechaSeleccionada,
-        hora_inicio: nuevaFranja.hora_inicio,
-        hora_fin:    nuevaFranja.hora_fin,
-      });
-      setNuevaFranja({ hora_inicio: '', hora_fin: '' });
+        hora_inicio,
+        hora_fin,
+        inicio_descanso: nuevaFranja.tiene_descanso ? nuevaFranja.inicio_descanso : null,
+        fin_descanso:    nuevaFranja.tiene_descanso ? nuevaFranja.fin_descanso    : null,
+      };
+      await api.post('/medico/franjas', body);
+      setNuevaFranja({ hora_inicio: '', hora_fin: '', tiene_descanso: false, inicio_descanso: '', fin_descanso: '' });
       cargarFranjas();
       calendarRef.current?.getApi().refetchEvents();
     } catch (err) {
@@ -129,41 +165,29 @@ export default function DashboardMedico() {
     }
   }
 
-  // ── Historia clínica — lógica del botón inteligente ──────────────────────
+  // ── Historia clínica ───────────────────────────────────────────────────────
 
   function abrirHistoria(cita) {
-    if (cita.historia_id) {
-      // Ya tiene historia → abrimos el visor PDF
-      verHistoriaClinicaPdf(cita.id);
-    } else {
-      // Sin historia → abrimos el formulario de creación
-      setCitaHistoriaAbierta(cita);
-    }
+    if (cita.historia_id) verHistoriaClinicaPdf(cita.id);
+    else setCitaHistoriaAbierta(cita);
   }
 
-  // FIX: los errores de PDF ahora van a setVisorError, no a setErrorDia
   async function verHistoriaClinicaPdf(idCita) {
     if (visorCargando) return;
     setVisorCargando(true);
     setVisorError(null);
-
     try {
       const respuesta = await api.get(`/historias/cita/${idCita}`);
       if (!respuesta?.historia) throw new Error('No hay historia clínica para esta cita.');
-
       const historia     = respuesta.historia;
       const aclaraciones = respuesta.aclaraciones || [];
-
       const blob    = await pdf(
         <PlantillaHistoriaPDF historia={historia} aclaraciones={aclaraciones} />
       ).toBlob();
-
       const blobUrl = URL.createObjectURL(blob);
       setVisorNombre(`HC-${historia.id}.pdf`);
       setVisorUrl(blobUrl);
     } catch (err) {
-      console.error('Error generando PDF:', err);
-      // FIX: usamos setVisorError en lugar de setErrorDia
       setVisorError(err.message || 'Error al generar el PDF de la historia clínica.');
     } finally {
       setVisorCargando(false);
@@ -171,16 +195,9 @@ export default function DashboardMedico() {
   }
 
   function cerrarVisor() {
-    if (visorUrl) {
-      URL.revokeObjectURL(visorUrl);
-      setVisorUrl(null);
-    }
+    if (visorUrl) { URL.revokeObjectURL(visorUrl); setVisorUrl(null); }
     setVisorError(null);
     setVisorNombre('historia.pdf');
-  }
-
-  function cerrarHistoria() {
-    setCitaHistoriaAbierta(null);
   }
 
   function alGuardarHistoria(historiaGuardada) {
@@ -194,7 +211,7 @@ export default function DashboardMedico() {
     );
   }
 
-  // ── Gestión de resultado de cita ─────────────────────────────────────────
+  // ── Gestión de cita ────────────────────────────────────────────────────────
 
   function abrirGestion(cita) {
     setModalGestion(cita);
@@ -215,13 +232,11 @@ export default function DashboardMedico() {
     if (!formGestion.estado) return;
     setGuardandoGestion(true);
     setErrorGestion(null);
-
     try {
       await api.patch(`/medico/citas/${modalGestion.id}/gestionar`, {
         estado:        formGestion.estado,
         notas_medicas: formGestion.notas_medicas.trim() || null,
       });
-
       setCitasDia(prev =>
         prev.map(c =>
           c.id === modalGestion.id
@@ -229,7 +244,6 @@ export default function DashboardMedico() {
             : c
         )
       );
-
       calendarRef.current?.getApi().refetchEvents();
       cerrarGestion();
     } catch (err) {
@@ -239,7 +253,7 @@ export default function DashboardMedico() {
     }
   }
 
-  // ── Utilidades de formato ─────────────────────────────────────────────────
+  // ── Formato ───────────────────────────────────────────────────────────────
 
   function formatFecha(fechaStr) {
     if (!fechaStr) return '';
@@ -253,9 +267,7 @@ export default function DashboardMedico() {
     return horaStr.substring(0, 5);
   }
 
-  function citaEsGestionable(cita) {
-    return cita.estado !== 'cancelada';
-  }
+  const franjasPrevisualizadas = previsualizarFranjas();
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -314,7 +326,7 @@ export default function DashboardMedico() {
             />
           </div>
 
-          {/* Panel Agenda */}
+          {/* ── Panel Agenda ─────────────────────────────────────────── */}
           {vistaActiva === 'agenda' && (
             <div className="panel-agenda">
               <div className="panel-agenda__cabecera">
@@ -324,16 +336,13 @@ export default function DashboardMedico() {
 
               {errorDia && <div className="historia-error">{errorDia}</div>}
 
-              {/* FIX: visorError ahora se muestra aquí, junto a las acciones de PDF */}
               {visorError && (
                 <div className="historia-error" style={{ marginBottom: '0.75rem' }}>
                   {visorError}
                   <button
                     onClick={() => setVisorError(null)}
                     style={{ marginLeft: '0.5rem', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}
-                  >
-                    ✕
-                  </button>
+                  >✕</button>
                 </div>
               )}
 
@@ -352,13 +361,12 @@ export default function DashboardMedico() {
                       <div className="agenda-item__encabezado">
                         <span className="agenda-item__hora">{formatHora(cita.hora_inicio)}</span>
                         <span className={`agenda-item__badge agenda-badge--${cita.estado}`}>
-                          {cita.estado === 'pendiente'   && 'Pendiente'}
-                          {cita.estado === 'completada'  && '✓ Completada'}
-                          {cita.estado === 'no_asistio'  && 'No asistió'}
-                          {cita.estado === 'cancelada'   && 'Cancelada'}
+                          {cita.estado === 'pendiente'  && 'Pendiente'}
+                          {cita.estado === 'completada' && '✓ Completada'}
+                          {cita.estado === 'no_asistio' && 'No asistió'}
+                          {cita.estado === 'cancelada'  && 'Cancelada'}
                         </span>
                       </div>
-
                       <div className="agenda-item__paciente">
                         {cita.paciente_nombre} {cita.paciente_apellido}
                       </div>
@@ -366,13 +374,9 @@ export default function DashboardMedico() {
                         {cita.tipo_consulta === 'teleconsulta' ? '💻 Teleconsulta' : '🏥 Presencial'}
                         {cita.motivo && ` · ${cita.motivo.substring(0, 28)}…`}
                       </div>
-
                       {cita.notas_medicas && (
-                        <div className="agenda-item__notas">
-                          📝 {cita.notas_medicas}
-                        </div>
+                        <div className="agenda-item__notas">📝 {cita.notas_medicas}</div>
                       )}
-
                       {cita.estado !== 'cancelada' && (
                         <div className="agenda-item__acciones">
                           <button
@@ -380,12 +384,10 @@ export default function DashboardMedico() {
                             onClick={() => abrirHistoria(cita)}
                             disabled={visorCargando}
                           >
-                            {visorCargando
-                              ? '⏳ Cargando...'
+                            {visorCargando ? '⏳ Cargando...'
                               : (cita.historia_id ? '📄 Ver historia' : '📝 Historia clínica')}
                           </button>
-
-                          {citaEsGestionable(cita) && (
+                          {cita.estado !== 'cancelada' && (
                             <button
                               className="agenda-item__btn-gestionar"
                               onClick={() => abrirGestion(cita)}
@@ -402,7 +404,7 @@ export default function DashboardMedico() {
             </div>
           )}
 
-          {/* Panel Disponibilidad */}
+          {/* ── Panel Disponibilidad con ClockPicker ──────────────────── */}
           {vistaActiva === 'disponibilidad' && (
             <div className="panel-agenda">
               <div className="panel-agenda__cabecera">
@@ -413,33 +415,79 @@ export default function DashboardMedico() {
               {errorFranjas && <div className="historia-error">{errorFranjas}</div>}
 
               <form onSubmit={handleCrearFranja} className="dispo-formulario">
+                <p className="dispo-instruccion">
+                  Las citas se programarán en bloques de {DURACION_FRANJA} min automáticamente.
+                </p>
+
+                {/* Horas con ClockPicker */}
                 <div className="dispo-formulario__inputs">
-                  <div className="dispo-campo">
-                    <label>Hora inicio</label>
-                    <input
-                      type="time"
-                      value={nuevaFranja.hora_inicio}
-                      onChange={e => setNuevaFranja(p => ({ ...p, hora_inicio: e.target.value }))}
-                      required
-                    />
-                  </div>
-                  <div className="dispo-campo">
-                    <label>Hora fin</label>
-                    <input
-                      type="time"
-                      value={nuevaFranja.hora_fin}
-                      onChange={e => setNuevaFranja(p => ({ ...p, hora_fin: e.target.value }))}
-                      required
-                    />
-                  </div>
+                  <ClockPicker
+                    label="Hora de inicio"
+                    value={nuevaFranja.hora_inicio}
+                    onChange={v => setNuevaFranja(p => ({ ...p, hora_inicio: v, hora_fin: '', inicio_descanso: '', fin_descanso: '' }))}
+                  />
+                  <ClockPicker
+                    label="Hora de fin"
+                    value={nuevaFranja.hora_fin}
+                    onChange={v => setNuevaFranja(p => ({ ...p, hora_fin: v }))}
+                    afterTime={nuevaFranja.hora_inicio || undefined}
+                    disabled={!nuevaFranja.hora_inicio}
+                  />
                 </div>
+
+                {/* Previsualización */}
+                {franjasPrevisualizadas !== null && (
+                  <div className="dispo-preview">
+                    Se generarán <strong>{franjasPrevisualizadas} citas</strong> de {DURACION_FRANJA} min
+                    {nuevaFranja.tiene_descanso && nuevaFranja.inicio_descanso && nuevaFranja.fin_descanso
+                      ? ` (con descanso ${nuevaFranja.inicio_descanso}–${nuevaFranja.fin_descanso})`
+                      : ''}
+                  </div>
+                )}
+
+                {/* Toggle descanso */}
+                <label className="dispo-toggle-descanso">
+                  <input
+                    type="checkbox"
+                    checked={nuevaFranja.tiene_descanso}
+                    onChange={e => setNuevaFranja(p => ({
+                      ...p,
+                      tiene_descanso:  e.target.checked,
+                      inicio_descanso: '',
+                      fin_descanso:    '',
+                    }))}
+                    disabled={!nuevaFranja.hora_inicio || !nuevaFranja.hora_fin}
+                  />
+                  Añadir descanso / almuerzo
+                </label>
+
+                {nuevaFranja.tiene_descanso && (
+                  <div className="dispo-formulario__inputs dispo-formulario__inputs--descanso">
+                    <ClockPicker
+                      label="Inicio descanso"
+                      value={nuevaFranja.inicio_descanso}
+                      onChange={v => setNuevaFranja(p => ({ ...p, inicio_descanso: v, fin_descanso: '' }))}
+                      afterTime={nuevaFranja.hora_inicio || undefined}
+                      beforeTime={nuevaFranja.hora_fin   || undefined}
+                    />
+                    <ClockPicker
+                      label="Fin descanso"
+                      value={nuevaFranja.fin_descanso}
+                      onChange={v => setNuevaFranja(p => ({ ...p, fin_descanso: v }))}
+                      afterTime={nuevaFranja.inicio_descanso || undefined}
+                      beforeTime={nuevaFranja.hora_fin        || undefined}
+                      disabled={!nuevaFranja.inicio_descanso}
+                    />
+                  </div>
+                )}
+
                 <button
                   type="submit"
                   className="btn-guardar-historia"
-                  style={{ width: '100%' }}
-                  disabled={guardandoFranja}
+                  style={{ width: '100%', marginTop: 'var(--space-2)' }}
+                  disabled={guardandoFranja || !nuevaFranja.hora_inicio || !nuevaFranja.hora_fin}
                 >
-                  {guardandoFranja ? 'Añadiendo…' : '＋ Añadir franja libre'}
+                  {guardandoFranja ? 'Añadiendo…' : '＋ Añadir disponibilidad'}
                 </button>
               </form>
 
@@ -459,7 +507,8 @@ export default function DashboardMedico() {
                   {franjas.map(franja => (
                     <div key={franja.id} className="dispo-item">
                       <div className="dispo-item__info">
-                        {franja.disponible ? '🟢' : '🔴'} {formatHora(franja.hora_inicio)} — {formatHora(franja.hora_fin)}
+                        {franja.disponible ? '🟢' : '🔴'}{' '}
+                        {formatHora(franja.hora_inicio)} — {formatHora(franja.hora_fin)}
                         {!franja.disponible && (
                           <span className="dispo-item__badge-reservada">Reservada</span>
                         )}
@@ -480,20 +529,18 @@ export default function DashboardMedico() {
               )}
             </div>
           )}
-
         </div>
       </div>
 
-      {/* Modal: Crear historia clínica */}
+      {/* Modales existentes — sin cambios */}
       {citaHistoriaAbierta && (
         <ModalHistoriaClinica
           cita={citaHistoriaAbierta}
-          onCerrar={cerrarHistoria}
+          onCerrar={() => setCitaHistoriaAbierta(null)}
           onGuardada={alGuardarHistoria}
         />
       )}
 
-      {/* Modal: Gestionar resultado de cita */}
       {modalGestion && (
         <div className="modal-overlay" onClick={cerrarGestion}>
           <div className="modal-gestion" onClick={e => e.stopPropagation()}>
@@ -599,7 +646,6 @@ export default function DashboardMedico() {
         </div>
       )}
 
-      {/* Visor PDF — aparece cuando el médico ya llenó la historia clínica */}
       {visorUrl && (
         <VisorPDFModal
           url={visorUrl}
@@ -607,7 +653,6 @@ export default function DashboardMedico() {
           nombreArchivo={visorNombre}
         />
       )}
-
     </main>
   );
 }

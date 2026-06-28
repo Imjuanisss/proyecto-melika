@@ -135,7 +135,7 @@ async function toggleEstadoUsuario(req, res) {
   }
 }
 
-// ─── REEMPLAZAR función listarCitas ───────────────────────────────────────────
+// ─── GET /admin/citas — Listar citas ───────────────────────────────────────────
 async function listarCitas(req, res) {
   const { estado, fecha_desde, fecha_hasta, buscar } = req.query;
 
@@ -144,8 +144,6 @@ async function listarCitas(req, res) {
     const params = [];
     let idx = 1;
 
-    // FIX: 'confirmada' no existe en el CHECK del schema.
-    // Valores válidos: 'pendiente' | 'completada' | 'cancelada' | 'no_asistio'
     if (estado && ['pendiente', 'completada', 'cancelada', 'no_asistio'].includes(estado)) {
       condiciones.push(`c.estado = $${idx++}`);
       params.push(estado);
@@ -167,7 +165,6 @@ async function listarCitas(req, res) {
       idx++;
     }
 
-    // FIX: hora_fin no existe en citas — viene de franjas_horarias via LEFT JOIN
     const resultado = await pool.query(
       `SELECT c.id, c.fecha, c.hora_inicio, c.estado, c.tipo_consulta,
               c.motivo, c.razon_cancelacion, c.tarifa, c.created_at,
@@ -194,12 +191,11 @@ async function listarCitas(req, res) {
   }
 }
 
-// ─── REEMPLAZAR función cambiarEstadoCita ─────────────────────────────────────
+// ─── PATCH /admin/citas/:id/estado — Cambiar estado cita ─────────────────────
 async function cambiarEstadoCita(req, res) {
   const { id } = req.params;
   const { estado, razon_cancelacion } = req.body;
 
-  // FIX: estados alineados con el CHECK del schema real
   const estadosValidos = ['pendiente', 'completada', 'cancelada', 'no_asistio'];
   if (!estadosValidos.includes(estado))
     return res.status(400).json({ mensaje: 'Estado no válido.' });
@@ -217,7 +213,6 @@ async function cambiarEstadoCita(req, res) {
       [estado, razon_cancelacion || null, id]
     );
 
-    // Si se cancela, liberar la franja horaria
     if (estado === 'cancelada') {
       await pool.query(
         'UPDATE franjas_horarias SET disponible = TRUE WHERE id = $1',
@@ -263,7 +258,6 @@ async function getHorariosAdmin(req, res) {
       params
     );
 
-    // Formato FullCalendar
     const eventos = resultado.rows.map(f => ({
       id:    f.id,
       title: f.disponible
@@ -290,7 +284,7 @@ async function getHorariosAdmin(req, res) {
   }
 }
 
-// ─── POST /admin/horarios — Crear franja para un médico (Admin) ────────
+// ─── POST /admin/horarios — Crear franja individual (Admin) ─────────────────
 async function crearFranjaAdmin(req, res) {
   const { id_medico, fecha, hora_inicio, hora_fin } = req.body;
 
@@ -301,7 +295,10 @@ async function crearFranjaAdmin(req, res) {
     return res.status(400).json({ mensaje: 'La hora de inicio debe ser menor a la de fin.' });
 
   try {
-    const medico = await pool.query('SELECT id FROM medicos WHERE id = $1 AND activo = TRUE', [id_medico]);
+    const medico = await pool.query(
+      'SELECT id FROM medicos WHERE id = $1 AND activo = TRUE',
+      [id_medico]
+    );
     if (medico.rows.length === 0)
       return res.status(404).json({ mensaje: 'Médico no encontrado o inactivo.' });
 
@@ -318,6 +315,111 @@ async function crearFranjaAdmin(req, res) {
     console.error('Error en crearFranjaAdmin:', err.message);
     res.status(500).json({ mensaje: 'Error al crear la franja.' });
   }
+}
+
+// ─── POST /admin/horarios/masivo — Crear franjas en bloque ──────────────────
+async function crearHorarioMasivo(req, res) {
+  const {
+    id_medico,
+    fecha,
+    hora_inicio,
+    hora_fin,
+    inicio_descanso = null,
+    fin_descanso    = null,
+  } = req.body;
+
+  if (!id_medico || !fecha || !hora_inicio || !hora_fin)
+    return res.status(400).json({ mensaje: 'id_medico, fecha, hora_inicio y hora_fin son obligatorios.' });
+
+  if (hora_inicio >= hora_fin)
+    return res.status(400).json({ mensaje: 'La hora de inicio debe ser anterior a la de fin.' });
+
+  if (inicio_descanso && fin_descanso) {
+    if (inicio_descanso >= fin_descanso)
+      return res.status(400).json({ mensaje: 'El inicio del descanso debe ser anterior a su fin.' });
+    if (inicio_descanso <= hora_inicio || fin_descanso >= hora_fin)
+      return res.status(400).json({ mensaje: 'El descanso debe estar dentro del horario de la jornada.' });
+  }
+
+  try {
+    const medicoRes = await pool.query(
+      'SELECT id FROM medicos WHERE id = $1 AND activo = TRUE',
+      [id_medico]
+    );
+    if (medicoRes.rows.length === 0)
+      return res.status(404).json({ mensaje: 'Médico no encontrado o inactivo.' });
+
+    const franjas = generarFranjasConDescanso(
+      hora_inicio,
+      hora_fin,
+      40,
+      inicio_descanso,
+      fin_descanso
+    );
+
+    if (franjas.length === 0)
+      return res.status(400).json({
+        mensaje: 'El rango horario no permite generar ninguna franja de 40 minutos.',
+      });
+
+    let insertadas  = 0;
+    let duplicadas  = 0;
+
+    for (const f of franjas) {
+      try {
+        await pool.query(
+          `INSERT INTO franjas_horarias (id_medico, fecha, hora_inicio, hora_fin)
+           VALUES ($1, $2, $3, $4)`,
+          [id_medico, fecha, f.hora_inicio, f.hora_fin]
+        );
+        insertadas++;
+      } catch (e) {
+        if (e.code === '23505') duplicadas++;
+        else throw e;
+      }
+    }
+
+    return res.status(201).json({
+      mensaje:    `Se crearon ${insertadas} franjas${duplicadas ? ` (${duplicadas} ya existían)` : ''}.`,
+      insertadas,
+      duplicadas,
+      total:      franjas.length,
+    });
+  } catch (err) {
+    console.error('Error en crearHorarioMasivo:', err.message);
+    return res.status(500).json({ mensaje: 'Error al crear el horario.' });
+  }
+}
+
+// ─── Helper privado para franjas masivas ─────────────────────────────────────
+function generarFranjasConDescanso(horaInicio, horaFin, duracionMin, iniDesc, finDesc) {
+  const franjas = [];
+
+  const toMin = str => {
+    const [h, m] = str.split(':').map(Number);
+    return h * 60 + m;
+  };
+  const toStr = min =>
+    `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+
+  let actual  = toMin(horaInicio);
+  const fin   = toMin(horaFin);
+  const desc1 = iniDesc ? toMin(iniDesc) : null;
+  const desc2 = finDesc ? toMin(finDesc) : null;
+
+  while (actual + duracionMin <= fin) {
+    const siguiente = actual + duracionMin;
+
+    if (desc1 !== null && desc2 !== null && actual < desc2 && siguiente > desc1) {
+      actual = desc2;
+      continue;
+    }
+
+    franjas.push({ hora_inicio: toStr(actual), hora_fin: toStr(siguiente) });
+    actual = siguiente;
+  }
+
+  return franjas;
 }
 
 // ─── DELETE /admin/horarios/:id — Eliminar franja libre ────────────────
@@ -490,6 +592,7 @@ module.exports = {
   cambiarEstadoCita,
   getHorariosAdmin,
   crearFranjaAdmin,
+  crearHorarioMasivo, 
   eliminarFranjaAdmin,
   crearEspecialidad,
   actualizarEspecialidad,

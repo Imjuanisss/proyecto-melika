@@ -1,210 +1,444 @@
 /* client/src/pages/admin/gestionhorarios/HorariosAdmin.css
-   MELIKA — Gestión de horarios: estilos base + modal interactivo
-   ─────────────────────────────────────────────────────────────── */
+   MELIKA — Gestión de horarios en masa: estilos completos
+   ─────────────────────────────────────────────────────── */
 
 .horarios-admin { max-width: 1200px; }
 
-/* ── Leyenda ─────────────────────────────────────────────── */
-.horarios-leyenda {
-  display: flex;
-  gap: var(--space-4);
-  margin-bottom: var(--space-4);
+/* ── Cabecera acciones ─────────────────────────────────── */
+
+.horarios-cabecera-acciones {
+  display:   flex;
+  gap:       var(--space-3);
   flex-wrap: wrap;
+  align-items: center;
+}
+
+.btn-admin-secundario {
+  font-family:   var(--font-display);
+  font-size:     0.875rem;
+  font-weight:   600;
+  color:         var(--melika-primary);
+  background:    var(--melika-primary-50, #f0faf6);
+  border:        1.5px solid var(--melika-primary-100, #c8e8d8);
+  border-radius: var(--radius-md);
+  padding:       var(--space-2) var(--space-4);
+  cursor:        pointer;
+  transition:    all 0.15s;
+  white-space:   nowrap;
+}
+
+.btn-admin-secundario:hover {
+  background:    var(--melika-primary-100);
+  border-color:  var(--melika-primary-200);
+}
+
+/* ── Leyenda ─────────────────────────────────────────────── */
+
+.horarios-leyenda {
+  display:     flex;
+  gap:         var(--space-4);
+  margin-bottom: var(--space-4);
+  flex-wrap:   wrap;
+  align-items: center;
 }
 
 .leyenda-item {
-  font-size: 13px;
+  font-size:   13px;
   font-weight: 600;
   font-family: var(--font-display);
-  color: var(--melika-text-secondary);
-  display: flex;
+  color:       var(--melika-text-secondary);
+  display:     flex;
   align-items: center;
-  gap: var(--space-2);
+  gap:         var(--space-2);
 }
 
-/* ── Contenedor del calendario ───────────────────────────── */
+/* ── Calendario ─────────────────────────────────────────── */
+
 .horarios-calendar-wrap {
-  background: var(--melika-bg);
-  border: 1px solid var(--melika-primary-100);
+  background:    var(--melika-bg);
+  border:        1px solid var(--melika-primary-100);
   border-radius: var(--radius-xl);
-  padding: var(--space-6);
-  box-shadow: var(--shadow-sm);
+  padding:       var(--space-6);
+  box-shadow:    var(--shadow-sm);
+  max-width:     100%;
+  overflow-x:    hidden;
 }
 
-/* ── Detalle de franja en el modal ───────────────────────── */
+.horarios-admin .fc,
+.horarios-admin .fc * { max-width: 100%; }
+
+.horarios-admin .fc .fc-toolbar-title {
+  font-size: clamp(14px, 1.5vw, 18px);
+}
+
+/* ── Detalle evento ──────────────────────────────────────── */
+
 .horarios-detalle {
-  display: flex;
+  display:        flex;
   flex-direction: column;
-  gap: var(--space-3);
-  margin-bottom: var(--space-4);
-  padding: var(--space-4);
-  background: var(--melika-bg-secondary);
-  border-radius: var(--radius-md);
-  font-size: 14px;
-  color: var(--melika-text-secondary);
+  gap:            var(--space-3);
+  margin-bottom:  var(--space-4);
+  padding:        var(--space-4);
+  background:     var(--melika-bg-secondary);
+  border-radius:  var(--radius-md);
+  font-size:      14px;
+  color:          var(--melika-text-secondary);
 }
 
 .horarios-detalle strong { color: var(--melika-text-primary); }
 
-/* ── Fix overflow FullCalendar ───────────────────────────── */
-.horarios-admin,
-.fc {
-  max-width: 100%;
-  overflow-x: hidden;
-}
-
-.fc .fc-toolbar-title {
-  font-size: clamp(14px, 1.5vw, 18px);
-}
-
 /* ═══════════════════════════════════════════════════════════
-   MODAL DE NUEVA FRANJA — 2 PASOS
+   MODAL PRINCIPAL
    ═══════════════════════════════════════════════════════════ */
 
-.franja-modal {
-  max-width: 520px !important;
-  width: 100%;
+.horarios-modal {
+  max-width:      680px !important;
+  width:          100%;
+  max-height:     92vh;
+  overflow-y:     auto;
+  display:        flex;
+  flex-direction: column;
+  gap:            0;
+  padding:        0 !important;
 }
 
-/* ── Header con título + indicador de pasos ──────────────── */
-.franja-modal__header {
-  margin-bottom: var(--space-5);
+/* ── Header del modal ────────────────────────────────────── */
+
+.horarios-modal__header {
+  display:         flex;
+  justify-content: space-between;
+  align-items:     flex-start;
+  padding:         var(--space-6) var(--space-6) var(--space-4);
+  border-bottom:   1px solid var(--melika-primary-50);
 }
 
-.franja-modal__header h3 {
-  font-family: var(--font-display);
-  font-size: 17px;
-  font-weight: 700;
-  color: var(--melika-text-primary);
-  margin: 0 0 var(--space-4);
+.horarios-modal__titulo {
+  font-size:     1.15rem;
+  font-weight:   700;
+  color:         var(--melika-text-primary);
+  margin:        0 0 var(--space-1);
 }
 
-/* Stepper horizontal */
-.franja-modal__steps {
-  display: flex;
-  align-items: center;
-  gap: 0;
+.horarios-modal__sub {
+  font-size:  0.82rem;
+  color:      var(--melika-text-muted);
+  margin:     0;
 }
 
-.franja-modal__step {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-  position: relative;
-}
-
-/* Línea conectora entre pasos */
-.franja-modal__step:not(:last-child)::after {
-  content: '';
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: calc(100% - 88px);
-  height: 2px;
-  background: var(--melika-border);
-  left: 88px;
-}
-
-.franja-modal__step--completado::after,
-.franja-modal__step--activo::after {
-  background: var(--melika-primary) !important;
-}
-
-.franja-modal__step-num {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: 2px solid var(--melika-border);
-  background: var(--melika-bg-card, #fff);
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--melika-text-muted);
-  display: flex;
-  align-items: center;
+.btn-cerrar-modal {
+  background:    transparent;
+  border:        1px solid var(--melika-border);
+  border-radius: var(--radius-sm);
+  width:         30px;
+  height:        30px;
+  display:       flex;
+  align-items:   center;
   justify-content: center;
-  flex-shrink: 0;
-  transition: all 0.2s;
+  cursor:        pointer;
+  font-size:     0.9rem;
+  color:         var(--melika-text-muted);
+  transition:    all 0.12s;
+  flex-shrink:   0;
 }
 
-.franja-modal__step--activo .franja-modal__step-num {
-  border-color: var(--melika-primary);
-  background: var(--melika-primary);
-  color: #fff;
+.btn-cerrar-modal:hover {
+  background: var(--melika-error-bg);
+  border-color: var(--melika-error);
+  color: var(--melika-error);
 }
 
-.franja-modal__step--completado .franja-modal__step-num {
-  border-color: var(--melika-primary);
-  background: var(--melika-primary);
-  color: #fff;
+/* ── Tabs modo ───────────────────────────────────────────── */
+
+.horarios-modo-tabs {
+  display:  flex;
+  gap:      0;
+  padding:  var(--space-4) var(--space-6) 0;
+  border-bottom: 1px solid var(--melika-primary-50);
 }
 
-.franja-modal__step-label {
-  font-size: 12px;
+.horarios-modo-tab {
+  font-family:   var(--font-display);
+  font-size:     0.88rem;
+  font-weight:   600;
+  color:         var(--melika-text-muted);
+  background:    transparent;
+  border:        none;
+  border-bottom: 2px solid transparent;
+  padding:       var(--space-3) var(--space-5);
+  cursor:        pointer;
+  transition:    all 0.15s;
+  margin-bottom: -1px;
+}
+
+.horarios-modo-tab:hover {
+  color: var(--melika-text-secondary);
+}
+
+.horarios-modo-tab--activo {
+  color:         var(--melika-primary);
+  border-bottom-color: var(--melika-primary);
+}
+
+/* ── Errores ─────────────────────────────────────────────── */
+
+.horarios-error {
+  margin: var(--space-4) var(--space-6) 0;
+}
+
+/* ── Body scrollable ─────────────────────────────────────── */
+
+.horarios-modal__body {
+  padding:        var(--space-5) var(--space-6);
+  display:        flex;
+  flex-direction: column;
+  gap:            var(--space-4);
+  flex:           1;
+  overflow-y:     auto;
+}
+
+/* ── Fila 2 columnas ─────────────────────────────────────── */
+
+.horarios-fila-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap:     var(--space-4);
+  align-items: start;
+}
+
+/* ── Hint de campo ───────────────────────────────────────── */
+
+.horarios-campo-hint {
+  font-size:  0.77rem;
+  color:      var(--melika-primary);
   font-weight: 600;
-  color: var(--melika-text-muted);
-  transition: color 0.2s;
+  margin-top:  var(--space-1);
+  display:     block;
 }
 
-.franja-modal__step--activo .franja-modal__step-label,
-.franja-modal__step--completado .franja-modal__step-label {
+/* ── Plantillas rápidas ──────────────────────────────────── */
+
+.horarios-plantillas {
+  display:     flex;
+  align-items: center;
+  gap:         var(--space-2);
+  flex-wrap:   wrap;
+  padding:     var(--space-3) var(--space-4);
+  background:  var(--melika-primary-25, #f8fdfb);
+  border:      1px solid var(--melika-primary-50);
+  border-radius: var(--radius-md);
+}
+
+.horarios-plantillas__label {
+  font-size:   0.78rem;
+  font-weight: 700;
+  color:       var(--melika-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.horarios-plantilla-btn {
+  font-family:   var(--font-display);
+  font-size:     0.8rem;
+  font-weight:   600;
+  color:         var(--melika-primary);
+  background:    #fff;
+  border:        1.5px solid var(--melika-primary-100);
+  border-radius: var(--radius-sm);
+  padding:       4px 12px;
+  cursor:        pointer;
+  transition:    all 0.12s;
+}
+
+.horarios-plantilla-btn:hover {
+  background:   var(--melika-primary-50);
+  border-color: var(--melika-primary-200);
+}
+
+/* ── Lista de días ───────────────────────────────────────── */
+
+.horarios-dias-lista {
+  display:        flex;
+  flex-direction: column;
+  gap:            var(--space-2);
+}
+
+.horarios-dia {
+  border:        1.5px solid var(--melika-border);
+  border-radius: var(--radius-md);
+  overflow:      hidden;
+  transition:    border-color 0.15s;
+}
+
+.horarios-dia--activo {
+  border-color: var(--melika-primary-200, #8ed4b8);
+}
+
+.horarios-dia__toggle {
+  display:       flex;
+  align-items:   center;
+  gap:           var(--space-3);
+  padding:       var(--space-3) var(--space-4);
+  cursor:        pointer;
+  user-select:   none;
+  background:    var(--melika-bg);
+  transition:    background 0.12s;
+}
+
+.horarios-dia--activo .horarios-dia__toggle {
+  background: var(--melika-primary-25, #f8fdfb);
+}
+
+.horarios-dia__toggle input[type="checkbox"] {
+  accent-color: var(--melika-primary);
+  width:  17px;
+  height: 17px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.horarios-dia__nombre {
+  font-size:   0.92rem;
+  font-weight: 700;
+  color:       var(--melika-text-primary);
+  flex:        1;
+}
+
+.horarios-dia__preview {
+  font-size:     0.75rem;
+  font-weight:   700;
+  color:         var(--melika-primary);
+  background:    var(--melika-primary-50, #f0faf6);
+  padding:       2px 10px;
+  border-radius: 20px;
+  border:        1px solid var(--melika-primary-100);
+}
+
+.horarios-dia__campos {
+  padding:        var(--space-4);
+  display:        flex;
+  flex-direction: column;
+  gap:            var(--space-3);
+  border-top:     1px solid var(--melika-primary-50);
+  background:     var(--melika-bg-secondary);
+}
+
+.horarios-dia__horas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap:     var(--space-3);
+  align-items: start;
+}
+
+.horarios-dia__horas--descanso {
+  padding:       var(--space-3) var(--space-3);
+  background:    rgba(180, 83, 9, 0.04);
+  border:        1px dashed rgba(180, 83, 9, 0.2);
+  border-radius: var(--radius-sm);
+}
+
+.horarios-dia__check-descanso {
+  display:     flex;
+  align-items: center;
+  gap:         var(--space-2);
+  font-size:   0.83rem;
+  font-weight: 600;
+  color:       var(--melika-text-secondary);
+  cursor:      pointer;
+}
+
+.horarios-dia__check-descanso input {
+  accent-color: var(--melika-accent);
+  width:  15px;
+  height: 15px;
+}
+
+.horarios-dia__btn-copiar {
+  font-size:     0.78rem;
+  font-weight:   600;
+  color:         var(--melika-primary);
+  background:    transparent;
+  border:        1px dashed var(--melika-primary-200);
+  border-radius: var(--radius-sm);
+  padding:       4px 12px;
+  cursor:        pointer;
+  align-self:    flex-start;
+  transition:    all 0.12s;
+}
+
+.horarios-dia__btn-copiar:hover {
+  background:   var(--melika-primary-50);
+  border-color: var(--melika-primary-300);
+  border-style: solid;
+}
+
+/* ── Preview pill ────────────────────────────────────────── */
+
+.horarios-preview-pill {
+  padding:       var(--space-2) var(--space-4);
+  background:    var(--melika-primary-50, #f0faf6);
+  border:        1px solid var(--melika-primary-100);
+  border-radius: var(--radius-md);
+  font-size:     0.83rem;
+  color:         var(--melika-text-secondary);
+  text-align:    center;
+}
+
+.horarios-preview-pill strong {
   color: var(--melika-primary);
 }
 
-/* ── Cuerpo scrollable del modal ─────────────────────────── */
-.franja-modal__body {
-  display: flex;
+/* ── Resultado ───────────────────────────────────────────── */
+
+.horarios-resultado {
+  display:        flex;
   flex-direction: column;
-  gap: var(--space-4);
-  max-height: 420px;
-  overflow-y: auto;
-  padding-right: 4px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--melika-border) transparent;
+  align-items:    center;
+  gap:            var(--space-3);
+  padding:        var(--space-8) var(--space-6);
+  text-align:     center;
 }
 
-.franja-modal__body::-webkit-scrollbar       { width: 4px; }
-.franja-modal__body::-webkit-scrollbar-track  { background: transparent; }
-.franja-modal__body::-webkit-scrollbar-thumb  {
-  background: var(--melika-border);
-  border-radius: 4px;
+.horarios-resultado__icono {
+  font-size: 3rem;
 }
 
-/* ── Resumen del paso 2 (qué médico/fecha se eligió) ─────── */
-.franja-resumen {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: var(--space-3) var(--space-4);
-  background: var(--melika-primary-100, #e8f5f0);
-  border-radius: var(--radius-md);
-  border-left: 3px solid var(--melika-primary);
-}
-
-.franja-resumen__item {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--melika-text-primary);
-}
-
-/* ── Contenedor de los dos TimePickers en columna ─────────── */
-.franja-modal__tiempos {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-/* Badge de hora seleccionada junto al label */
-label .franja-hora-badge,
-.admin-campo > label .franja-hora-badge {
-  margin-left: 8px;
-  background: var(--melika-primary);
-  color: #fff;
-  font-size: 11px;
+.horarios-resultado__titulo {
+  font-size:   1.1rem;
   font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 20px;
-  font-family: var(--font-display);
-  vertical-align: middle;
+  color:       var(--melika-text-primary);
+  margin:      0;
+}
+
+.horarios-resultado__detalle {
+  font-size: 0.9rem;
+  color:     var(--melika-text-secondary);
+  margin:    0;
+}
+
+.horarios-resultado__detalle strong {
+  color: var(--melika-primary);
+}
+
+.horarios-resultado__acciones {
+  display: flex;
+  gap:     var(--space-3);
+  margin-top: var(--space-2);
+}
+
+/* ── Acciones del modal ──────────────────────────────────── */
+
+.horarios-modal__acciones {
+  padding:       var(--space-4) var(--space-6);
+  border-top:    1px solid var(--melika-primary-50);
+  margin-top:    auto;
+}
+
+/* ── Responsive ─────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .horarios-fila-2           { grid-template-columns: 1fr; }
+  .horarios-dia__horas       { grid-template-columns: 1fr; }
+  .horarios-cabecera-acciones { flex-direction: column; align-items: stretch; }
+  .horarios-resultado__acciones { flex-direction: column; }
 }
