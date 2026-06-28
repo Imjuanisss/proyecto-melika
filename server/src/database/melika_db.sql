@@ -568,7 +568,7 @@ FROM pg_indexes
 WHERE tablename = 'historias_clinicas'
   AND indexname = 'uq_historia_principal_por_cita';
 
-nuevos datos para meter 
+--nuevos datos para meter 
 
   ALTER TABLE franjas_horarias 
 ADD COLUMN estado VARCHAR(20) DEFAULT 'disponible';
@@ -595,4 +595,8 @@ CREATE TABLE ordenes_examenes (
     justificacion_clinica TEXT,          -- Razón por la que se pide el examen
     fecha_emision TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+--- 3. migración de datos: agregar columna id_especialidad a medicamentos para vincular con especialidades
+ALTER TABLE medicamentos
+  ADD COLUMN IF NOT EXISTS id_especialidad INT REFERENCES especialidades(id);
   

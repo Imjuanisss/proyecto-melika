@@ -1,6 +1,10 @@
-/* src/pages/admin/HorariosAdmin.css */
+/* client/src/pages/admin/gestionhorarios/HorariosAdmin.css
+   MELIKA — Gestión de horarios: estilos base + modal interactivo
+   ─────────────────────────────────────────────────────────────── */
+
 .horarios-admin { max-width: 1200px; }
 
+/* ── Leyenda ─────────────────────────────────────────────── */
 .horarios-leyenda {
   display: flex;
   gap: var(--space-4);
@@ -18,6 +22,7 @@
   gap: var(--space-2);
 }
 
+/* ── Contenedor del calendario ───────────────────────────── */
 .horarios-calendar-wrap {
   background: var(--melika-bg);
   border: 1px solid var(--melika-primary-100);
@@ -26,6 +31,7 @@
   box-shadow: var(--shadow-sm);
 }
 
+/* ── Detalle de franja en el modal ───────────────────────── */
 .horarios-detalle {
   display: flex;
   flex-direction: column;
@@ -40,12 +46,165 @@
 
 .horarios-detalle strong { color: var(--melika-text-primary); }
 
-/* ── Fix overflow HorariosAdmin ── */
+/* ── Fix overflow FullCalendar ───────────────────────────── */
 .horarios-admin,
 .fc {
   max-width: 100%;
   overflow-x: hidden;
 }
+
 .fc .fc-toolbar-title {
   font-size: clamp(14px, 1.5vw, 18px);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MODAL DE NUEVA FRANJA — 2 PASOS
+   ═══════════════════════════════════════════════════════════ */
+
+.franja-modal {
+  max-width: 520px !important;
+  width: 100%;
+}
+
+/* ── Header con título + indicador de pasos ──────────────── */
+.franja-modal__header {
+  margin-bottom: var(--space-5);
+}
+
+.franja-modal__header h3 {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--melika-text-primary);
+  margin: 0 0 var(--space-4);
+}
+
+/* Stepper horizontal */
+.franja-modal__steps {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.franja-modal__step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  position: relative;
+}
+
+/* Línea conectora entre pasos */
+.franja-modal__step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: calc(100% - 88px);
+  height: 2px;
+  background: var(--melika-border);
+  left: 88px;
+}
+
+.franja-modal__step--completado::after,
+.franja-modal__step--activo::after {
+  background: var(--melika-primary) !important;
+}
+
+.franja-modal__step-num {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--melika-border);
+  background: var(--melika-bg-card, #fff);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--melika-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.franja-modal__step--activo .franja-modal__step-num {
+  border-color: var(--melika-primary);
+  background: var(--melika-primary);
+  color: #fff;
+}
+
+.franja-modal__step--completado .franja-modal__step-num {
+  border-color: var(--melika-primary);
+  background: var(--melika-primary);
+  color: #fff;
+}
+
+.franja-modal__step-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--melika-text-muted);
+  transition: color 0.2s;
+}
+
+.franja-modal__step--activo .franja-modal__step-label,
+.franja-modal__step--completado .franja-modal__step-label {
+  color: var(--melika-primary);
+}
+
+/* ── Cuerpo scrollable del modal ─────────────────────────── */
+.franja-modal__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--melika-border) transparent;
+}
+
+.franja-modal__body::-webkit-scrollbar       { width: 4px; }
+.franja-modal__body::-webkit-scrollbar-track  { background: transparent; }
+.franja-modal__body::-webkit-scrollbar-thumb  {
+  background: var(--melika-border);
+  border-radius: 4px;
+}
+
+/* ── Resumen del paso 2 (qué médico/fecha se eligió) ─────── */
+.franja-resumen {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--space-3) var(--space-4);
+  background: var(--melika-primary-100, #e8f5f0);
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--melika-primary);
+}
+
+.franja-resumen__item {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--melika-text-primary);
+}
+
+/* ── Contenedor de los dos TimePickers en columna ─────────── */
+.franja-modal__tiempos {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* Badge de hora seleccionada junto al label */
+label .franja-hora-badge,
+.admin-campo > label .franja-hora-badge {
+  margin-left: 8px;
+  background: var(--melika-primary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-family: var(--font-display);
+  vertical-align: middle;
 }

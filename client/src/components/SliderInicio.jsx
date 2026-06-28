@@ -1,4 +1,4 @@
-import React from 'react';
+
 // Importamos los componentes de Swiper para React
 import { Swiper, SwiperSlide } from 'swiper/react';
 // Importamos los módulos extra que necesitamos (Autoplay y Paginación)
