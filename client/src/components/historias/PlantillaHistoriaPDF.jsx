@@ -11,22 +11,7 @@ import {
   StyleSheet,
 } from '@react-pdf/renderer';
 
-// Función auxiliar para calcular la edad exacta a partir de la fecha de nacimiento
-const calcularEdad = (fechaNac) => {
-  if (!fechaNac) return '—';
-  const nacimiento = new Date(fechaNac);
-  const hoy = new Date();
-  
-  let edad = hoy.getFullYear() - nacimiento.getFullYear();
-  const diferenciaMeses = hoy.getMonth() - nacimiento.getMonth();
-  
-  // Si no ha cumplido años este año todavía, restamos un año
-  if (diferenciaMeses < 0 || (diferenciaMeses === 0 && hoy.getDate() < nacimiento.getDate())) {
-    edad--;
-  }
-  
-  return `${edad} años`;
-};
+
 
 // ─── Paleta de colores MELIKA para PDF ───────────────────────────────────────
 const COLOR = {
