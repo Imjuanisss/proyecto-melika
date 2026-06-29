@@ -12,6 +12,9 @@ import { useAuth } from '../../context/AuthContext';
 import Boton from '../ui/Boton';
 import './Navbar.css';
 
+// 1. Aquí importamos el logo
+import miLogo from "/src/assets/logo.png";
+
 // ─── Árboles de links por rol ─────────────────────────────────────────────────
 
 const LINKS_PUBLICOS = [
@@ -204,9 +207,12 @@ export default function Navbar() {
         <div className="navbar__inner">
 
           {/* Logo */}
-          <Link to="/" className="navbar__logo" onClick={cerrar}>
-            <div className="navbar__logo-mark">M</div>
-            <span>ELIKA</span>
+          <Link to="/" className="navbar__logo" onClick={cerrar} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {/* 2. Aquí renderizamos la imagen de tu logo */}
+            <img src={miLogo} alt="Logo MELIKA" style={{ height: '70px', objectFit: 'contain' }} />
+            
+            {/* Opcional: Puedes descomentar esto si quieres que también salga el texto MELIKA al lado de la imagen */}
+            {/* <span>MELIKA</span> */}
           </Link>
 
           {/* Links de navegación desktop — árbol según rol */}

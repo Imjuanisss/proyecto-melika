@@ -1,0 +1,253 @@
+/* client/src/components/ui/ClockPicker.css
+   MELIKA — Selector de hora desplegable tipo reloj
+   ─────────────────────────────────────────────── */
+
+.mkcp {
+  position: relative;
+  width: 100%;
+}
+
+.mkcp__label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--melika-text-secondary);
+  margin-bottom: var(--space-1, 4px);
+}
+
+/* ── Trigger ──────────────────────────────────────────── */
+
+.mkcp__trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  background: var(--melika-bg, #fff);
+  border: 1.5px solid var(--melika-border, #d9e4f7);
+  border-radius: var(--radius-md, 8px);
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  text-align: left;
+}
+
+.mkcp__trigger:hover:not(:disabled) {
+  border-color: var(--melika-primary-300, #5dc4a0);
+}
+
+.mkcp--open .mkcp__trigger {
+  border-color: var(--melika-primary, #1a7a52);
+  box-shadow: 0 0 0 3px rgba(26,122,82,0.12);
+}
+
+.mkcp__trigger:disabled,
+.mkcp--disabled .mkcp__trigger {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.mkcp__trigger-icon {
+  color: var(--melika-primary, #1a7a52);
+  flex-shrink: 0;
+  display: flex;
+}
+
+.mkcp__trigger-value {
+  flex: 1;
+  color: var(--melika-text-primary);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.mkcp__trigger-placeholder {
+  flex: 1;
+  color: var(--melika-text-muted, #8a9bbe);
+  font-weight: 400;
+}
+
+.mkcp__trigger-arrow {
+  margin-left: auto;
+  color: var(--melika-text-muted);
+  display: flex;
+  transition: transform 0.2s;
+}
+
+.mkcp--open .mkcp__trigger-arrow {
+  transform: rotate(180deg);
+}
+
+/* ── Dropdown ─────────────────────────────────────────── */
+
+.mkcp__dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 200;
+  width: 240px;
+  background: var(--melika-bg, #fff);
+  border: 1.5px solid var(--melika-primary-100, #d9f0e8);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.06);
+  overflow: hidden;
+  animation: mkcp-in 0.15s ease;
+}
+
+@keyframes mkcp-in {
+  from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+
+/* ── Header ───────────────────────────────────────────── */
+
+.mkcp__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid var(--melika-primary-50, #f0faf6);
+}
+
+.mkcp__header-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--melika-text-secondary);
+  letter-spacing: 0.02em;
+}
+
+.mkcp__header-title strong {
+  color: var(--melika-primary);
+  font-size: 1rem;
+}
+
+.mkcp__back {
+  background: none;
+  border: 1px solid var(--melika-border, #d9e4f7);
+  border-radius: 6px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--melika-text-secondary);
+  padding: 0;
+  flex-shrink: 0;
+  transition: all 0.12s;
+}
+
+.mkcp__back:hover {
+  background: var(--melika-primary-50, #f0faf6);
+  border-color: var(--melika-primary-200);
+  color: var(--melika-primary);
+}
+
+/* ── Grids ────────────────────────────────────────────── */
+
+.mkcp__grid {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+}
+
+.mkcp__grid--hours {
+  grid-template-columns: repeat(4, 1fr);
+  max-height: 180px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--melika-border) transparent;
+}
+
+.mkcp__grid--hours::-webkit-scrollbar       { width: 3px; }
+.mkcp__grid--hours::-webkit-scrollbar-track  { background: transparent; }
+.mkcp__grid--hours::-webkit-scrollbar-thumb  {
+  background: var(--melika-border);
+  border-radius: 3px;
+}
+
+.mkcp__grid--minutes {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+/* ── Celdas ───────────────────────────────────────────── */
+
+.mkcp__cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 8px 4px 6px;
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-md, 8px);
+  background: transparent;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--melika-text-primary);
+  cursor: pointer;
+  transition: all 0.12s;
+  line-height: 1.1;
+}
+
+.mkcp__cell small {
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: var(--melika-text-muted);
+  letter-spacing: 0.04em;
+}
+
+.mkcp__cell:hover:not(:disabled) {
+  background: var(--melika-primary-50, #f0faf6);
+  border-color: var(--melika-primary-100, #d9f0e8);
+  color: var(--melika-primary);
+}
+
+.mkcp__cell:hover:not(:disabled) small {
+  color: var(--melika-primary-300);
+}
+
+.mkcp__cell--sel {
+  background: var(--melika-primary, #1a7a52) !important;
+  border-color: var(--melika-primary, #1a7a52) !important;
+  color: #fff !important;
+  box-shadow: 0 2px 8px rgba(26,122,82,0.3);
+}
+
+.mkcp__cell--sel small {
+  color: rgba(255,255,255,0.75) !important;
+}
+
+.mkcp__cell--off {
+  opacity: 0.25;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ── Preview ──────────────────────────────────────────── */
+
+.mkcp__preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 8px 10px 10px;
+  border-top: 1px solid var(--melika-primary-50, #f0faf6);
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--melika-text-muted);
+  letter-spacing: 0.04em;
+}
+
+.mkcp__preview-h--set,
+.mkcp__preview-m--set {
+  color: var(--melika-primary);
+}
+
+.mkcp__preview-sep {
+  color: var(--melika-primary-200, #a0d9c0);
+  margin: 0 1px;
+}

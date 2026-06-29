@@ -14,6 +14,39 @@ function crearTransporter() {
   });
 }
 
+// ─── HELPER: Generador de Franjas Horarias con Descanso ────────────────────
+function generarFranjasConDescanso(horaInicio, horaFin, duracionMinutos, inicioDescanso, finDescanso) {
+  const franjas = [];
+  let actual = new Date(`2000-01-01T${horaInicio}:00`);
+  const finJornada = new Date(`2000-01-01T${horaFin}:00`);
+  
+  let inicioBreak = null;
+  let finBreak = null;
+  
+  if (inicioDescanso && finDescanso) {
+      inicioBreak = new Date(`2000-01-01T${inicioDescanso}:00`);
+      finBreak = new Date(`2000-01-01T${finDescanso}:00`);
+  }
+
+  while (actual < finJornada) {
+    let finFranja = new Date(actual.getTime() + duracionMinutos * 60000);
+
+    if (inicioBreak && finBreak && actual < finBreak && finFranja > inicioBreak) {
+      actual = new Date(finBreak);
+      continue; 
+    }
+
+    if (finFranja <= finJornada) {
+      franjas.push({
+        hora_inicio: actual.toTimeString().substring(0, 5),
+        hora_fin: finFranja.toTimeString().substring(0, 5)
+      });
+    }
+    actual = finFranja;
+  }
+  return franjas;
+}
+
 // ─── POST /medicos — Crear médico (solo Admin) ─────────────────────────────────
 async function crearMedico(req, res) {
   const {
@@ -418,36 +451,57 @@ async function agendaRango(req, res) {
 // ─── POST /medico/franjas — Crear franja horaria ───────────────────────────────
 async function crearFranja(req, res) {
   const id_usuario = req.usuario.id;
-  const { fecha, hora_inicio, hora_fin } = req.body;
+  // Agregamos inicio_descanso y fin_descanso al body
+  const { fecha, hora_inicio, hora_fin, inicio_descanso, fin_descanso } = req.body;
 
-  if (!fecha || !hora_inicio || !hora_fin)
-    return res.status(400).json({ mensaje: 'Fecha, hora de inicio y hora de fin son obligatorios.' });
-
-  if (hora_inicio >= hora_fin)
-    return res.status(400).json({ mensaje: 'La hora de inicio debe ser anterior a la hora de fin.' });
+  if (!fecha || !hora_inicio || !hora_fin) {
+    return res.status(400).json({ mensaje: "Faltan parámetros obligatorios." });
+  }
 
   try {
-    const medicoRes = await pool.query(
-      'SELECT id FROM medicos WHERE id_usuario = $1 AND activo = TRUE',
-      [id_usuario]
-    );
-    if (medicoRes.rows.length === 0)
-      return res.status(403).json({ mensaje: 'No tienes un perfil médico activo.' });
-
+    const medicoRes = await pool.query('SELECT id FROM medicos WHERE id_usuario=$1', [id_usuario]);
+    if (medicoRes.rows.length === 0) return res.status(403).json({ mensaje: 'No tienes perfil de médico.' });
+    
     const id_medico = medicoRes.rows[0].id;
 
-    const nueva = await pool.query(
-      `INSERT INTO franjas_horarias (id_medico, fecha, hora_inicio, hora_fin)
-       VALUES ($1,$2,$3,$4) RETURNING *`,
-      [id_medico, fecha, hora_inicio, hora_fin]
+    // 1. Llamamos al generador de 40 minutos
+    const franjasGeneradas = generarFranjasConDescanso(
+        hora_inicio, 
+        hora_fin, 
+        40, // Los 40 minutos fijos que definimos
+        inicio_descanso, 
+        fin_descanso
     );
 
-    return res.status(201).json({ mensaje: 'Franja horaria creada.', franja: nueva.rows[0] });
-  } catch (err) {
-    if (err.code === '23505')
-      return res.status(409).json({ mensaje: 'Ya existe una franja para esa fecha y hora.' });
-    console.error('Error en crearFranja:', err.message);
-    return res.status(500).json({ mensaje: 'Error al crear la franja horaria.' });
+    if(franjasGeneradas.length === 0){
+        return res.status(400).json({ mensaje: "El rango de horas no permite crear franjas completas de 40 min." });
+    }
+
+    // 2. Guardamos en la base de datos verificando que no existan duplicados
+    let insertadas = 0;
+    for (const franja of franjasGeneradas) {
+        const existe = await pool.query(
+            `SELECT id FROM franjas_horarias WHERE id_medico=$1 AND fecha=$2 AND hora_inicio=$3`,
+            [id_medico, fecha, franja.hora_inicio]
+        );
+        if (existe.rows.length === 0) {
+           await pool.query(
+              `INSERT INTO franjas_horarias (id_medico, fecha, hora_inicio, hora_fin, estado)
+               VALUES ($1, $2, $3, $4, 'disponible')`,
+              [id_medico, fecha, franja.hora_inicio, franja.hora_fin]
+            );
+            insertadas++;
+        }
+    }
+    
+    res.status(201).json({ 
+        mensaje: `Se crearon ${insertadas} citas de 40 minutos exitosamente.`,
+        franjas_intentadas: franjasGeneradas.length
+    });
+
+  } catch (error) {
+    console.error('Error en crearFranja masiva:', error.message);
+    res.status(500).json({ mensaje: 'Error al generar la disponibilidad.' });
   }
 }
 

@@ -78,12 +78,14 @@ export default function CitasAdmin() {
     }
   }
 
-  function formatFecha(f) {
-    if (!f) return '—';
-    return new Date(f + 'T00:00:00').toLocaleDateString('es-CO', {
-      day: 'numeric', month: 'short', year: 'numeric',
-    });
-  }
+ // DESPUÉS — extrae solo YYYY-MM-DD antes de parsear
+function formatFecha(f) {
+  if (!f) return '—';
+  const soloFecha = String(f).split('T')[0];
+  return new Date(soloFecha + 'T00:00:00').toLocaleDateString('es-CO', {
+    day: 'numeric', month: 'short', year: 'numeric',
+  });
+}
 
   const resumen = ESTADOS.reduce((acc, e) => {
     acc[e] = citas.filter(c => c.estado === e).length;

@@ -1,0 +1,170 @@
+/* client/src/components/historias/VisorPDFModal.css
+   MELIKA — Visor PDF nativo (iframe)
+   Glassmorphism · Variables CSS globales */
+
+/* ── Overlay ── */
+.visor-overlay {
+  position:                fixed;
+  inset:                   0;
+  background:              rgba(5, 12, 30, 0.88);
+  backdrop-filter:         blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index:                 1100;
+  display:                 flex;
+  flex-direction:          column;
+  animation:               visor-fade-in 0.2s ease;
+}
+
+@keyframes visor-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── Modal ── */
+.visor-modal {
+  display:        flex;
+  flex-direction: column;
+  height:         100%;
+  width:          100%;
+}
+
+/* ── Toolbar glassmorphism ── */
+.visor-toolbar {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  padding:         0 var(--space-6);
+  height:          52px;
+  flex-shrink:     0;
+}
+
+.glass-toolbar {
+  background:              rgba(11, 26, 54, 0.75);
+  backdrop-filter:         blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom:           1px solid rgba(255, 255, 255, 0.10);
+  box-shadow:              0 2px 16px rgba(0, 0, 0, 0.28);
+}
+
+.visor-toolbar__izq,
+.visor-toolbar__centro,
+.visor-toolbar__der {
+  display:     flex;
+  align-items: center;
+  gap:         var(--space-2);
+  flex:        1;
+}
+
+.visor-toolbar__centro { justify-content: center; }
+.visor-toolbar__der    { justify-content: flex-end; }
+
+/* ── Logo mini ── */
+.visor-logo-mini {
+  font-family:    var(--font-display);
+  font-size:      16px;
+  font-weight:    700;
+  color:          #ffffff;
+  letter-spacing: 1px;
+  user-select:    none;
+}
+
+.visor-logo-mini__m {
+  color: var(--melika-accent);
+}
+
+/* ── Nombre del archivo ── */
+.visor-nombre-archivo {
+  font-family:   var(--font-display);
+  font-size:     13px;
+  font-weight:   600;
+  color:         rgba(255, 255, 255, 0.80);
+  max-width:     320px;
+  overflow:      hidden;
+  text-overflow: ellipsis;
+  white-space:   nowrap;
+}
+
+/* ── Botones ── */
+.visor-btn {
+  background:      rgba(255, 255, 255, 0.10);
+  border:          1px solid rgba(255, 255, 255, 0.15);
+  border-radius:   var(--radius-sm);
+  color:           rgba(255, 255, 255, 0.90);
+  font-family:     var(--font-display);
+  font-size:       14px;
+  font-weight:     700;
+  height:          34px;
+  padding:         0 var(--space-3);
+  display:         inline-flex;
+  align-items:     center;
+  justify-content: center;
+  cursor:          pointer;
+  transition:      background 0.15s ease, border-color 0.15s ease;
+  text-decoration: none;
+  white-space:     nowrap;
+}
+
+.visor-btn:hover {
+  background:   rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.30);
+  color:        #ffffff;
+}
+
+.visor-btn--descarga {
+  background:   rgba(232, 133, 106, 0.22);
+  border-color: rgba(232, 133, 106, 0.38);
+  color:        #f4b5a0;
+}
+
+.visor-btn--descarga:hover {
+  background: rgba(232, 133, 106, 0.44);
+  color:      #ffffff;
+}
+
+.visor-btn--cerrar {
+  background:   rgba(185, 28, 28, 0.22);
+  border-color: rgba(185, 28, 28, 0.38);
+  color:        #fca5a5;
+  width:        34px;
+  padding:      0;
+}
+
+.visor-btn--cerrar:hover {
+  background: rgba(185, 28, 28, 0.48);
+  color:      #ffffff;
+}
+
+/* ── Área del documento ── */
+.visor-documento {
+  flex:     1;
+  overflow: hidden;
+  display:  flex;
+}
+
+.visor-iframe {
+  width:      100%;
+  height:     100%;
+  border:     none;
+  background: #525659;
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .visor-toolbar {
+    padding: 0 var(--space-3);
+    height:  48px;
+  }
+
+  .visor-toolbar__izq {
+    display: none;
+  }
+
+  .visor-toolbar__centro {
+    flex: 2;
+  }
+
+  .visor-nombre-archivo {
+    max-width: 160px;
+    font-size: 12px;
+  }
+}
