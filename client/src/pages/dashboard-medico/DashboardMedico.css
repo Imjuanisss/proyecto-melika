@@ -95,6 +95,12 @@
     margin-bottom: var(--space-4);
 }
 
+.panel-calendario__hint {
+  font-size: 0.78rem;
+  color: var(--melika-text-muted);
+  margin-bottom: var(--space-3);
+  line-height: 1.5;
+}
 /* ─── PANEL AGENDA / DISPONIBILIDAD ───────────────────────────────── */
 
 .panel-agenda {

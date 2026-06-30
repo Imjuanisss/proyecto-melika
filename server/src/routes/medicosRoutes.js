@@ -19,6 +19,7 @@ const {
   agendaRango,
   crearFranja,
   listarFranjas,
+  editarFranja,
   eliminarFranja,
 } = require('../controllers/medicosController');
 
@@ -56,6 +57,7 @@ router.patch('/citas/:id/gestionar', verifyToken, isMedico, gestionarCita);
 // ⚠️ CRÍTICO: /franjas (sin :id) ANTES de /franjas/:id
 router.get('/franjas',        verifyToken, isMedico, listarFranjas);
 router.post('/franjas',       verifyToken, isMedico, crearFranja);
+router.patch('/franjas/:id',  verifyToken, isMedico, editarFranja);
 router.delete('/franjas/:id', verifyToken, isMedico, eliminarFranja);
 
 module.exports = router;

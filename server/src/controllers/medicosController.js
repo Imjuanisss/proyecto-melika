@@ -1,15 +1,36 @@
 // server/src/controllers/medicosController.js
-// ─── REESCRITURA COMPLETA — todos los bugs de schema corregidos ────────────────
-// Incluye: completarCita expandida a gestionarCita con soporte de notas y asistencia.
-// FIX: agendaRango ahora también devuelve las franjas disponibles (antes solo
-//      devolvía citas, por lo que la disponibilidad creada por el médico nunca
-//      se veía en su propio calendario) y usa TO_CHAR para evitar desfases de
-//      fecha por zona horaria al construir los eventos de FullCalendar.
+// ─── REESCRITURA COMPLETA ────────────────────────────────────────────────────
+// FIX 1: agendaRango devuelve también las franjas disponibles (antes solo
+//      devolvía citas), usando TO_CHAR para evitar desfases de fecha por
+//      zona horaria al construir los eventos de FullCalendar.
+// FIX 2: crearFranja ahora retorna `insertadas` en la respuesta — antes solo
+//      retornaba `franjas_intentadas`, por lo que el front (HorariosSemana.jsx)
+//      siempre sumaba 0 franjas reales creadas, mostrando "0 franjas
+//      generadas" aunque la inserción en BD sí ocurriera correctamente.
+// NUEVO: editarFranja — permite corregir fecha/hora de una franja SIN cita
+//      reservada, con validación de duración (40 min) y de solapamiento.
+// NUEVO: agendaRango etiqueta cada evento con un estado legible
+//      (Pendiente / Completada / No asistió / Disponible) para que el
+//      calendario sea más entendible de un vistazo.
 
 const pool       = require('../config/db');
 const bcrypt     = require('bcrypt');
 const crypto     = require('crypto');
 const nodemailer = require('nodemailer');
+
+const DURACION_FRANJA_MIN = 40;
+
+const ESTADO_LABEL = {
+  pendiente:  'Pendiente',
+  completada: 'Completada',
+  no_asistio: 'No asistió',
+};
+
+const COLOR_ESTADO = {
+  pendiente:  { bg: '#B45309', border: '#92400E' },
+  completada: { bg: '#1A7A52', border: '#145C3E' },
+  no_asistio: { bg: '#6B7280', border: '#4B5563' },
+};
 
 function crearTransporter() {
   return nodemailer.createTransport({
@@ -23,10 +44,10 @@ function generarFranjasConDescanso(horaInicio, horaFin, duracionMinutos, inicioD
   const franjas = [];
   let actual = new Date(`2000-01-01T${horaInicio}:00`);
   const finJornada = new Date(`2000-01-01T${horaFin}:00`);
-  
+
   let inicioBreak = null;
   let finBreak = null;
-  
+
   if (inicioDescanso && finDescanso) {
       inicioBreak = new Date(`2000-01-01T${inicioDescanso}:00`);
       finBreak = new Date(`2000-01-01T${finDescanso}:00`);
@@ -37,7 +58,7 @@ function generarFranjasConDescanso(horaInicio, horaFin, duracionMinutos, inicioD
 
     if (inicioBreak && finBreak && actual < finBreak && finFranja > inicioBreak) {
       actual = new Date(finBreak);
-      continue; 
+      continue;
     }
 
     if (finFranja <= finJornada) {
@@ -49,6 +70,13 @@ function generarFranjasConDescanso(horaInicio, horaFin, duracionMinutos, inicioD
     actual = finFranja;
   }
   return franjas;
+}
+
+// ── HELPER: Validación de duración exacta de 40 min para una franja editada ──
+function duracionEnMinutos(horaInicio, horaFin) {
+  const [ih, im] = horaInicio.split(':').map(Number);
+  const [fh, fm] = horaFin.split(':').map(Number);
+  return (fh * 60 + fm) - (ih * 60 + im);
 }
 
 // ─── POST /medicos — Crear médico (solo Admin) ─────────────────────────────────
@@ -393,16 +421,6 @@ async function agendaMedico(req, res) {
 // =============================================================================
 // GET /medico/agenda/rango?inicio=&fin= — Para FullCalendar
 // =============================================================================
-// FIX PROFESIONAL:
-//   1) Antes esta función SOLO consultaba la tabla `citas`. Eso significa que
-//      cuando el médico creaba disponibilidad (franja puntual o semana
-//      completa), esas franjas jamás se traducían en eventos del calendario
-//      porque la query nunca tocaba `franjas_horarias`. Ahora se consultan
-//      ambas fuentes y se combinan en un solo array de eventos.
-//   2) Se usa TO_CHAR(..., 'YYYY-MM-DD') en lugar de invocar .toISOString()
-//      sobre el objeto Date que entrega node-postgres, evitando el desfase
-//      de día que ocurre cuando el servidor no corre en UTC.
-// =============================================================================
 async function agendaRango(req, res) {
   const id_usuario = req.usuario.id;
   const { inicio, fin } = req.query;
@@ -448,17 +466,14 @@ async function agendaRango(req, res) {
       [id_medico, inicio, fin]
     );
 
-    const COLOR_ESTADO = {
-      pendiente:  { bg: '#B45309', border: '#92400E' },
-      completada: { bg: '#1A7A52', border: '#145C3E' },
-      no_asistio: { bg: '#6B7280', border: '#4B5563' },
-    };
-
+    // Citas reservadas/gestionadas — título con estado legible para que el
+    // médico entienda de un vistazo qué es cada bloque del calendario.
     const eventosCitas = citasRes.rows.map(c => {
-      const colores = COLOR_ESTADO[c.estado] || { bg: '#E8856A', border: '#C96848' };
+      const colores  = COLOR_ESTADO[c.estado] || { bg: '#E8856A', border: '#C96848' };
+      const etiqueta = ESTADO_LABEL[c.estado] || c.estado;
       return {
         id:              `cita-${c.id}`,
-        title:           `${c.paciente_nombre} ${c.paciente_apellido}`,
+        title:           `${etiqueta} · ${c.paciente_nombre} ${c.paciente_apellido}`,
         start:           `${c.fecha_str}T${c.hora_inicio}`,
         backgroundColor: colores.bg,
         borderColor:     colores.border,
@@ -471,12 +486,12 @@ async function agendaRango(req, res) {
       };
     });
 
-    // Espacios libres ya configurados por el médico — se distinguen visualmente
-    // (verde suave) de las citas reservadas para que el médico confirme de
-    // inmediato que su disponibilidad quedó registrada en el día/hora correctos.
+    // Espacios libres ya configurados por el médico — claramente diferenciados
+    // como "Disponible" para que el médico identifique de inmediato qué
+    // bloques aún no tienen pacientes y pueda editarlos o eliminarlos.
     const eventosFranjas = franjasRes.rows.map(f => ({
       id:              `franja-${f.id}`,
-      title:           '🟢 Disponible',
+      title:           '🟢 Disponible (sin reservar)',
       start:           `${f.fecha_str}T${f.hora_inicio}`,
       end:             `${f.fecha_str}T${f.hora_fin}`,
       backgroundColor: '#D1FAE5',
@@ -498,34 +513,37 @@ async function agendaRango(req, res) {
 // ─── POST /medico/franjas — Crear franja horaria ───────────────────────────────
 async function crearFranja(req, res) {
   const id_usuario = req.usuario.id;
-  // Agregamos inicio_descanso y fin_descanso al body
   const { fecha, hora_inicio, hora_fin, inicio_descanso, fin_descanso } = req.body;
 
   if (!fecha || !hora_inicio || !hora_fin) {
     return res.status(400).json({ mensaje: "Faltan parámetros obligatorios." });
   }
 
+  if (hora_inicio >= hora_fin) {
+    return res.status(400).json({ mensaje: 'La hora de inicio debe ser anterior a la de fin.' });
+  }
+
   try {
     const medicoRes = await pool.query('SELECT id FROM medicos WHERE id_usuario=$1', [id_usuario]);
     if (medicoRes.rows.length === 0) return res.status(403).json({ mensaje: 'No tienes perfil de médico.' });
-    
+
     const id_medico = medicoRes.rows[0].id;
 
-    // 1. Llamamos al generador de 40 minutos
     const franjasGeneradas = generarFranjasConDescanso(
-        hora_inicio, 
-        hora_fin, 
-        40, // Los 40 minutos fijos que definimos
-        inicio_descanso, 
+        hora_inicio,
+        hora_fin,
+        DURACION_FRANJA_MIN,
+        inicio_descanso,
         fin_descanso
     );
 
-    if(franjasGeneradas.length === 0){
+    if (franjasGeneradas.length === 0) {
         return res.status(400).json({ mensaje: "El rango de horas no permite crear franjas completas de 40 min." });
     }
 
-    // 2. Guardamos en la base de datos verificando que no existan duplicados
+    // Guardamos en la base de datos verificando que no existan duplicados
     let insertadas = 0;
+    let duplicadas = 0;
     for (const franja of franjasGeneradas) {
         const existe = await pool.query(
             `SELECT id FROM franjas_horarias WHERE id_medico=$1 AND fecha=$2 AND hora_inicio=$3`,
@@ -538,12 +556,20 @@ async function crearFranja(req, res) {
               [id_medico, fecha, franja.hora_inicio, franja.hora_fin]
             );
             insertadas++;
+        } else {
+            duplicadas++;
         }
     }
-    
-    res.status(201).json({ 
-        mensaje: `Se crearon ${insertadas} citas de 40 minutos exitosamente.`,
-        franjas_intentadas: franjasGeneradas.length
+
+    // FIX: se incluye `insertadas` en la respuesta — el front
+    // (HorariosSemana.jsx) suma `res.insertadas` para mostrar el total
+    // real de franjas creadas; sin esta clave el contador siempre quedaba
+    // en 0 aunque la BD sí guardara los registros correctamente.
+    res.status(201).json({
+        mensaje: `Se crearon ${insertadas} franja(s) de ${DURACION_FRANJA_MIN} minutos exitosamente${duplicadas ? ` (${duplicadas} ya existían)` : ''}.`,
+        insertadas,
+        duplicadas,
+        franjas_intentadas: franjasGeneradas.length,
     });
 
   } catch (error) {
@@ -585,6 +611,73 @@ async function listarFranjas(req, res) {
   }
 }
 
+// ─── PATCH /medico/franjas/:id — Editar franja horaria (solo si está libre) ───
+// Validaciones profesionales end to end:
+//   1. La franja debe pertenecer al médico autenticado.
+//   2. No se puede editar una franja con cita reservada (integridad de la
+//      reserva del paciente).
+//   3. La duración debe ser exactamente de 40 min para mantener consistencia
+//      con el motor de reservas.
+//   4. No puede solaparse con otra franja existente del mismo médico/día.
+async function editarFranja(req, res) {
+  const { id } = req.params;
+  const id_usuario = req.usuario.id;
+  const { fecha, hora_inicio, hora_fin } = req.body;
+
+  if (!fecha || !hora_inicio || !hora_fin) {
+    return res.status(400).json({ mensaje: 'Fecha, hora de inicio y hora de fin son obligatorias.' });
+  }
+  if (hora_inicio >= hora_fin) {
+    return res.status(400).json({ mensaje: 'La hora de inicio debe ser anterior a la hora de fin.' });
+  }
+  if (duracionEnMinutos(hora_inicio, hora_fin) !== DURACION_FRANJA_MIN) {
+    return res.status(400).json({
+      mensaje: `La franja debe tener una duración exacta de ${DURACION_FRANJA_MIN} minutos.`,
+    });
+  }
+
+  try {
+    const medicoRes = await pool.query('SELECT id FROM medicos WHERE id_usuario = $1', [id_usuario]);
+    if (medicoRes.rows.length === 0)
+      return res.status(404).json({ mensaje: 'Perfil de médico no encontrado.' });
+
+    const id_medico = medicoRes.rows[0].id;
+
+    const franjaRes = await pool.query(
+      'SELECT * FROM franjas_horarias WHERE id = $1 AND id_medico = $2',
+      [id, id_medico]
+    );
+    if (franjaRes.rows.length === 0)
+      return res.status(404).json({ mensaje: 'Franja no encontrada o no te pertenece.' });
+
+    if (!franjaRes.rows[0].disponible)
+      return res.status(400).json({ mensaje: 'No puedes editar una franja que ya tiene una cita reservada.' });
+
+    const conflicto = await pool.query(
+      `SELECT id FROM franjas_horarias
+       WHERE id_medico = $1 AND fecha = $2 AND id != $3
+         AND hora_inicio < $4 AND hora_fin > $5`,
+      [id_medico, fecha, id, hora_fin, hora_inicio]
+    );
+    if (conflicto.rows.length > 0) {
+      return res.status(409).json({ mensaje: 'Ya existe otra franja que se solapa con ese horario.' });
+    }
+
+    const actualizada = await pool.query(
+      `UPDATE franjas_horarias
+       SET fecha = $1, hora_inicio = $2, hora_fin = $3
+       WHERE id = $4
+       RETURNING *`,
+      [fecha, hora_inicio, hora_fin, id]
+    );
+
+    return res.json({ mensaje: 'Franja actualizada correctamente.', franja: actualizada.rows[0] });
+  } catch (err) {
+    console.error('Error en editarFranja:', err.message);
+    return res.status(500).json({ mensaje: 'Error al editar la franja horaria.' });
+  }
+}
+
 // ─── DELETE /medico/franjas/:id — Eliminar franja libre ───────────────────────
 async function eliminarFranja(req, res) {
   const { id }     = req.params;
@@ -620,19 +713,11 @@ async function eliminarFranja(req, res) {
 // =============================================================================
 // ─── PATCH /medico/citas/:id/gestionar — Gestión profesional de cita ──────────
 // =============================================================================
-// Expande la idea del amigo (completarCita) en un flujo completo:
-//   - El médico puede marcar la cita como 'completada' o 'no_asistio'
-//   - Puede añadir notas médicas (campo notas_medicas ya existe en el schema)
-//   - Valida que la cita le pertenezca
-//   - Valida que los estados de transición sean coherentes
-//   - No puede gestionar citas ya canceladas
-// =============================================================================
 async function gestionarCita(req, res) {
   const { id }                    = req.params;
   const { estado, notas_medicas } = req.body;
   const id_usuario                = req.usuario.id;
 
-  // Solo estos dos estados puede asignar el médico
   const estadosPermitidos = ['completada', 'no_asistio'];
   if (!estadosPermitidos.includes(estado)) {
     return res.status(400).json({
@@ -641,7 +726,6 @@ async function gestionarCita(req, res) {
   }
 
   try {
-    // 1. Obtener id_medico del usuario autenticado
     const medicoRes = await pool.query(
       'SELECT id FROM medicos WHERE id_usuario = $1',
       [id_usuario]
@@ -651,7 +735,6 @@ async function gestionarCita(req, res) {
 
     const id_medico = medicoRes.rows[0].id;
 
-    // 2. Obtener la cita y verificar que pertenece a este médico
     const citaRes = await pool.query(
       'SELECT id, estado, fecha FROM citas WHERE id=$1 AND id_medico=$2',
       [id, id_medico]
@@ -661,14 +744,10 @@ async function gestionarCita(req, res) {
 
     const cita = citaRes.rows[0];
 
-    // 3. Única restricción: no gestionar citas canceladas.
-    //    El médico puede corregir libremente entre completada y no_asistio
-    //    sin bloqueos — un error de registro debe poder corregirse.
     if (cita.estado === 'cancelada') {
       return res.status(400).json({ mensaje: 'No puedes gestionar una cita cancelada.' });
     }
 
-    // 4. Actualizar — notas_medicas es opcional; si no se envía, se mantiene el valor previo
     const resultado = await pool.query(
       `UPDATE citas
        SET estado        = $1,
@@ -705,6 +784,7 @@ module.exports = {
   agendaRango,
   crearFranja,
   listarFranjas,
+  editarFranja,
   eliminarFranja,
   gestionarCita,
 };
