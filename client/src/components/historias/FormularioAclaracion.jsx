@@ -139,6 +139,20 @@ export default function FormularioAclaracion() {
   const [error,      setError]      = useState(null);
   const [exito,      setExito]      = useState(false);
 
+  // ── Cerrar el modal ─────────────────────────────────────────────────────────
+  // Memoizada con useCallback porque el useEffect del Escape (más abajo)
+  // la necesita como dependencia estable; si fuera una función normal se
+  // recrearía en cada render y el listener tendría que reinstalarse siempre.
+  const cerrar = useCallback(() => {
+    setEnviando(prevEnviando => {
+      if (prevEnviando) return prevEnviando; // si está enviando, no cerrar
+      setVisible(false);
+      setHistoriaId(null);
+      setPacienteId(null);
+      return prevEnviando;
+    });
+  }, []);
+
   // ── Escuchar el evento que abre este modal ─────────────────────────────────
   useEffect(() => {
     function abrirModal(e) {
@@ -165,20 +179,13 @@ export default function FormularioAclaracion() {
     }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [visible, enviando]);
+  }, [visible, enviando, cerrar]);
 
   // ── Handlers de formulario ─────────────────────────────────────────────────
   const handleChange = useCallback((e) => {
     const { name, value } = e.target;
     setForm(prev => ({ ...prev, [name]: value }));
   }, []);
-
-  function cerrar() {
-    if (enviando) return;
-    setVisible(false);
-    setHistoriaId(null);
-    setPacienteId(null);
-  }
 
   // ── Validación de rangos numéricos (signos vitales) ────────────────────────
   function validarRangosNumericos() {
