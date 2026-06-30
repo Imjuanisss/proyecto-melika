@@ -600,3 +600,96 @@ CREATE TABLE ordenes_examenes (
 ALTER TABLE medicamentos
   ADD COLUMN IF NOT EXISTS id_especialidad INT REFERENCES especialidades(id);
   
+
+  -- server/src/database/migracion_v5_validaciones.sql
+-- MELIKA — Migración v5: Constraints de integridad clínica
+-- NOT VALID evita romper el despliegue con datos legados; los constraints
+-- se aplican a TODO INSERT/UPDATE nuevo desde este momento. Si se quiere
+-- validar también el histórico, ejecutar VALIDATE CONSTRAINT por separado
+-- tras sanear los datos antiguos.
+
+-- 1. Rangos clínicos válidos para signos vitales
+ALTER TABLE historias_clinicas
+  ADD CONSTRAINT chk_ta_sistolica_rango
+    CHECK (tension_arterial_sistolica IS NULL OR tension_arterial_sistolica BETWEEN 50 AND 250) NOT VALID,
+  ADD CONSTRAINT chk_ta_diastolica_rango
+    CHECK (tension_arterial_diastolica IS NULL OR tension_arterial_diastolica BETWEEN 30 AND 150) NOT VALID,
+  ADD CONSTRAINT chk_fc_rango
+    CHECK (frecuencia_cardiaca IS NULL OR frecuencia_cardiaca BETWEEN 20 AND 250) NOT VALID,
+  ADD CONSTRAINT chk_fr_rango
+    CHECK (frecuencia_respiratoria IS NULL OR frecuencia_respiratoria BETWEEN 5 AND 60) NOT VALID,
+  ADD CONSTRAINT chk_temp_rango
+    CHECK (temperatura_corporal IS NULL OR temperatura_corporal BETWEEN 30 AND 43) NOT VALID,
+  ADD CONSTRAINT chk_peso_rango
+    CHECK (peso_kg IS NULL OR peso_kg BETWEEN 1 AND 300) NOT VALID,
+  ADD CONSTRAINT chk_talla_rango
+    CHECK (talla_cm IS NULL OR talla_cm BETWEEN 30 AND 250) NOT VALID,
+  ADD CONSTRAINT chk_incapacidad_rango
+    CHECK (incapacidad_dias IS NULL OR incapacidad_dias BETWEEN 0 AND 180) NOT VALID;
+
+-- 2. La TA debe registrarse completa (sistólica y diastólica) o ninguna
+ALTER TABLE historias_clinicas
+  ADD CONSTRAINT chk_ta_pareja
+    CHECK ((tension_arterial_sistolica IS NULL) = (tension_arterial_diastolica IS NULL)) NOT VALID;
+
+-- 3. Si hay diagnóstico CIE-10, debe existir su descripción (y viceversa)
+ALTER TABLE historias_clinicas
+  ADD CONSTRAINT chk_diagnostico_pareja
+    CHECK (
+      (diagnostico_cie10 IS NULL AND descripcion_diagnostico IS NULL)
+      OR (diagnostico_cie10 IS NOT NULL AND descripcion_diagnostico IS NOT NULL)
+    ) NOT VALID;
+
+-- 4. Formato del código CIE-10 (letra + 2 dígitos + opcional .dígito)
+ALTER TABLE historias_clinicas
+  ADD CONSTRAINT chk_cie10_formato
+    CHECK (diagnostico_cie10 IS NULL OR diagnostico_cie10 ~ '^[A-Z][0-9]{2}(\.[0-9X]{1,2})?$') NOT VALID;
+
+-- 5. Bloques obligatorios SOLO para la historia_principal (no aplica a
+--    notas de aclaración/evolución, que son intencionalmente parciales)
+ALTER TABLE historias_clinicas
+  ADD CONSTRAINT chk_historia_principal_completa
+    CHECK (
+      tipo_registro <> 'historia_principal'
+      OR (
+        anamnesis IS NOT NULL
+        AND antecedentes_patologicos IS NOT NULL
+        AND antecedentes_alergicos IS NOT NULL
+        AND examen_fisico IS NOT NULL
+        AND diagnostico_cie10 IS NOT NULL
+        AND descripcion_diagnostico IS NOT NULL
+        AND plan_tratamiento IS NOT NULL
+        AND medico_nombre_firma IS NOT NULL
+        AND medico_rethus_firma IS NOT NULL
+      )
+    ) NOT VALID;
+
+-- 6. Cierre legal obligatorio SIEMPRE (historia principal y notas)
+ALTER TABLE historias_clinicas
+  ADD CONSTRAINT chk_cierre_legal_obligatorio
+    CHECK (medico_nombre_firma IS NOT NULL AND medico_rethus_firma IS NOT NULL) NOT VALID;
+
+-- 7. Recetas: ningún campo clínico clave puede quedar vacío
+ALTER TABLE recetas_medicas
+  ADD CONSTRAINT chk_receta_no_vacia
+    CHECK (
+      length(trim(medicamento)) > 0
+      AND length(trim(dosis)) > 0
+      AND length(trim(frecuencia)) > 0
+      AND length(trim(duracion)) > 0
+    ) NOT VALID;
+
+-- 8. Órdenes de examen: mismo refuerzo
+ALTER TABLE ordenes_examenes
+  ADD CONSTRAINT chk_examen_no_vacio
+    CHECK (
+      length(trim(tipo_examen)) > 0
+      AND length(trim(nombre_examen)) > 0
+    ) NOT VALID;
+
+-- ── Verificación ────────────────────────────────────────────────────────────
+SELECT conname, convalidated
+FROM pg_constraint
+WHERE conrelid IN ('historias_clinicas'::regclass, 'recetas_medicas'::regclass, 'ordenes_examenes'::regclass)
+  AND contype = 'c'
+ORDER BY conname;

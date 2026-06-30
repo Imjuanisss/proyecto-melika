@@ -5,6 +5,7 @@
 // Solo es accesible para el médico autor de la historia original.
 // Lógica append-only: POST /historias/:id/aclaracion
 // Al éxito dispara 'melika:aclaracion-creada' para que HistorialPaciente recargue.
+// Incluye validación profesional de consistencia clínica por paso.
 
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../../lib/apiClient';
@@ -58,10 +59,23 @@ const ESTADO_INICIAL = {
   medico_rethus_firma: '',
 };
 
+const RANGOS = {
+  tension_arterial_sistolica:  { min: 50,  max: 250 },
+  tension_arterial_diastolica: { min: 30,  max: 150 },
+  frecuencia_cardiaca:         { min: 20,  max: 250 },
+  frecuencia_respiratoria:     { min: 5,   max: 60  },
+  temperatura_corporal:        { min: 30,  max: 43  },
+  peso_kg:                     { min: 1,   max: 300 },
+  talla_cm:                    { min: 30,  max: 250 },
+  incapacidad_dias:            { min: 0,   max: 180 },
+};
+
+const REGEX_CIE10 = /^[A-Z][0-9]{2}(\.[0-9X]{1,2})?$/;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // COMPONENTE CAMPO — Etiqueta + input/textarea reutilizable
 // ─────────────────────────────────────────────────────────────────────────────
-function CampoInput({ label, name, value, onChange, tipo = 'text', requerido = false, placeholder = '' }) {
+function CampoInput({ label, name, value, onChange, tipo = 'text', requerido = false, placeholder = '', min, max, step }) {
   return (
     <div className="fa-campo">
       <label className="fa-campo__label" htmlFor={name}>
@@ -78,6 +92,9 @@ function CampoInput({ label, name, value, onChange, tipo = 'text', requerido = f
         placeholder={placeholder}
         required={requerido}
         autoComplete="off"
+        min={min}
+        max={max}
+        step={step}
       />
     </div>
   );
@@ -163,12 +180,59 @@ export default function FormularioAclaracion() {
     setPacienteId(null);
   }
 
+  // ── Validación de rangos numéricos (signos vitales) ────────────────────────
+  function validarRangosNumericos() {
+    for (const campo of Object.keys(RANGOS)) {
+      const valor = form[campo];
+      if (valor === '' || valor === null || valor === undefined) continue;
+      const num = parseFloat(valor);
+      const { min, max } = RANGOS[campo];
+      if (Number.isNaN(num) || num < min || num > max) {
+        return `El valor de "${campo.replace(/_/g, ' ')}" debe estar entre ${min} y ${max}.`;
+      }
+    }
+    return null;
+  }
+
   // ── Validación por paso ────────────────────────────────────────────────────
   function validarPasoActual() {
     if (pasoActual === 1 && !form.motivo_consulta.trim()) {
-      setError('El motivo de la consulta/aclaración es obligatorio.');
+      setError('El motivo de la nota es obligatorio.');
       return false;
     }
+
+    if (pasoActual === 2) {
+      const sis = form.tension_arterial_sistolica;
+      const dia = form.tension_arterial_diastolica;
+      if ((sis && !dia) || (!sis && dia)) {
+        setError('La tensión arterial debe registrarse completa (sistólica y diastólica), no parcial.');
+        return false;
+      }
+      const errorRango = validarRangosNumericos();
+      if (errorRango) {
+        setError(errorRango);
+        return false;
+      }
+    }
+
+    if (pasoActual === 3) {
+      const tieneCie10  = form.diagnostico_cie10.trim();
+      const tieneDescDx = form.descripcion_diagnostico.trim();
+      if ((tieneCie10 && !tieneDescDx) || (!tieneCie10 && tieneDescDx)) {
+        setError('Si registra un diagnóstico, debe incluir tanto el código CIE-10 como su descripción.');
+        return false;
+      }
+      if (tieneCie10 && !REGEX_CIE10.test(tieneCie10.toUpperCase())) {
+        setError('El código CIE-10 no tiene un formato válido (ej. J06.9).');
+        return false;
+      }
+      const dias = parseInt(form.incapacidad_dias, 10);
+      if (!Number.isNaN(dias) && dias > 0 && !tieneCie10) {
+        setError('No se puede otorgar incapacidad sin un diagnóstico CIE-10 registrado.');
+        return false;
+      }
+    }
+
     if (pasoActual === 4) {
       if (!form.medico_nombre_firma.trim()) {
         setError('El nombre del médico firmante es obligatorio.');
@@ -179,6 +243,7 @@ export default function FormularioAclaracion() {
         return false;
       }
     }
+
     setError(null);
     return true;
   }
@@ -232,7 +297,11 @@ export default function FormularioAclaracion() {
 
     } catch (err) {
       console.error('Error al crear aclaración:', err);
+      const detalle = Array.isArray(err?.errores) && err.errores.length > 0
+        ? err.errores.join(' ')
+        : null;
       setError(
+        detalle ||
         err?.mensaje ||
         err?.message ||
         'No se pudo guardar la nota. Verifica tu conexión e intenta de nuevo.'
@@ -505,7 +574,7 @@ export default function FormularioAclaracion() {
                       name="talla_cm"
                       value={form.talla_cm}
                       onChange={handleChange}
-                      min="50" max="250"
+                      min="30" max="250"
                       step="0.1"
                       placeholder="170"
                     />
@@ -556,7 +625,7 @@ export default function FormularioAclaracion() {
                     label="Código CIE-10"
                     name="diagnostico_cie10"
                     value={form.diagnostico_cie10}
-                    onChange={handleChange}
+                    onChange={e => handleChange({ target: { name: 'diagnostico_cie10', value: e.target.value.toUpperCase() } })}
                     placeholder="Ej: J06.9"
                   />
                   <CampoInput
@@ -567,6 +636,9 @@ export default function FormularioAclaracion() {
                     placeholder="Infección aguda de las vías respiratorias superiores..."
                   />
                 </div>
+                <p style={{ fontSize: '12px', color: 'var(--melika-text-muted)', marginTop: '-8px', marginBottom: '16px' }}>
+                  Si diligencia uno de estos dos campos, el otro pasa a ser obligatorio.
+                </p>
 
                 <CampoTextarea
                   label="Plan de tratamiento"
@@ -605,14 +677,23 @@ export default function FormularioAclaracion() {
                 />
 
                 <div className="fa-grid-2">
-                  <CampoInput
-                    label="Días de incapacidad"
-                    name="incapacidad_dias"
-                    value={form.incapacidad_dias}
-                    onChange={handleChange}
-                    tipo="number"
-                    placeholder="0"
-                  />
+                  <div>
+                    <CampoInput
+                      label="Días de incapacidad"
+                      name="incapacidad_dias"
+                      value={form.incapacidad_dias}
+                      onChange={handleChange}
+                      tipo="number"
+                      min="0"
+                      max="180"
+                      placeholder="0"
+                    />
+                    {parseInt(form.incapacidad_dias, 10) > 0 && !form.diagnostico_cie10.trim() && (
+                      <small style={{ color: '#DC2626', display: 'block', marginTop: '-12px' }}>
+                        ⚠ Requiere diagnóstico CIE-10 para otorgar incapacidad.
+                      </small>
+                    )}
+                  </div>
                   <CampoTextarea
                     label="Observaciones adicionales"
                     name="observaciones"

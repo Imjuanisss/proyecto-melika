@@ -1,5 +1,6 @@
 // client/src/components/historias/ModalHistoriaClinica.jsx
 // MELIKA — Modal de creación/visualización/aclaración de Historia Clínica
+// Incluye validación profesional end-to-end por paso y al guardar.
 
 import { useState, useEffect } from 'react';
 import { PDFDownloadLink } from '@react-pdf/renderer';
@@ -42,13 +43,101 @@ const FORM_INICIAL = {
   observaciones:                '',
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// VALIDACIÓN PROFESIONAL — debe reflejar exactamente las reglas del backend
+// (server/src/utils/validacionesHistoria.js) para que el médico nunca llegue
+// al servidor con una historia incompleta o clínicamente inconsistente.
+// ─────────────────────────────────────────────────────────────────────────────
+const REGEX_CIE10 = /^[A-Z][0-9]{2}(\.[0-9X]{1,2})?$/;
+
+function validarPaso(numeroPaso, form, recetas, examenes, esTeleconsulta) {
+  const errores = [];
+
+  if (numeroPaso === 1) {
+    if (!form.motivo_consulta.trim()) errores.push('El motivo de consulta es obligatorio.');
+  }
+
+  if (numeroPaso === 2) {
+    if (!form.anamnesis.trim())
+      errores.push('La enfermedad actual (anamnesis) es obligatoria.');
+    if (!form.antecedentes_patologicos.trim())
+      errores.push('Los antecedentes patológicos son obligatorios (use "Niega" si no aplica).');
+    if (!form.antecedentes_alergicos.trim())
+      errores.push('Los antecedentes alérgicos son obligatorios (use "Niega" si no aplica).');
+  }
+
+  if (numeroPaso === 3) {
+    const tSis = form.tension_arterial_sistolica;
+    const tDia = form.tension_arterial_diastolica;
+    if ((tSis && !tDia) || (!tSis && tDia)) {
+      errores.push('La tensión arterial debe registrarse completa (sistólica y diastólica).');
+    }
+    if (!esTeleconsulta) {
+      if (!tSis || !tDia) errores.push('La tensión arterial es obligatoria en consultas presenciales.');
+      if (!form.frecuencia_cardiaca)  errores.push('La frecuencia cardíaca es obligatoria en consultas presenciales.');
+      if (!form.temperatura_corporal) errores.push('La temperatura corporal es obligatoria en consultas presenciales.');
+      if (!form.peso_kg)              errores.push('El peso es obligatorio en consultas presenciales.');
+      if (!form.talla_cm)             errores.push('La talla es obligatoria en consultas presenciales.');
+    }
+    if (!form.examen_fisico.trim())
+      errores.push('Los hallazgos del examen físico son obligatorios.');
+  }
+
+  if (numeroPaso === 4) {
+    if (!form.diagnostico_cie10.trim()) {
+      errores.push('El código CIE-10 es obligatorio.');
+    } else if (!REGEX_CIE10.test(form.diagnostico_cie10.trim().toUpperCase())) {
+      errores.push('El código CIE-10 no tiene un formato válido (ej. J06.9).');
+    }
+    if (!form.descripcion_diagnostico.trim())
+      errores.push('La descripción del diagnóstico es obligatoria.');
+  }
+
+  if (numeroPaso === 5) {
+    if (!form.plan_tratamiento.trim())
+      errores.push('El plan de tratamiento general es obligatorio.');
+    recetas.forEach((r, i) => {
+      if (!r.medicamento?.trim() || !r.dosis?.trim() || !r.frecuencia?.trim() || !r.duracion?.trim()) {
+        errores.push(`Fórmula #${i + 1}: complete medicamento, dosis, frecuencia y duración, o elimínela.`);
+      }
+    });
+    examenes.forEach((ex, i) => {
+      if (!ex.nombre_examen?.trim()) {
+        errores.push(`Examen #${i + 1}: el nombre del examen es obligatorio, o elimínelo.`);
+      }
+    });
+    const dias = parseInt(form.incapacidad_dias, 10);
+    if (dias > 0 && !form.diagnostico_cie10.trim()) {
+      errores.push('No se puede otorgar incapacidad sin un diagnóstico CIE-10 registrado.');
+    }
+  }
+
+  if (numeroPaso === 6) {
+    if (!form.medico_nombre_firma.trim())
+      errores.push('El nombre del médico firmante es obligatorio.');
+    if (!form.medico_rethus_firma.trim())
+      errores.push('El número de registro ReTHUS es obligatorio para el cierre legal.');
+  }
+
+  return errores;
+}
+
+function validarFormularioCompleto(form, recetas, examenes, esTeleconsulta) {
+  let todos = [];
+  for (let p = 1; p <= 6; p++) {
+    todos = todos.concat(validarPaso(p, form, recetas, examenes, esTeleconsulta));
+  }
+  return [...new Set(todos)];
+}
+
 export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
   const { usuario } = useAuth();
   const esMedico    = usuario?.rol === 'medico';
+  const esTeleconsulta = cita?.tipo_consulta === 'teleconsulta';
 
   const [historia,      setHistoria]      = useState(null);
   const [aclaraciones,  setAclaraciones]  = useState([]);
-  const [historiaFull,  setHistoriaFull]  = useState(null); 
+  const [historiaFull,  setHistoriaFull]  = useState(null);
 
   const [recetas, setRecetas] = useState([]);
   const [examenes, setExamenes] = useState([]);
@@ -64,6 +153,7 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
   const [loading,       setLoading]       = useState(true);
   const [guardando,     setGuardando]     = useState(false);
   const [error,         setError]         = useState(null);
+  const [erroresDetalle, setErroresDetalle] = useState([]);
 
   useEffect(() => {
     if (!cita?.id) return;
@@ -115,7 +205,7 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
             observaciones:                 h.observaciones                 || '',
           });
           setModoEdicion(false);
-          setHistoriaFull(h); 
+          setHistoriaFull(h);
         } else {
           setModoEdicion(true);
           setPaso(1);
@@ -164,13 +254,22 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
     return (peso / ((talla / 100) ** 2)).toFixed(1);
   }
 
+  function mostrarErrores(listaErrores, fallback) {
+    setErroresDetalle(listaErrores);
+    setError(listaErrores.length > 0 ? listaErrores.join(' ') : fallback);
+  }
+
   async function handleGuardar() {
-    if (!form.motivo_consulta.trim()) {
-      setError('El motivo de consulta es obligatorio.');
+    const errores = validarFormularioCompleto(form, recetas, examenes, esTeleconsulta);
+    if (errores.length > 0) {
+      mostrarErrores(errores);
+      setPaso(1); // regresa al inicio para que el médico revise todo el flujo
       return;
     }
+
     setGuardando(true);
     setError(null);
+    setErroresDetalle([]);
 
     try {
       if (modoAclaracion && historia) {
@@ -178,6 +277,8 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
           ...form,
           tipo_registro: tipoRegistro,
           medicamentos_recetados: form.medicamentos_recetados || null,
+          recetas,
+          examenes,
         });
         setAclaraciones(prev => [...prev, res.aclaracion]);
         setModoAclaracion(false);
@@ -192,29 +293,34 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
         });
         setHistoria(res.historia);
         setModoEdicion(false);
-        
+
         const full = await api.get(`/historias/cita/${cita.id}`);
         setHistoriaFull(full.historia);
         if (onGuardada) onGuardada(res.historia);
       }
     } catch (err) {
-      setError(err.message || 'Error al guardar la historia clínica.');
+      const detalle = Array.isArray(err?.errores) ? err.errores : [];
+      mostrarErrores(detalle, err.message || 'Error al guardar la historia clínica.');
+      if (detalle.length > 0) setPaso(1);
     } finally {
       setGuardando(false);
     }
   }
 
   function pasoSiguiente() {
-    if (paso === 1 && !form.motivo_consulta.trim()) {
-      setError('El motivo de consulta es obligatorio.');
+    const errores = validarPaso(paso, form, recetas, examenes, esTeleconsulta);
+    if (errores.length > 0) {
+      mostrarErrores(errores);
       return;
     }
     setError(null);
+    setErroresDetalle([]);
     setPaso(p => Math.min(p + 1, TOTAL_PASOS));
   }
 
   function pasoAnterior() {
     setError(null);
+    setErroresDetalle([]);
     setPaso(p => Math.max(p - 1, 1));
   }
 
@@ -225,11 +331,13 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
     setExamenes([]);
     setPaso(1);
     setError(null);
+    setErroresDetalle([]);
   }
 
   function cancelarAclaracion() {
     setModoAclaracion(false);
     setError(null);
+    setErroresDetalle([]);
   }
 
   const puedeEditarOAclarar = esMedico && historia;
@@ -258,7 +366,7 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
                 {({ loading: pdfLoading }) => pdfLoading ? 'Generando…' : '⬇ Historia PDF'}
               </PDFDownloadLink>
             )}
-            
+
             {/* 2. Botón Fórmula */}
             {historiaFull && recetas.length > 0 && !modoEdicion && !modoAclaracion && (
               <PDFDownloadLink
@@ -270,12 +378,12 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
               </PDFDownloadLink>
             )}
 
-            {/* 3. NUEVO: Botón Exámenes */}
+            {/* 3. Botón Exámenes */}
             {historiaFull && examenes.length > 0 && !modoEdicion && !modoAclaracion && (
               <PDFDownloadLink
                 document={<PlantillaExamenesPDF historia={historiaFull} examenes={examenes} />}
                 fileName={`Examenes-${historiaFull.id}-${historiaFull.paciente_apellido}.pdf`}
-                className="mhc-btn mhc-btn--formula" 
+                className="mhc-btn mhc-btn--formula"
                 style={{ backgroundColor: '#059669', color: 'white' }}
               >
                 {({ loading: pdfLoading }) => pdfLoading ? 'Generando…' : '🔬 Órdenes PDF'}
@@ -339,10 +447,10 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
                     {paso === 2 && (
                       <div className="mhc-seccion">
                         <h3 className="mhc-seccion__titulo"><span className="mhc-seccion__num">2</span>Anamnesis</h3>
-                        <div className="mhc-campo"><label>Enfermedad actual</label><textarea rows={4} value={form.anamnesis} onChange={e => handleChange('anamnesis', e.target.value)} /></div>
-                        <div className="mhc-campo"><label>Antecedentes patológicos</label><textarea rows={2} value={form.antecedentes_patologicos} onChange={e => handleChange('antecedentes_patologicos', e.target.value)} /></div>
+                        <div className="mhc-campo mhc-campo--requerido"><label>Enfermedad actual <span>*</span></label><textarea rows={4} value={form.anamnesis} onChange={e => handleChange('anamnesis', e.target.value)} /></div>
+                        <div className="mhc-campo mhc-campo--requerido"><label>Antecedentes patológicos <span>*</span></label><textarea rows={2} value={form.antecedentes_patologicos} onChange={e => handleChange('antecedentes_patologicos', e.target.value)} placeholder='Escriba "Niega" si no aplica' /></div>
                         <div className="mhc-campo"><label>Antecedentes quirúrgicos</label><textarea rows={2} value={form.antecedentes_quirurgicos} onChange={e => handleChange('antecedentes_quirurgicos', e.target.value)} /></div>
-                        <div className="mhc-campo"><label>Antecedentes alérgicos</label><textarea rows={2} value={form.antecedentes_alergicos} onChange={e => handleChange('antecedentes_alergicos', e.target.value)} /></div>
+                        <div className="mhc-campo mhc-campo--requerido"><label>Antecedentes alérgicos <span>*</span></label><textarea rows={2} value={form.antecedentes_alergicos} onChange={e => handleChange('antecedentes_alergicos', e.target.value)} placeholder='Escriba "Niega" si no aplica' /></div>
                         <div className="mhc-campo"><label>Antecedentes familiares</label><textarea rows={2} value={form.antecedentes_familiares} onChange={e => handleChange('antecedentes_familiares', e.target.value)} /></div>
                         <div className="mhc-campo"><label>Antecedentes ginecoobstétricos</label><textarea rows={2} value={form.antecedentes_ginecoobstetricos} onChange={e => handleChange('antecedentes_ginecoobstetricos', e.target.value)} /></div>
                         <div className="mhc-campo"><label>Hábitos</label><textarea rows={2} value={form.habitos} onChange={e => handleChange('habitos', e.target.value)} /></div>
@@ -351,36 +459,41 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
 
                     {paso === 3 && (
                       <div className="mhc-seccion">
-                        <h3 className="mhc-seccion__titulo"><span className="mhc-seccion__num">3</span>Examen Físico</h3>
+                        <h3 className="mhc-seccion__titulo"><span className="mhc-seccion__num">3</span>Examen Físico {esTeleconsulta && <small style={{ fontWeight: 400, fontSize: '0.7rem', color: '#94a3b8' }}>(teleconsulta — signos vitales opcionales)</small>}</h3>
                         <div className="mhc-grid-signos">
-                          <div className="mhc-campo"><label>TA Sistólica</label><input type="number" value={form.tension_arterial_sistolica} onChange={e => handleChange('tension_arterial_sistolica', e.target.value)} /></div>
-                          <div className="mhc-campo"><label>TA Diastólica</label><input type="number" value={form.tension_arterial_diastolica} onChange={e => handleChange('tension_arterial_diastolica', e.target.value)} /></div>
-                          <div className="mhc-campo"><label>FC (lpm)</label><input type="number" value={form.frecuencia_cardiaca} onChange={e => handleChange('frecuencia_cardiaca', e.target.value)} /></div>
-                          <div className="mhc-campo"><label>FR (rpm)</label><input type="number" value={form.frecuencia_respiratoria} onChange={e => handleChange('frecuencia_respiratoria', e.target.value)} /></div>
-                          <div className="mhc-campo"><label>Temp (°C)</label><input type="number" step="0.1" value={form.temperatura_corporal} onChange={e => handleChange('temperatura_corporal', e.target.value)} /></div>
-                          <div className="mhc-campo"><label>Peso (kg)</label><input type="number" step="0.1" value={form.peso_kg} onChange={e => handleChange('peso_kg', e.target.value)} /></div>
-                          <div className="mhc-campo"><label>Talla (cm)</label><input type="number" value={form.talla_cm} onChange={e => handleChange('talla_cm', e.target.value)} /></div>
+                          <div className="mhc-campo"><label>TA Sistólica {!esTeleconsulta && <span style={{color:'#E8856A'}}>*</span>}</label><input type="number" min="50" max="250" value={form.tension_arterial_sistolica} onChange={e => handleChange('tension_arterial_sistolica', e.target.value)} /></div>
+                          <div className="mhc-campo"><label>TA Diastólica {!esTeleconsulta && <span style={{color:'#E8856A'}}>*</span>}</label><input type="number" min="30" max="150" value={form.tension_arterial_diastolica} onChange={e => handleChange('tension_arterial_diastolica', e.target.value)} /></div>
+                          <div className="mhc-campo"><label>FC (lpm) {!esTeleconsulta && <span style={{color:'#E8856A'}}>*</span>}</label><input type="number" min="20" max="250" value={form.frecuencia_cardiaca} onChange={e => handleChange('frecuencia_cardiaca', e.target.value)} /></div>
+                          <div className="mhc-campo"><label>FR (rpm)</label><input type="number" min="5" max="60" value={form.frecuencia_respiratoria} onChange={e => handleChange('frecuencia_respiratoria', e.target.value)} /></div>
+                          <div className="mhc-campo"><label>Temp (°C) {!esTeleconsulta && <span style={{color:'#E8856A'}}>*</span>}</label><input type="number" min="30" max="43" step="0.1" value={form.temperatura_corporal} onChange={e => handleChange('temperatura_corporal', e.target.value)} /></div>
+                          <div className="mhc-campo"><label>Peso (kg) {!esTeleconsulta && <span style={{color:'#E8856A'}}>*</span>}</label><input type="number" min="1" max="300" step="0.1" value={form.peso_kg} onChange={e => handleChange('peso_kg', e.target.value)} /></div>
+                          <div className="mhc-campo"><label>Talla (cm) {!esTeleconsulta && <span style={{color:'#E8856A'}}>*</span>}</label><input type="number" min="30" max="250" value={form.talla_cm} onChange={e => handleChange('talla_cm', e.target.value)} /></div>
                           <div className="mhc-campo mhc-campo--imc"><label>IMC</label><div className="mhc-imc-display">{imcCalculado() ? <span className="mhc-imc-valor">{imcCalculado()} kg/m²</span> : <span className="mhc-imc-vacio">Calculando…</span>}</div></div>
                         </div>
                         <div className="mhc-campo"><label>Exploración por sistemas</label><textarea rows={3} value={form.exploracion_por_sistemas} onChange={e => handleChange('exploracion_por_sistemas', e.target.value)} /></div>
-                        <div className="mhc-campo"><label>Hallazgos adicionales</label><textarea rows={2} value={form.examen_fisico} onChange={e => handleChange('examen_fisico', e.target.value)} /></div>
+                        <div className="mhc-campo mhc-campo--requerido"><label>Hallazgos adicionales <span>*</span></label><textarea rows={2} value={form.examen_fisico} onChange={e => handleChange('examen_fisico', e.target.value)} /></div>
                       </div>
                     )}
 
                     {paso === 4 && (
                       <div className="mhc-seccion">
                         <h3 className="mhc-seccion__titulo"><span className="mhc-seccion__num">4</span>Juicio Clínico — Diagnóstico</h3>
-                        <div className="mhc-grid-2"><div className="mhc-campo"><label>Código CIE-10</label><input type="text" value={form.diagnostico_cie10} onChange={e => handleChange('diagnostico_cie10', e.target.value.toUpperCase())} maxLength={10} /></div></div>
-                        <div className="mhc-campo"><label>Descripción del diagnóstico</label><textarea rows={4} value={form.descripcion_diagnostico} onChange={e => handleChange('descripcion_diagnostico', e.target.value)} /></div>
+                        <div className="mhc-grid-2">
+                          <div className="mhc-campo mhc-campo--requerido">
+                            <label>Código CIE-10 <span>*</span></label>
+                            <input type="text" value={form.diagnostico_cie10} onChange={e => handleChange('diagnostico_cie10', e.target.value.toUpperCase())} maxLength={10} placeholder="Ej: J06.9" />
+                          </div>
+                        </div>
+                        <div className="mhc-campo mhc-campo--requerido"><label>Descripción del diagnóstico <span>*</span></label><textarea rows={4} value={form.descripcion_diagnostico} onChange={e => handleChange('descripcion_diagnostico', e.target.value)} /></div>
                       </div>
                     )}
 
                     {paso === 5 && (
                       <div className="mhc-seccion">
                         <h3 className="mhc-seccion__titulo"><span className="mhc-seccion__num">5</span>Plan de Manejo / Conducta</h3>
-                        
-                        <div className="mhc-campo">
-                          <label>Plan de tratamiento general</label>
+
+                        <div className="mhc-campo mhc-campo--requerido">
+                          <label>Plan de tratamiento general <span>*</span></label>
                           <textarea rows={2} value={form.plan_tratamiento} onChange={e => handleChange('plan_tratamiento', e.target.value)} placeholder="Tratamiento o conducta general…" />
                         </div>
 
@@ -389,19 +502,19 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
                             <strong style={{ fontSize: '1rem', color: '#1e293b' }}>💊 Fórmula Médica Estructurada</strong>
                             <button type="button" onClick={agregarMedicamento} style={{ background: '#2563eb', color: 'white', padding: '4px 12px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>＋ Agregar Medicamento</button>
                           </div>
-                          
+
                           {recetas.length === 0 ? (
                             <p style={{ color: '#64748b', fontSize: '0.9rem', fontStyle: 'italic' }}>No hay medicamentos agregados a la fórmula.</p>
                           ) : (
                             recetas.map((r, index) => (
                               <div key={index} style={{ background: '#f8fafc', padding: '1rem', borderRadius: '6px', marginBottom: '1rem', border: '1px solid #f1f5f9' }}>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '10px' }}>
-                                  <input type="text" placeholder="Nombre del medicamento" value={r.medicamento} onChange={e => handleRecetaChange(index, 'medicamento', e.target.value)} style={{ padding: '6px', borderRadius: '4px', border: '1px solid #cbd5e1' }} />
-                                  <input type="text" placeholder="Dosis (Ej: 500mg)" value={r.dosis} onChange={e => handleRecetaChange(index, 'dosis', e.target.value)} style={{ padding: '6px', borderRadius: '4px', border: '1px solid #cbd5e1' }} />
-                                  <input type="text" placeholder="Frecuencia (Ej: Cada 8h)" value={r.frecuencia} onChange={e => handleRecetaChange(index, 'frecuencia', e.target.value)} style={{ padding: '6px', borderRadius: '4px', border: '1px solid #cbd5e1' }} />
+                                  <input type="text" placeholder="Nombre del medicamento *" value={r.medicamento} onChange={e => handleRecetaChange(index, 'medicamento', e.target.value)} style={{ padding: '6px', borderRadius: '4px', border: '1px solid #cbd5e1' }} />
+                                  <input type="text" placeholder="Dosis (Ej: 500mg) *" value={r.dosis} onChange={e => handleRecetaChange(index, 'dosis', e.target.value)} style={{ padding: '6px', borderRadius: '4px', border: '1px solid #cbd5e1' }} />
+                                  <input type="text" placeholder="Frecuencia (Ej: Cada 8h) *" value={r.frecuencia} onChange={e => handleRecetaChange(index, 'frecuencia', e.target.value)} style={{ padding: '6px', borderRadius: '4px', border: '1px solid #cbd5e1' }} />
                                 </div>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 20px', gap: '10px', alignItems: 'center' }}>
-                                  <input type="text" placeholder="Duración (Ej: 5 días)" value={r.duracion} onChange={e => handleRecetaChange(index, 'duracion', e.target.value)} style={{ padding: '6px', borderRadius: '4px', border: '1px solid #cbd5e1' }} />
+                                  <input type="text" placeholder="Duración (Ej: 5 días) *" value={r.duracion} onChange={e => handleRecetaChange(index, 'duracion', e.target.value)} style={{ padding: '6px', borderRadius: '4px', border: '1px solid #cbd5e1' }} />
                                   <input type="text" placeholder="Vía (Ej: Oral)" value={r.via_administracion} onChange={e => handleRecetaChange(index, 'via_administracion', e.target.value)} style={{ padding: '6px', borderRadius: '4px', border: '1px solid #cbd5e1' }} />
                                   <button type="button" onClick={() => eliminarMedicamento(index)} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '1.1rem', cursor: 'pointer' }} title="Eliminar row">🗑️</button>
                                 </div>
@@ -428,7 +541,7 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
                                     <option value="Imagenología">Imagenología</option>
                                     <option value="Especializado">Especializado</option>
                                   </select>
-                                  <input type="text" placeholder="Nombre exacto del examen (Ej: Cuadro Hemático)" value={ex.nombre_examen} onChange={e => handleExamenChange(index, 'nombre_examen', e.target.value)} style={{ padding: '6px', borderRadius: '4px', border: '1px solid #cbd5e1' }} />
+                                  <input type="text" placeholder="Nombre exacto del examen (Ej: Cuadro Hemático) *" value={ex.nombre_examen} onChange={e => handleExamenChange(index, 'nombre_examen', e.target.value)} style={{ padding: '6px', borderRadius: '4px', border: '1px solid #cbd5e1' }} />
                                   <button type="button" onClick={() => eliminarExamen(index)} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '1.1rem', cursor: 'pointer' }}>🗑️</button>
                                 </div>
                                 <input type="text" placeholder="Justificación clínica / diagnóstico sospechado" value={ex.justificacion_clinica} onChange={e => handleExamenChange(index, 'justificacion_clinica', e.target.value)} style={{ padding: '6px', width: '100%', borderRadius: '4px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
@@ -441,7 +554,15 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
                           <label>Recomendaciones generales y signos de alarma</label>
                           <textarea rows={2} value={form.recomendaciones} onChange={e => handleChange('recomendaciones', e.target.value)} />
                         </div>
-                        <div className="mhc-grid-2"><div className="mhc-campo"><label>Días de incapacidad</label><input type="number" min="0" value={form.incapacidad_dias} onChange={e => handleChange('incapacidad_dias', e.target.value)} /></div></div>
+                        <div className="mhc-grid-2">
+                          <div className="mhc-campo">
+                            <label>Días de incapacidad</label>
+                            <input type="number" min="0" max="180" value={form.incapacidad_dias} onChange={e => handleChange('incapacidad_dias', e.target.value)} />
+                            {parseInt(form.incapacidad_dias, 10) > 0 && !form.diagnostico_cie10.trim() && (
+                              <small style={{ color: '#DC2626' }}>⚠ Requiere diagnóstico CIE-10 (paso 4).</small>
+                            )}
+                          </div>
+                        </div>
                         <div className="mhc-campo"><label>Observaciones de control</label><textarea rows={2} value={form.observaciones} onChange={e => handleChange('observaciones', e.target.value)} /></div>
                       </div>
                     )}
@@ -450,13 +571,23 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
                       <div className="mhc-seccion">
                         <h3 className="mhc-seccion__titulo"><span className="mhc-seccion__num">6</span>Cierre Legal — Firma del Médico</h3>
                         <div className="mhc-grid-2">
-                          <div className="mhc-campo"><label>Nombre del médico firmante</label><input type="text" value={form.medico_nombre_firma} onChange={e => handleChange('medico_nombre_firma', e.target.value)} /></div>
+                          <div className="mhc-campo mhc-campo--requerido"><label>Nombre del médico firmante <span>*</span></label><input type="text" value={form.medico_nombre_firma} onChange={e => handleChange('medico_nombre_firma', e.target.value)} /></div>
                           <div className="mhc-campo"><label>Cédula profesional</label><input type="text" value={form.medico_cedula_firma} onChange={e => handleChange('medico_cedula_firma', e.target.value)} /></div>
-                          <div className="mhc-campo"><label>Registro ReTHUS</label><input type="text" value={form.medico_rethus_firma} onChange={e => handleChange('medico_rethus_firma', e.target.value)} /></div>
+                          <div className="mhc-campo mhc-campo--requerido"><label>Registro ReTHUS <span>*</span></label><input type="text" value={form.medico_rethus_firma} onChange={e => handleChange('medico_rethus_firma', e.target.value)} /></div>
                         </div>
                       </div>
                     )}
                   </div>
+
+                  {error && (
+                    <div className="mhc-error">
+                      {erroresDetalle.length > 0 ? (
+                        <ul style={{ margin: 0, paddingLeft: '1.2rem' }}>
+                          {erroresDetalle.map((e, i) => <li key={i}>{e}</li>)}
+                        </ul>
+                      ) : error}
+                    </div>
+                  )}
 
                   <div className="mhc-nav">
                     <button className="mhc-btn mhc-btn--ghost" onClick={modoAclaracion ? cancelarAclaracion : onCerrar}>{modoAclaracion ? 'Cancelar' : 'Cerrar'}</button>
@@ -504,7 +635,9 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
                 <div className="mhc-vacio"><span>📭</span><p>No hay registro clínico aún.</p></div>
               )}
 
-              {error && <div className="mhc-error">{error}</div>}
+              {!modoEdicion && !modoAclaracion && error && (
+                <div className="mhc-error">{error}</div>
+              )}
             </>
           )}
         </div>
@@ -530,7 +663,7 @@ function VistaHistoria({ historia, recetas = [], examenes = [] }) {
         <h4>1. Motivo de consulta</h4>
         <p>{historia.motivo_consulta}</p>
       </div>
-      
+
       {historia.anamnesis && (
         <div className="mhc-vista-seccion">
           <h4>Enfermedad actual</h4>
@@ -565,7 +698,7 @@ function VistaHistoria({ historia, recetas = [], examenes = [] }) {
       <div className="mhc-vista-seccion">
         <h4>5. Plan de manejo y conducta</h4>
         {campo('Tratamiento General', historia.plan_tratamiento)}
-        
+
         {/* RENDER TABULAR DE MEDICAMENTOS RECETADOS */}
         {recetas.length > 0 && (
           <div style={{ marginTop: '1rem', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '10px', backgroundColor: '#f8fafc' }}>

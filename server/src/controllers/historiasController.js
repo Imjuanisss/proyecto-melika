@@ -1,9 +1,11 @@
 // server/src/controllers/historiasController.js
 // MELIKA — Controlador integral de Historias Clínicas y Documentos Clínicos
+// Incluye validación profesional end-to-end antes de cualquier persistencia.
 
 'use strict';
 
 const pool = require('../config/db');
+const { validarHistoriaPrincipal, validarNotaAclaracion } = require('../utils/validacionesHistoria');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPERS INTERNOS
@@ -60,7 +62,7 @@ async function citaExisteEntreAmbosPorCita(id_cita, id_medico) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// POST /historias — CON SOPORTE PARA RECETAS Y EXÁMENES (Transacciones)
+// POST /historias — CON VALIDACIÓN PROFESIONAL + SOPORTE RECETAS/EXÁMENES
 // ─────────────────────────────────────────────────────────────────────────────
 async function crearHistoria(req, res) {
   const id_usuario = req.usuario.id;
@@ -76,8 +78,19 @@ async function crearHistoria(req, res) {
     recetas = [], examenes = []
   } = req.body;
 
-  if (!id_cita || !motivo_consulta?.trim()) {
-    return res.status(400).json({ mensaje: 'id_cita y motivo_consulta son campos obligatorios.' });
+  if (!id_cita) {
+    return res.status(400).json({ mensaje: 'id_cita es obligatorio.' });
+  }
+
+  // ── VALIDACIÓN PROFESIONAL COMPLETA ───────────────────────────────────────
+  // Se valida ANTES de tocar la base de datos: ninguna historia incompleta
+  // o clínicamente inconsistente debe llegar a persistirse.
+  const errores = validarHistoriaPrincipal(req.body);
+  if (errores.length > 0) {
+    return res.status(422).json({
+      mensaje: 'La historia clínica contiene campos obligatorios sin diligenciar o inconsistencias clínicas.',
+      errores,
+    });
   }
 
   try {
@@ -124,13 +137,13 @@ async function crearHistoria(req, res) {
         [
           id_cita, cita.id_paciente, id_medico, tipo_consulta?.trim() || 'presencial',
           eps_aseguradora?.trim() || null, contacto_responsable_nombre?.trim() || null, contacto_responsable_telefono?.trim() || null,
-          motivo_consulta.trim(), anamnesis?.trim() || null, antecedentes_patologicos?.trim() || null, antecedentes_quirurgicos?.trim() || null, antecedentes_alergicos?.trim() || null,
+          motivo_consulta.trim(), anamnesis.trim(), antecedentes_patologicos.trim(), antecedentes_quirurgicos?.trim() || null, antecedentes_alergicos.trim(),
           antecedentes_familiares?.trim() || null, antecedentes_ginecoobstetricos?.trim() || null, habitos?.trim() || null,
           tension_arterial_sistolica || null, tension_arterial_diastolica || null, frecuencia_cardiaca || null, frecuencia_respiratoria || null, temperatura_corporal || null,
-          peso_kg || null, talla_cm || null, imcCalculado, exploracion_por_sistemas?.trim() || null, examen_fisico?.trim() || null,
-          diagnostico_cie10?.trim().toUpperCase() || null, descripcion_diagnostico?.trim() || null, plan_tratamiento?.trim() || null, medicamentosParaBD,
+          peso_kg || null, talla_cm || null, imcCalculado, exploracion_por_sistemas?.trim() || null, examen_fisico.trim(),
+          diagnostico_cie10.trim().toUpperCase(), descripcion_diagnostico.trim(), plan_tratamiento.trim(), medicamentosParaBD,
           ordenes_medicas?.trim() || null, recomendaciones?.trim() || null, incapacidad_dias || null, observaciones?.trim() || null,
-          medico_nombre_firma?.trim() || null, medico_cedula_firma?.trim() || null, medico_rethus_firma?.trim() || null
+          medico_nombre_firma.trim(), medico_cedula_firma?.trim() || null, medico_rethus_firma.trim()
         ]
       );
 
@@ -142,8 +155,8 @@ async function crearHistoria(req, res) {
             `INSERT INTO recetas_medicas (id_historia, medicamento, dosis, frecuencia, duracion, via_administracion, indicaciones)
              VALUES ($1, $2, $3, $4, $5, $6, $7)`,
             [
-              id_historia_nueva, receta.medicamento, receta.dosis, receta.frecuencia, 
-              receta.duracion, receta.via_administracion || null, receta.indicaciones || null
+              id_historia_nueva, receta.medicamento.trim(), receta.dosis.trim(), receta.frecuencia.trim(),
+              receta.duracion.trim(), receta.via_administracion?.trim() || null, receta.indicaciones?.trim() || null
             ]
           );
         }
@@ -154,7 +167,7 @@ async function crearHistoria(req, res) {
           await client.query(
             `INSERT INTO ordenes_examenes (id_historia, tipo_examen, nombre_examen, justificacion_clinica)
              VALUES ($1, $2, $3, $4)`,
-            [id_historia_nueva, examen.tipo_examen, examen.nombre_examen, examen.justificacion_clinica || null]
+            [id_historia_nueva, examen.tipo_examen, examen.nombre_examen.trim(), examen.justificacion_clinica?.trim() || null]
           );
         }
       }
@@ -176,11 +189,15 @@ async function crearHistoria(req, res) {
     }
   } catch (err) {
     console.error('Error en crearHistoria:', err.message);
+    // Constraint de BD violado (defensa en profundidad) → mensaje claro
+    if (err.code === '23514') {
+      return res.status(422).json({ mensaje: 'La historia clínica viola una regla de integridad clínica (rango fuera de límite o campo inconsistente).' });
+    }
     return res.status(500).json({ mensaje: 'Error interno al crear la historia clínica.' });
   }
 }
 
-// ─── PUT /historias/:id — Actualizar historia clínica ─────────────────────────
+// ─── PUT /historias/:id — Actualizar historia clínica (nota aclaración/evolución) ──
 async function actualizarHistoria(req, res) {
   const id_usuario = req.usuario.id;
   const { id } = req.params;
@@ -191,11 +208,22 @@ async function actualizarHistoria(req, res) {
     temperatura_corporal, peso_kg, talla_cm, exploracion_por_sistemas, examen_fisico, diagnostico_cie10,
     descripcion_diagnostico, plan_tratamiento, medicamentos_recetados, ordenes_medicas, recomendaciones,
     incapacidad_dias, observaciones, medico_nombre_firma, medico_cedula_firma, medico_rethus_firma,
+    recetas = [], examenes = [],
   } = req.body;
 
   const tiposValidos = ['nota_aclaracion', 'nota_evolucion'];
-  if (!tiposValidos.includes(tipo_registro)) return res.status(400).json({ mensaje: "tipo_registro debe ser 'nota_aclaracion' o 'nota_evolucion'." });
-  if (!motivo_consulta?.trim()) return res.status(400).json({ mensaje: 'El motivo de la aclaración/nota es obligatorio.' });
+  if (!tiposValidos.includes(tipo_registro)) {
+    return res.status(400).json({ mensaje: "tipo_registro debe ser 'nota_aclaracion' o 'nota_evolucion'." });
+  }
+
+  // ── VALIDACIÓN PROFESIONAL DE LA NOTA ─────────────────────────────────────
+  const errores = validarNotaAclaracion(req.body);
+  if (errores.length > 0) {
+    return res.status(422).json({
+      mensaje: 'La nota contiene campos obligatorios sin diligenciar o inconsistencias clínicas.',
+      errores,
+    });
+  }
 
   try {
     const id_medico = await resolverIdMedico(id_usuario);
@@ -215,36 +243,73 @@ async function actualizarHistoria(req, res) {
     }
     const medicamentosParaBD = normalizarMedicamentosParaBD(medicamentos_recetados);
 
-    const aclaracion = await pool.query(
-      `INSERT INTO historias_clinicas (
-        id_cita, id_paciente, id_medico, tipo_registro, estado, id_historia_original, motivo_consulta, anamnesis,
-        antecedentes_patologicos, antecedentes_quirurgicos, antecedentes_alergicos, antecedentes_familiares, antecedentes_ginecoobstetricos, habitos,
-        tension_arterial_sistolica, tension_arterial_diastolica, frecuencia_cardiaca, frecuencia_respiratoria, temperatura_corporal, peso_kg, talla_cm, imc,
-        exploracion_por_sistemas, examen_fisico, diagnostico_cie10, descripcion_diagnostico, plan_tratamiento, medicamentos_recetados,
-        ordenes_medicas, recomendaciones, incapacidad_dias, observaciones, medico_nombre_firma, medico_cedula_firma, medico_rethus_firma
-      ) VALUES (
-        $1, $2, $3, $4, 'activo', $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34
-      ) RETURNING *`,
-      [
-        historiaOriginal.id_cita, historiaOriginal.id_paciente, id_medico, tipo_registro, parseInt(id),
-        motivo_consulta.trim(), anamnesis?.trim() || null, antecedentes_patologicos?.trim() || null, antecedentes_quirurgicos?.trim() || null, antecedentes_alergicos?.trim() || null,
-        antecedentes_familiares?.trim() || null, antecedentes_ginecoobstetricos?.trim() || null, habitos?.trim() || null,
-        tension_arterial_sistolica || null, tension_arterial_diastolica || null, frecuencia_cardiaca || null, frecuencia_respiratoria || null, temperatura_corporal || null,
-        peso_kg || null, talla_cm || null, imcCalculado, exploracion_por_sistemas?.trim() || null, examen_fisico?.trim() || null,
-        diagnostico_cie10?.trim().toUpperCase() || null, descripcion_diagnostico?.trim() || null, plan_tratamiento?.trim() || null, medicamentosParaBD,
-        ordenes_medicas?.trim() || null, recomendaciones?.trim() || null, incapacidad_dias || null, observaciones?.trim() || null,
-        medico_nombre_firma?.trim() || null, medico_cedula_firma?.trim() || null, medico_rethus_firma?.trim() || null,
-      ]
-    );
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
 
-    const aclaracionRespuesta = {
-      ...aclaracion.rows[0],
-      medicamentos_recetados: normalizarMedicamentosParaFrontend(aclaracion.rows[0].medicamentos_recetados),
-    };
+      const aclaracion = await client.query(
+        `INSERT INTO historias_clinicas (
+          id_cita, id_paciente, id_medico, tipo_registro, estado, id_historia_original, motivo_consulta, anamnesis,
+          antecedentes_patologicos, antecedentes_quirurgicos, antecedentes_alergicos, antecedentes_familiares, antecedentes_ginecoobstetricos, habitos,
+          tension_arterial_sistolica, tension_arterial_diastolica, frecuencia_cardiaca, frecuencia_respiratoria, temperatura_corporal, peso_kg, talla_cm, imc,
+          exploracion_por_sistemas, examen_fisico, diagnostico_cie10, descripcion_diagnostico, plan_tratamiento, medicamentos_recetados,
+          ordenes_medicas, recomendaciones, incapacidad_dias, observaciones, medico_nombre_firma, medico_cedula_firma, medico_rethus_firma
+        ) VALUES (
+          $1, $2, $3, $4, 'activo', $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34
+        ) RETURNING *`,
+        [
+          historiaOriginal.id_cita, historiaOriginal.id_paciente, id_medico, tipo_registro, parseInt(id),
+          motivo_consulta.trim(), anamnesis?.trim() || null, antecedentes_patologicos?.trim() || null, antecedentes_quirurgicos?.trim() || null, antecedentes_alergicos?.trim() || null,
+          antecedentes_familiares?.trim() || null, antecedentes_ginecoobstetricos?.trim() || null, habitos?.trim() || null,
+          tension_arterial_sistolica || null, tension_arterial_diastolica || null, frecuencia_cardiaca || null, frecuencia_respiratoria || null, temperatura_corporal || null,
+          peso_kg || null, talla_cm || null, imcCalculado, exploracion_por_sistemas?.trim() || null, examen_fisico?.trim() || null,
+          diagnostico_cie10?.trim().toUpperCase() || null, descripcion_diagnostico?.trim() || null, plan_tratamiento?.trim() || null, medicamentosParaBD,
+          ordenes_medicas?.trim() || null, recomendaciones?.trim() || null, incapacidad_dias || null, observaciones?.trim() || null,
+          medico_nombre_firma.trim(), medico_cedula_firma?.trim() || null, medico_rethus_firma.trim(),
+        ]
+      );
 
-    return res.status(201).json({ mensaje: 'Nota de aclaración/evolución registrada exitosamente.', aclaracion: aclaracionRespuesta });
+      const id_nota = aclaracion.rows[0].id;
+
+      if (recetas && recetas.length > 0) {
+        for (const r of recetas) {
+          await client.query(
+            `INSERT INTO recetas_medicas (id_historia, medicamento, dosis, frecuencia, duracion, via_administracion, indicaciones)
+             VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+            [id_nota, r.medicamento.trim(), r.dosis.trim(), r.frecuencia.trim(), r.duracion.trim(), r.via_administracion?.trim() || null, r.indicaciones?.trim() || null]
+          );
+        }
+      }
+
+      if (examenes && examenes.length > 0) {
+        for (const ex of examenes) {
+          await client.query(
+            `INSERT INTO ordenes_examenes (id_historia, tipo_examen, nombre_examen, justificacion_clinica)
+             VALUES ($1,$2,$3,$4)`,
+            [id_nota, ex.tipo_examen, ex.nombre_examen.trim(), ex.justificacion_clinica?.trim() || null]
+          );
+        }
+      }
+
+      await client.query('COMMIT');
+
+      const aclaracionRespuesta = {
+        ...aclaracion.rows[0],
+        medicamentos_recetados: normalizarMedicamentosParaFrontend(aclaracion.rows[0].medicamentos_recetados),
+      };
+
+      return res.status(201).json({ mensaje: 'Nota de aclaración/evolución registrada exitosamente.', aclaracion: aclaracionRespuesta });
+    } catch (dbError) {
+      await client.query('ROLLBACK');
+      throw dbError;
+    } finally {
+      client.release();
+    }
   } catch (err) {
     console.error('Error en actualizarHistoria:', err.message);
+    if (err.code === '23514') {
+      return res.status(422).json({ mensaje: 'La nota viola una regla de integridad clínica (rango fuera de límite o campo inconsistente).' });
+    }
     return res.status(500).json({ mensaje: 'Error interno al registrar la aclaración.' });
   }
 }
@@ -314,15 +379,15 @@ async function obtenerHistoria(req, res) {
 
     // Recetas
     const recetasRes = await pool.query(`SELECT * FROM recetas_medicas WHERE id_historia = $1 ORDER BY id ASC`, [historia.id]);
-    
+
     // Exámenes
     const examenesRes = await pool.query(`SELECT * FROM ordenes_examenes WHERE id_historia = $1 ORDER BY id ASC`, [historia.id]);
 
-    return res.json({ 
-      historia, 
-      aclaraciones, 
-      recetas: recetasRes.rows, 
-      examenes: examenesRes.rows 
+    return res.json({
+      historia,
+      aclaraciones,
+      recetas: recetasRes.rows,
+      examenes: examenesRes.rows
     });
   } catch (err) {
     console.error('Error en obtenerHistoria:', err.message);
@@ -378,8 +443,8 @@ async function obtenerHistoriaCompleta(req, res) {
     const recetasRes = await pool.query(`SELECT * FROM recetas_medicas WHERE id_historia = $1 ORDER BY id ASC`, [historia.id]);
     const examenesRes = await pool.query(`SELECT * FROM ordenes_examenes WHERE id_historia = $1 ORDER BY id ASC`, [historia.id]);
 
-    return res.json({ 
-      historia, 
+    return res.json({
+      historia,
       aclaraciones,
       recetas: recetasRes.rows,
       examenes: examenesRes.rows
@@ -573,8 +638,8 @@ module.exports = {
   crearHistoria,
   actualizarHistoria,
   obtenerHistoria,
-  obtenerHistoriaCompleta, // <-- ¡ESTA ERA LA QUE FALTABA! 🛠️
-  historialPaciente, 
+  obtenerHistoriaCompleta,
+  historialPaciente,
   gestionarCita,
   listarDocumentosClinicos,
   registrarDocumentoClinco,
