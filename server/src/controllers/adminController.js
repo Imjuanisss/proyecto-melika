@@ -1,4 +1,11 @@
 // server/src/controllers/adminController.js
+// FIX: getHorariosAdmin ahora usa TO_CHAR(f.fecha, 'YYYY-MM-DD') en vez de
+//      f.fecha.toISOString() para construir start/end del evento. El objeto
+//      Date que entrega node-postgres representa medianoche en hora LOCAL del
+//      servidor; al llamar .toISOString() (que convierte a UTC) el día podía
+//      retroceder según el huso horario del servidor, haciendo que las franjas
+//      recién creadas parecieran no aparecer (o aparecieran en el día
+//      incorrecto) en el calendario de FullCalendar del admin.
 const pool = require('../config/db');
 
 // ─── GET /admin/stats — Métricas del dashboard ────────────────────────
@@ -227,7 +234,15 @@ async function cambiarEstadoCita(req, res) {
   }
 }
 
-// ─── GET /admin/horarios — Franjas de TODOS los médicos (FullCalendar) ─
+// =============================================================================
+// GET /admin/horarios — Franjas de TODOS los médicos (FullCalendar)
+// =============================================================================
+// FIX: se reemplaza f.fecha.toISOString().split('T')[0] (que puede retroceder
+//      un día según la zona horaria del servidor) por TO_CHAR(f.fecha,
+//      'YYYY-MM-DD') directamente en la consulta SQL, igual que ya se hace en
+//      citasController.js. Esto garantiza que la franja se muestre siempre en
+//      el día exacto en que fue creada.
+// =============================================================================
 async function getHorariosAdmin(req, res) {
   const { inicio, fin, id_medico } = req.query;
 
@@ -241,7 +256,9 @@ async function getHorariosAdmin(req, res) {
     if (id_medico) { condiciones.push(`f.id_medico = $${idx++}`); params.push(id_medico); }
 
     const resultado = await pool.query(
-      `SELECT f.id, f.fecha, f.hora_inicio, f.hora_fin, f.disponible,
+      `SELECT f.id,
+              TO_CHAR(f.fecha, 'YYYY-MM-DD') AS fecha_str, -- 🌟 Inmune a desfases de zona horaria
+              f.hora_inicio, f.hora_fin, f.disponible,
               f.id_medico,
               u.nombre AS medico_nombre, u.primer_apellido AS medico_apellido,
               e.nombre AS especialidad,
@@ -263,8 +280,8 @@ async function getHorariosAdmin(req, res) {
       title: f.disponible
         ? `Dr(a). ${f.medico_nombre} — Libre`
         : `Dr(a). ${f.medico_nombre} · ${f.paciente_nombre || ''} ${f.paciente_apellido || ''}`,
-      start: `${f.fecha.toISOString().split('T')[0]}T${f.hora_inicio}`,
-      end:   `${f.fecha.toISOString().split('T')[0]}T${f.hora_fin}`,
+      start: `${f.fecha_str}T${f.hora_inicio}`, // 🌟 Combinación directa de strings, sin objetos Date
+      end:   `${f.fecha_str}T${f.hora_fin}`,
       backgroundColor: f.disponible ? '#1A7A52' : '#E8856A',
       borderColor:     f.disponible ? '#1A7A52' : '#C96848',
       extendedProps: {

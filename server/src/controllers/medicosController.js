@@ -1,6 +1,10 @@
 // server/src/controllers/medicosController.js
 // ─── REESCRITURA COMPLETA — todos los bugs de schema corregidos ────────────────
 // Incluye: completarCita expandida a gestionarCita con soporte de notas y asistencia.
+// FIX: agendaRango ahora también devuelve las franjas disponibles (antes solo
+//      devolvía citas, por lo que la disponibilidad creada por el médico nunca
+//      se veía en su propio calendario) y usa TO_CHAR para evitar desfases de
+//      fecha por zona horaria al construir los eventos de FullCalendar.
 
 const pool       = require('../config/db');
 const bcrypt     = require('bcrypt');
@@ -386,7 +390,19 @@ async function agendaMedico(req, res) {
   }
 }
 
-// ─── GET /medico/agenda/rango?inicio=&fin= — Para FullCalendar ────────────────
+// =============================================================================
+// GET /medico/agenda/rango?inicio=&fin= — Para FullCalendar
+// =============================================================================
+// FIX PROFESIONAL:
+//   1) Antes esta función SOLO consultaba la tabla `citas`. Eso significa que
+//      cuando el médico creaba disponibilidad (franja puntual o semana
+//      completa), esas franjas jamás se traducían en eventos del calendario
+//      porque la query nunca tocaba `franjas_horarias`. Ahora se consultan
+//      ambas fuentes y se combinan en un solo array de eventos.
+//   2) Se usa TO_CHAR(..., 'YYYY-MM-DD') en lugar de invocar .toISOString()
+//      sobre el objeto Date que entrega node-postgres, evitando el desfase
+//      de día que ocurre cuando el servidor no corre en UTC.
+// =============================================================================
 async function agendaRango(req, res) {
   const id_usuario = req.usuario.id;
   const { inicio, fin } = req.query;
@@ -404,8 +420,11 @@ async function agendaRango(req, res) {
 
     const id_medico = medicoRes.rows[0].id;
 
-    const resultado = await pool.query(
-      `SELECT c.id, c.fecha, c.hora_inicio, c.tipo_consulta, c.estado,
+    // 1. Citas del médico en el rango solicitado
+    const citasRes = await pool.query(
+      `SELECT c.id,
+              TO_CHAR(c.fecha, 'YYYY-MM-DD') AS fecha_str,
+              c.hora_inicio, c.tipo_consulta, c.estado,
               u.nombre AS paciente_nombre, u.primer_apellido AS paciente_apellido
        FROM citas c
        JOIN usuarios u ON c.id_paciente = u.id
@@ -416,32 +435,60 @@ async function agendaRango(req, res) {
       [id_medico, inicio, fin]
     );
 
+    // 2. Franjas de disponibilidad libres del médico en el rango solicitado
+    const franjasRes = await pool.query(
+      `SELECT id,
+              TO_CHAR(fecha, 'YYYY-MM-DD') AS fecha_str,
+              hora_inicio, hora_fin
+       FROM franjas_horarias
+       WHERE id_medico = $1
+         AND fecha BETWEEN $2 AND $3
+         AND disponible = TRUE
+       ORDER BY fecha, hora_inicio`,
+      [id_medico, inicio, fin]
+    );
+
     const COLOR_ESTADO = {
       pendiente:  { bg: '#B45309', border: '#92400E' },
       completada: { bg: '#1A7A52', border: '#145C3E' },
       no_asistio: { bg: '#6B7280', border: '#4B5563' },
     };
 
-    const eventos = resultado.rows.map(c => {
+    const eventosCitas = citasRes.rows.map(c => {
       const colores = COLOR_ESTADO[c.estado] || { bg: '#E8856A', border: '#C96848' };
-      const fechaStr = c.fecha instanceof Date
-        ? c.fecha.toISOString().split('T')[0]
-        : String(c.fecha).split('T')[0];
       return {
-        id:              String(c.id),
+        id:              `cita-${c.id}`,
         title:           `${c.paciente_nombre} ${c.paciente_apellido}`,
-        start:           `${fechaStr}T${c.hora_inicio}`,
+        start:           `${c.fecha_str}T${c.hora_inicio}`,
         backgroundColor: colores.bg,
         borderColor:     colores.border,
         textColor:       '#fff',
         extendedProps: {
-          tipo:   c.tipo_consulta,
-          estado: c.estado,
+          tipo:               c.tipo_consulta,
+          estado:             c.estado,
+          esFranjaDisponible: false,
         },
       };
     });
 
-    return res.json(eventos);
+    // Espacios libres ya configurados por el médico — se distinguen visualmente
+    // (verde suave) de las citas reservadas para que el médico confirme de
+    // inmediato que su disponibilidad quedó registrada en el día/hora correctos.
+    const eventosFranjas = franjasRes.rows.map(f => ({
+      id:              `franja-${f.id}`,
+      title:           '🟢 Disponible',
+      start:           `${f.fecha_str}T${f.hora_inicio}`,
+      end:             `${f.fecha_str}T${f.hora_fin}`,
+      backgroundColor: '#D1FAE5',
+      borderColor:     '#1A7A52',
+      textColor:       '#065F46',
+      display:         'block',
+      extendedProps: {
+        esFranjaDisponible: true,
+      },
+    }));
+
+    return res.json([...eventosFranjas, ...eventosCitas]);
   } catch (err) {
     console.error('Error en agendaRango:', err.message);
     return res.status(500).json({ mensaje: 'Error al obtener el rango de agenda.' });
