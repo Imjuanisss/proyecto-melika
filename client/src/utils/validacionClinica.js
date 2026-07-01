@@ -91,3 +91,103 @@ export function validarCie10(valor, { obligatorio = true } = {}) {
   if (!REGEX_CIE10.test(v.toUpperCase())) return 'Formato de CIE-10 inválido (ej. J06.9).';
   return null;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// VALIDACIÓN DE SIGNOS VITALES POR RANGO CLÍNICO
+//
+// Estos rangos son una capa de UX que se SUMA a los constraints de la base
+// de datos (server/src/database/melika_db.sql, migración v5): la base de
+// datos acepta rangos amplios pensados para cubrir toda edad (ej. peso
+// 1–300 kg), lo cual permite que un adulto quede registrado con "1 kg" o
+// "10 kg" sin que nada lo impida en tiempo real dentro del formulario.
+//
+// Aquí se acota el rango según la edad del paciente cuando se conoce. Si no
+// se conoce (caso común al crear una historia nueva, donde el frontend no
+// siempre tiene la fecha de nacimiento a la mano), se asume un paciente
+// adulto — el perfil predominante en MELIKA — para atrapar de inmediato
+// errores de digitación evidentes, sin bloquear al backend (que sigue
+// aceptando el rango completo si por algún motivo excepcional aplica).
+// ─────────────────────────────────────────────────────────────────────────────
+
+const RANGOS_COMUNES = {
+  tension_arterial_sistolica:  { min: 50, max: 250 },
+  tension_arterial_diastolica: { min: 30, max: 150 },
+  frecuencia_cardiaca:         { min: 20, max: 250 },
+  frecuencia_respiratoria:     { min: 5,  max: 60  },
+  temperatura_corporal:        { min: 30, max: 43  },
+  incapacidad_dias:            { min: 0,  max: 180 },
+};
+
+const RANGOS_PESO_TALLA_POR_EDAD = {
+  lactante:   { peso_kg: { min: 2,  max: 20  }, talla_cm: { min: 30,  max: 100 } },
+  pediatrico: { peso_kg: { min: 3,  max: 150 }, talla_cm: { min: 40,  max: 200 } },
+  adulto:     { peso_kg: { min: 25, max: 300 }, talla_cm: { min: 100, max: 250 } },
+};
+
+/**
+ * Calcula la edad en años a partir de una fecha de nacimiento.
+ * Espejo de calcularEdadAnios() en server/src/utils/validacionesHistoria.js.
+ * @param {string|Date|null|undefined} fechaNacimiento
+ * @returns {number|null}
+ */
+export function calcularEdadAnios(fechaNacimiento) {
+  if (!fechaNacimiento) return null;
+  const nacimiento = new Date(fechaNacimiento);
+  if (Number.isNaN(nacimiento.getTime())) return null;
+
+  const hoy = new Date();
+  let edad = hoy.getFullYear() - nacimiento.getFullYear();
+  const diferenciaMes = hoy.getMonth() - nacimiento.getMonth();
+  if (diferenciaMes < 0 || (diferenciaMes === 0 && hoy.getDate() < nacimiento.getDate())) {
+    edad--;
+  }
+  return edad;
+}
+
+function obtenerRangoClinico(campo, edadAnios) {
+  if (RANGOS_COMUNES[campo]) return RANGOS_COMUNES[campo];
+
+  if (campo === 'peso_kg' || campo === 'talla_cm') {
+    let grupo = 'adulto';
+    if (typeof edadAnios === 'number') {
+      if (edadAnios < 2) grupo = 'lactante';
+      else if (edadAnios < 18) grupo = 'pediatrico';
+    }
+    return RANGOS_PESO_TALLA_POR_EDAD[grupo][campo];
+  }
+
+  return null;
+}
+
+/**
+ * Valida un signo vital o medida numérica contra un rango clínicamente
+ * razonable. A diferencia de <input type="number" min max>, esta función
+ * corre en JavaScript en cada cambio del campo — bloquea valores ilógicos
+ * de inmediato en vez de esperar al envío del formulario.
+ *
+ * @param {string} campo    - nombre técnico del campo (ej: 'peso_kg')
+ * @param {string|number} valor
+ * @param {string} etiqueta - nombre legible para el mensaje de error
+ * @param {object} opciones - { obligatorio, edadAnios }
+ * @returns {string|null}
+ */
+export function validarRangoSignoVital(campo, valor, etiqueta, opciones = {}) {
+  const { obligatorio = false, edadAnios = null } = opciones;
+  const v = (valor ?? '').toString().trim();
+
+  if (esVacio(v)) {
+    return obligatorio ? `${etiqueta} es obligatorio.` : null;
+  }
+
+  const numero = Number(v);
+  if (Number.isNaN(numero)) {
+    return `${etiqueta} debe ser un valor numérico.`;
+  }
+
+  const rango = obtenerRangoClinico(campo, edadAnios);
+  if (rango && (numero < rango.min || numero > rango.max)) {
+    return `${etiqueta} está fuera de un rango clínico razonable (${rango.min}–${rango.max}).`;
+  }
+
+  return null;
+}

@@ -6,11 +6,25 @@
 // Lógica append-only: POST /historias/:id/aclaracion
 // Al éxito dispara 'melika:aclaracion-creada' para que HistorialPaciente recargue.
 //
-// Incluye validación profesional de consistencia clínica por paso, Y TAMBIÉN
-// validación EN TIEMPO REAL por campo individual (mismo criterio que aplica
-// el backend en server/src/utils/validacionesHistoria.js), para que el
-// médico nunca pueda avanzar con texto ilógico (números/símbolos donde debe
-// ir una descripción clínica real).
+// Validación EN TIEMPO REAL por campo individual (mismo criterio que aplica
+// el backend en server/src/utils/validacionesHistoria.js).
+//
+// FIX v2:
+//   - CAMPOS_POR_PASO_ACLARACION[2] (Examen Físico) estaba vacío — ningún
+//     signo vital se validaba en tiempo real, ni siquiera examen_fisico
+//     pese a tener el JSX de error ya conectado. Los rangos numéricos
+//     (incluyendo peso/talla) solo se evaluaban al presionar "Siguiente",
+//     dentro de validarRangosNumericos(). Ahora cada campo del paso 2 se
+//     valida en cada cambio, usando validarRangoSignoVital (rango clínico
+//     real, no solo el min/max decorativo del <input type="number">).
+//   - Se agregó validación de texto a los antecedentes (patológicos,
+//     quirúrgicos, alérgicos, familiares, ginecoobstétricos), hábitos y
+//     exploración por sistemas — antes no tenían ninguna regla ni feedback
+//     visual, permitiendo texto ilógico sin ningún control.
+//   - Se eliminó RANGOS / validarRangosNumericos() (duplicado ahora
+//     redundante): toda la validación numérica vive en un solo lugar,
+//     client/src/utils/validacionClinica.js, para evitar que las reglas
+//     del paso-a-paso y las del tiempo real diverjan entre sí.
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { api } from '../../lib/apiClient';
@@ -19,6 +33,7 @@ import {
   validarTextoClinico,
   validarSoloDigitos,
   validarCie10,
+  validarRangoSignoVital,
   esVacio,
 } from '../../utils/validacionClinica';
 import './FormularioAclaracion.css';
@@ -28,10 +43,8 @@ import './FormularioAclaracion.css';
 // Refleja todos los bloques clínicos de la Resolución 1995/1999
 // ─────────────────────────────────────────────────────────────────────────────
 const ESTADO_INICIAL = {
-  // Tipo de nota
   tipo_registro: 'nota_aclaracion',
 
-  // Bloque 2 — Motivo (obligatorio) y anamnesis
   motivo_consulta:                '',
   anamnesis:                      '',
   antecedentes_patologicos:       '',
@@ -41,7 +54,6 @@ const ESTADO_INICIAL = {
   antecedentes_ginecoobstetricos: '',
   habitos:                        '',
 
-  // Bloque 3 — Signos vitales
   tension_arterial_sistolica:  '',
   tension_arterial_diastolica: '',
   frecuencia_cardiaca:         '',
@@ -52,11 +64,9 @@ const ESTADO_INICIAL = {
   exploracion_por_sistemas:    '',
   examen_fisico:               '',
 
-  // Bloque 4 — Diagnóstico CIE-10
   diagnostico_cie10:       '',
   descripcion_diagnostico: '',
 
-  // Bloque 5 — Plan de manejo
   plan_tratamiento:      '',
   medicamentos_recetados: '',
   ordenes_medicas:       '',
@@ -64,51 +74,63 @@ const ESTADO_INICIAL = {
   incapacidad_dias:      '',
   observaciones:         '',
 
-  // Bloque 6 — Cierre legal
   medico_nombre_firma: '',
   medico_cedula_firma: '',
   medico_rethus_firma: '',
 };
 
-const RANGOS = {
-  tension_arterial_sistolica:  { min: 50,  max: 250 },
-  tension_arterial_diastolica: { min: 30,  max: 150 },
-  frecuencia_cardiaca:         { min: 20,  max: 250 },
-  frecuencia_respiratoria:     { min: 5,   max: 60  },
-  temperatura_corporal:        { min: 30,  max: 43  },
-  peso_kg:                     { min: 1,   max: 300 },
-  talla_cm:                    { min: 30,  max: 250 },
-  incapacidad_dias:            { min: 0,   max: 180 },
-};
-
 // ─────────────────────────────────────────────────────────────────────────────
 // VALIDACIÓN EN TIEMPO REAL — POR CAMPO INDIVIDUAL
 // ESPEJO de validarNotaAclaracion() en server/src/utils/validacionesHistoria.js
+// Las notas de aclaración/evolución son intencionalmente parciales (no
+// aplica chk_historia_principal_completa), por eso casi todo es opcional —
+// pero "opcional" nunca significa "sin control": si el médico escribe algo,
+// debe ser una descripción real o una negación válida ("Niega"), nunca
+// solo números, símbolos o texto repetido.
 // ─────────────────────────────────────────────────────────────────────────────
-
-// Campos de texto clínico obligatorios en una nota
 const REGLAS_TEXTO_ACLARACION = {
-  motivo_consulta:     { minCaracteres: 10, permitirNegacion: false, obligatorio: true },
-  medico_nombre_firma: { minCaracteres: 5,  permitirNegacion: false, obligatorio: true },
+  motivo_consulta:                { minCaracteres: 10, permitirNegacion: false, obligatorio: true  },
+  medico_nombre_firma:            { minCaracteres: 5,  permitirNegacion: false, obligatorio: true  },
+  anamnesis:                      { minCaracteres: 0,  permitirNegacion: false, obligatorio: false },
+  antecedentes_patologicos:       { minCaracteres: 5,  permitirNegacion: true,  obligatorio: false },
+  antecedentes_quirurgicos:       { minCaracteres: 5,  permitirNegacion: true,  obligatorio: false },
+  antecedentes_alergicos:         { minCaracteres: 5,  permitirNegacion: true,  obligatorio: false },
+  antecedentes_familiares:        { minCaracteres: 5,  permitirNegacion: true,  obligatorio: false },
+  antecedentes_ginecoobstetricos: { minCaracteres: 5,  permitirNegacion: true,  obligatorio: false },
+  habitos:                        { minCaracteres: 5,  permitirNegacion: true,  obligatorio: false },
+  exploracion_por_sistemas:       { minCaracteres: 0,  permitirNegacion: false, obligatorio: false },
+  examen_fisico:                  { minCaracteres: 0,  permitirNegacion: false, obligatorio: false },
+  plan_tratamiento:               { minCaracteres: 0,  permitirNegacion: false, obligatorio: false },
+  ordenes_medicas:                { minCaracteres: 0,  permitirNegacion: false, obligatorio: false },
+  recomendaciones:                { minCaracteres: 0,  permitirNegacion: false, obligatorio: false },
+  observaciones:                  { minCaracteres: 0,  permitirNegacion: false, obligatorio: false },
 };
 
-// Campos que, si se diligencian, NO pueden ser texto trivial — pero no son
-// obligatorios en una nota de aclaración/evolución (pueden dejarse vacíos).
-const CAMPOS_TRIVIAL_OPCIONAL = [
-  'anamnesis', 'examen_fisico', 'plan_tratamiento',
-  'ordenes_medicas', 'recomendaciones', 'observaciones',
-];
-
 const ETIQUETAS_ACLARACION = {
-  motivo_consulta:         'El motivo de la nota',
-  medico_nombre_firma:     'El nombre del médico firmante',
-  descripcion_diagnostico: 'La descripción del diagnóstico',
-  anamnesis:               'La evolución / enfermedad actual',
-  examen_fisico:           'Los hallazgos del examen físico',
-  plan_tratamiento:        'El plan de tratamiento',
-  ordenes_medicas:         'Las órdenes médicas',
-  recomendaciones:         'Las recomendaciones',
-  observaciones:           'Las observaciones',
+  motivo_consulta:                'El motivo de la nota',
+  medico_nombre_firma:            'El nombre del médico firmante',
+  descripcion_diagnostico:        'La descripción del diagnóstico',
+  anamnesis:                      'La evolución / enfermedad actual',
+  antecedentes_patologicos:       'Los antecedentes patológicos',
+  antecedentes_quirurgicos:       'Los antecedentes quirúrgicos',
+  antecedentes_alergicos:         'Los antecedentes alérgicos',
+  antecedentes_familiares:        'Los antecedentes familiares',
+  antecedentes_ginecoobstetricos: 'Los antecedentes ginecoobstétricos',
+  habitos:                        'Los hábitos',
+  exploracion_por_sistemas:       'La exploración por sistemas',
+  examen_fisico:                  'Los hallazgos del examen físico',
+  plan_tratamiento:               'El plan de tratamiento',
+  ordenes_medicas:                'Las órdenes médicas',
+  recomendaciones:                'Las recomendaciones',
+  observaciones:                  'Las observaciones',
+  tension_arterial_sistolica:     'La tensión arterial sistólica',
+  tension_arterial_diastolica:    'La tensión arterial diastólica',
+  frecuencia_cardiaca:            'La frecuencia cardíaca',
+  frecuencia_respiratoria:        'La frecuencia respiratoria',
+  temperatura_corporal:           'La temperatura corporal',
+  peso_kg:                        'El peso',
+  talla_cm:                       'La talla',
+  incapacidad_dias:               'Los días de incapacidad',
 };
 
 function validarCampoAclaracion(campo, valorCrudo, form) {
@@ -116,12 +138,6 @@ function validarCampoAclaracion(campo, valorCrudo, form) {
 
   if (REGLAS_TEXTO_ACLARACION[campo]) {
     return validarTextoClinico(v, ETIQUETAS_ACLARACION[campo], REGLAS_TEXTO_ACLARACION[campo]);
-  }
-
-  if (CAMPOS_TRIVIAL_OPCIONAL.includes(campo)) {
-    return validarTextoClinico(v, ETIQUETAS_ACLARACION[campo], {
-      minCaracteres: 0, permitirNegacion: false, obligatorio: false,
-    });
   }
 
   switch (campo) {
@@ -144,17 +160,49 @@ function validarCampoAclaracion(campo, valorCrudo, form) {
       return validarSoloDigitos(v, 'La cédula del médico', false);
     case 'medico_rethus_firma':
       return validarSoloDigitos(v, 'El número ReTHUS', true);
+
+    // Signos vitales — validados por rango clínico en tiempo real, no solo
+    // al presionar "Siguiente". Sin fecha de nacimiento del paciente
+    // disponible en este formulario, se aplica el rango de adulto.
+    case 'tension_arterial_sistolica':
+    case 'tension_arterial_diastolica': {
+      const sis = (form.tension_arterial_sistolica ?? '').toString();
+      const dia = (form.tension_arterial_diastolica ?? '').toString();
+      if ((sis && !dia) || (!sis && dia)) {
+        return 'La tensión arterial debe registrarse completa (sistólica y diastólica), no parcial.';
+      }
+      return validarRangoSignoVital(campo, v, ETIQUETAS_ACLARACION[campo], { obligatorio: false });
+    }
+    case 'frecuencia_cardiaca':
+    case 'frecuencia_respiratoria':
+    case 'temperatura_corporal':
+      return validarRangoSignoVital(campo, v, ETIQUETAS_ACLARACION[campo], { obligatorio: false });
+    case 'peso_kg':
+    case 'talla_cm':
+      return validarRangoSignoVital(campo, v, ETIQUETAS_ACLARACION[campo], { obligatorio: false });
+    case 'incapacidad_dias':
+      return validarRangoSignoVital(campo, v, ETIQUETAS_ACLARACION.incapacidad_dias, { obligatorio: false });
+
     default:
       return null;
   }
 }
 
 // Campos que se validan EN TIEMPO REAL en cada paso del wizard.
-// El paso 2 (signos vitales) se valida con validarRangosNumericos(), no aquí.
 const CAMPOS_POR_PASO_ACLARACION = {
-  1: ['motivo_consulta', 'anamnesis'],
-  2: [],
-  3: ['diagnostico_cie10', 'descripcion_diagnostico', 'plan_tratamiento', 'ordenes_medicas', 'recomendaciones', 'observaciones'],
+  1: [
+    'motivo_consulta', 'anamnesis', 'antecedentes_patologicos', 'antecedentes_quirurgicos',
+    'antecedentes_alergicos', 'antecedentes_familiares', 'antecedentes_ginecoobstetricos', 'habitos',
+  ],
+  2: [
+    'tension_arterial_sistolica', 'tension_arterial_diastolica', 'frecuencia_cardiaca',
+    'frecuencia_respiratoria', 'temperatura_corporal', 'peso_kg', 'talla_cm',
+    'exploracion_por_sistemas', 'examen_fisico',
+  ],
+  3: [
+    'diagnostico_cie10', 'descripcion_diagnostico', 'plan_tratamiento',
+    'ordenes_medicas', 'recomendaciones', 'observaciones', 'incapacidad_dias',
+  ],
   4: ['medico_nombre_firma', 'medico_cedula_firma', 'medico_rethus_firma'],
 };
 
@@ -217,26 +265,22 @@ function CampoTextarea({ label, name, value, onChange, onBlur, requerido = false
 export default function FormularioAclaracion() {
   const { usuario } = useAuth();
 
-  // Estado de visibilidad y contexto del modal
   const [visible,    setVisible]    = useState(false);
   const [historiaId, setHistoriaId] = useState(null);
   const [pacienteId, setPacienteId] = useState(null);
 
-  // Estado del formulario
   const [form,       setForm]       = useState(ESTADO_INICIAL);
-  const [pasoActual, setPasoActual] = useState(1); // 1-4: pasos del formulario
+  const [pasoActual, setPasoActual] = useState(1);
   const [enviando,   setEnviando]   = useState(false);
   const [error,      setError]      = useState(null);
   const [exito,      setExito]      = useState(false);
 
-  // ── Validación en tiempo real: qué campos ha "tocado" el médico ──────────
   const [tocado, setTocado] = useState({});
 
   function marcarTocado(campo) {
     setTocado(prev => (prev[campo] ? prev : { ...prev, [campo]: true }));
   }
 
-  // Errores en tiempo real del paso actual, recalculados en cada render
   const erroresCamposActuales = useMemo(() => {
     const campos = CAMPOS_POR_PASO_ACLARACION[pasoActual] || [];
     const mapa = {};
@@ -247,18 +291,13 @@ export default function FormularioAclaracion() {
     return mapa;
   }, [pasoActual, form]);
 
-  // Helper de render: solo muestra el error si el campo ya fue tocado
   function errorDe(campo) {
     return tocado[campo] ? erroresCamposActuales[campo] : undefined;
   }
 
-  // ── Cerrar el modal ─────────────────────────────────────────────────────────
-  // Memoizada con useCallback porque el useEffect del Escape (más abajo)
-  // la necesita como dependencia estable; si fuera una función normal se
-  // recrearía en cada render y el listener tendría que reinstalarse siempre.
   const cerrar = useCallback(() => {
     setEnviando(prevEnviando => {
-      if (prevEnviando) return prevEnviando; // si está enviando, no cerrar
+      if (prevEnviando) return prevEnviando;
       setVisible(false);
       setHistoriaId(null);
       setPacienteId(null);
@@ -266,7 +305,6 @@ export default function FormularioAclaracion() {
     });
   }, []);
 
-  // ── Escuchar el evento que abre este modal ─────────────────────────────────
   useEffect(() => {
     function abrirModal(e) {
       const { historiaId: hId, pacienteId: pId } = e.detail || {};
@@ -286,7 +324,6 @@ export default function FormularioAclaracion() {
     return () => window.removeEventListener('melika:abrir-aclaracion', abrirModal);
   }, []);
 
-  // ── Cerrar con Escape ──────────────────────────────────────────────────────
   useEffect(() => {
     function onKey(e) {
       if (e.key === 'Escape' && visible && !enviando) cerrar();
@@ -295,26 +332,11 @@ export default function FormularioAclaracion() {
     return () => document.removeEventListener('keydown', onKey);
   }, [visible, enviando, cerrar]);
 
-  // ── Handlers de formulario ─────────────────────────────────────────────────
   const handleChange = useCallback((e) => {
     const { name, value } = e.target;
     setForm(prev => ({ ...prev, [name]: value }));
     setTocado(prev => (prev[name] ? prev : { ...prev, [name]: true }));
   }, []);
-
-  // ── Validación de rangos numéricos (signos vitales) ────────────────────────
-  function validarRangosNumericos() {
-    for (const campo of Object.keys(RANGOS)) {
-      const valor = form[campo];
-      if (valor === '' || valor === null || valor === undefined) continue;
-      const num = parseFloat(valor);
-      const { min, max } = RANGOS[campo];
-      if (Number.isNaN(num) || num < min || num > max) {
-        return `El valor de "${campo.replace(/_/g, ' ')}" debe estar entre ${min} y ${max}.`;
-      }
-    }
-    return null;
-  }
 
   // ── Validación por paso — usa el mismo criterio en tiempo real ─────────────
   function validarPasoActual() {
@@ -332,20 +354,6 @@ export default function FormularioAclaracion() {
     if (erroresCampos.length > 0) {
       setError(erroresCampos.join(' '));
       return false;
-    }
-
-    if (pasoActual === 2) {
-      const sis = form.tension_arterial_sistolica;
-      const dia = form.tension_arterial_diastolica;
-      if ((sis && !dia) || (!sis && dia)) {
-        setError('La tensión arterial debe registrarse completa (sistólica y diastólica), no parcial.');
-        return false;
-      }
-      const errorRango = validarRangosNumericos();
-      if (errorRango) {
-        setError(errorRango);
-        return false;
-      }
     }
 
     if (pasoActual === 3) {
@@ -382,7 +390,6 @@ export default function FormularioAclaracion() {
     try {
       await api.post(`/historias/${historiaId}/aclaracion`, {
         ...form,
-        // Enviar nulls explícitos para campos vacíos (el backend los acepta)
         tension_arterial_sistolica:  form.tension_arterial_sistolica  || null,
         tension_arterial_diastolica: form.tension_arterial_diastolica || null,
         frecuencia_cardiaca:         form.frecuencia_cardiaca         || null,
@@ -395,14 +402,12 @@ export default function FormularioAclaracion() {
 
       setExito(true);
 
-      // Notificar a HistorialPaciente y DetalleHistoria que hubo cambio
       window.dispatchEvent(
         new CustomEvent('melika:aclaracion-creada', {
           detail: { historiaId, pacienteId },
         })
       );
 
-      // Cerrar automáticamente a los 2 segundos
       setTimeout(() => {
         cerrar();
       }, 2000);
@@ -423,7 +428,6 @@ export default function FormularioAclaracion() {
     }
   }
 
-  // ── No renderizar si no está visible o el usuario no es médico ────────────
   if (!visible || usuario?.rol !== 'medico') return null;
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -439,7 +443,6 @@ export default function FormularioAclaracion() {
     >
       <div className="fa-modal">
 
-        {/* ── Cabecera ── */}
         <div className="fa-cabecera">
           <div className="fa-cabecera__info">
             <h2 className="fa-titulo">
@@ -461,7 +464,6 @@ export default function FormularioAclaracion() {
           </button>
         </div>
 
-        {/* ── Indicador de pasos ── */}
         <div className="fa-pasos" role="navigation" aria-label="Pasos del formulario">
           {['Motivo y Anamnesis', 'Examen Físico', 'Diagnóstico y Plan', 'Cierre Legal'].map((nombre, i) => (
             <div
@@ -474,7 +476,6 @@ export default function FormularioAclaracion() {
           ))}
         </div>
 
-        {/* ── Mensaje de éxito ── */}
         {exito && (
           <div className="fa-exito" role="status">
             <span>✅</span>
@@ -482,7 +483,6 @@ export default function FormularioAclaracion() {
           </div>
         )}
 
-        {/* ── Mensaje de error ── */}
         {error && (
           <div className="fa-error" role="alert">
             <span>⚠️</span>
@@ -490,7 +490,6 @@ export default function FormularioAclaracion() {
           </div>
         )}
 
-        {/* ── Cuerpo del formulario ── */}
         {!exito && (
           <form className="fa-form" onSubmit={handleSubmit} noValidate>
 
@@ -498,7 +497,6 @@ export default function FormularioAclaracion() {
             {pasoActual === 1 && (
               <div className="fa-seccion">
 
-                {/* Tipo de nota */}
                 <div className="fa-campo">
                   <label className="fa-campo__label">Tipo de nota</label>
                   <div className="fa-radio-grupo">
@@ -558,42 +556,60 @@ export default function FormularioAclaracion() {
                     name="antecedentes_patologicos"
                     value={form.antecedentes_patologicos}
                     onChange={handleChange}
+                    onBlur={() => marcarTocado('antecedentes_patologicos')}
+                    error={errorDe('antecedentes_patologicos')}
                     filas={2}
+                    placeholder='Escriba "Niega" si no aplica'
                   />
                   <CampoTextarea
                     label="Ant. quirúrgicos"
                     name="antecedentes_quirurgicos"
                     value={form.antecedentes_quirurgicos}
                     onChange={handleChange}
+                    onBlur={() => marcarTocado('antecedentes_quirurgicos')}
+                    error={errorDe('antecedentes_quirurgicos')}
                     filas={2}
+                    placeholder='Escriba "Niega" si no aplica'
                   />
                   <CampoTextarea
                     label="Ant. alérgicos / farmacológicos"
                     name="antecedentes_alergicos"
                     value={form.antecedentes_alergicos}
                     onChange={handleChange}
+                    onBlur={() => marcarTocado('antecedentes_alergicos')}
+                    error={errorDe('antecedentes_alergicos')}
                     filas={2}
+                    placeholder='Escriba "Niega" si no aplica'
                   />
                   <CampoTextarea
                     label="Ant. familiares"
                     name="antecedentes_familiares"
                     value={form.antecedentes_familiares}
                     onChange={handleChange}
+                    onBlur={() => marcarTocado('antecedentes_familiares')}
+                    error={errorDe('antecedentes_familiares')}
                     filas={2}
+                    placeholder='Escriba "Niega" si no aplica'
                   />
                   <CampoTextarea
                     label="Ginecoobstétricos (si aplica)"
                     name="antecedentes_ginecoobstetricos"
                     value={form.antecedentes_ginecoobstetricos}
                     onChange={handleChange}
+                    onBlur={() => marcarTocado('antecedentes_ginecoobstetricos')}
+                    error={errorDe('antecedentes_ginecoobstetricos')}
                     filas={2}
+                    placeholder='Escriba "No aplica" si no corresponde'
                   />
                   <CampoTextarea
                     label="Hábitos"
                     name="habitos"
                     value={form.habitos}
                     onChange={handleChange}
+                    onBlur={() => marcarTocado('habitos')}
+                    error={errorDe('habitos')}
                     filas={2}
+                    placeholder='Escriba "Niega" si no aplica'
                   />
                 </div>
 
@@ -611,92 +627,119 @@ export default function FormularioAclaracion() {
                   <div className="fa-signo">
                     <label className="fa-campo__label">TA Sistólica (mmHg)</label>
                     <input
-                      className="fa-campo__input"
+                      className={`fa-campo__input ${errorDe('tension_arterial_sistolica') ? 'fa-input-error' : ''}`}
                       type="number"
                       name="tension_arterial_sistolica"
                       value={form.tension_arterial_sistolica}
                       onChange={handleChange}
+                      onBlur={() => marcarTocado('tension_arterial_sistolica')}
                       min="50" max="250"
                       placeholder="120"
                     />
+                    {errorDe('tension_arterial_sistolica') && (
+                      <small className="fa-campo-error">⚠ {errorDe('tension_arterial_sistolica')}</small>
+                    )}
                   </div>
                   <div className="fa-signo">
                     <label className="fa-campo__label">TA Diastólica (mmHg)</label>
                     <input
-                      className="fa-campo__input"
+                      className={`fa-campo__input ${errorDe('tension_arterial_diastolica') ? 'fa-input-error' : ''}`}
                       type="number"
                       name="tension_arterial_diastolica"
                       value={form.tension_arterial_diastolica}
                       onChange={handleChange}
+                      onBlur={() => marcarTocado('tension_arterial_diastolica')}
                       min="30" max="150"
                       placeholder="80"
                     />
+                    {errorDe('tension_arterial_diastolica') && (
+                      <small className="fa-campo-error">⚠ {errorDe('tension_arterial_diastolica')}</small>
+                    )}
                   </div>
                   <div className="fa-signo">
                     <label className="fa-campo__label">Frec. Cardíaca (lpm)</label>
                     <input
-                      className="fa-campo__input"
+                      className={`fa-campo__input ${errorDe('frecuencia_cardiaca') ? 'fa-input-error' : ''}`}
                       type="number"
                       name="frecuencia_cardiaca"
                       value={form.frecuencia_cardiaca}
                       onChange={handleChange}
+                      onBlur={() => marcarTocado('frecuencia_cardiaca')}
                       min="20" max="250"
                       placeholder="72"
                     />
+                    {errorDe('frecuencia_cardiaca') && (
+                      <small className="fa-campo-error">⚠ {errorDe('frecuencia_cardiaca')}</small>
+                    )}
                   </div>
                   <div className="fa-signo">
                     <label className="fa-campo__label">Frec. Respiratoria (rpm)</label>
                     <input
-                      className="fa-campo__input"
+                      className={`fa-campo__input ${errorDe('frecuencia_respiratoria') ? 'fa-input-error' : ''}`}
                       type="number"
                       name="frecuencia_respiratoria"
                       value={form.frecuencia_respiratoria}
                       onChange={handleChange}
+                      onBlur={() => marcarTocado('frecuencia_respiratoria')}
                       min="5" max="60"
                       placeholder="16"
                     />
+                    {errorDe('frecuencia_respiratoria') && (
+                      <small className="fa-campo-error">⚠ {errorDe('frecuencia_respiratoria')}</small>
+                    )}
                   </div>
                   <div className="fa-signo">
                     <label className="fa-campo__label">Temperatura (°C)</label>
                     <input
-                      className="fa-campo__input"
+                      className={`fa-campo__input ${errorDe('temperatura_corporal') ? 'fa-input-error' : ''}`}
                       type="number"
                       name="temperatura_corporal"
                       value={form.temperatura_corporal}
                       onChange={handleChange}
+                      onBlur={() => marcarTocado('temperatura_corporal')}
                       min="30" max="43"
                       step="0.1"
                       placeholder="36.6"
                     />
+                    {errorDe('temperatura_corporal') && (
+                      <small className="fa-campo-error">⚠ {errorDe('temperatura_corporal')}</small>
+                    )}
                   </div>
                   <div className="fa-signo">
                     <label className="fa-campo__label">Peso (kg)</label>
                     <input
-                      className="fa-campo__input"
+                      className={`fa-campo__input ${errorDe('peso_kg') ? 'fa-input-error' : ''}`}
                       type="number"
                       name="peso_kg"
                       value={form.peso_kg}
                       onChange={handleChange}
+                      onBlur={() => marcarTocado('peso_kg')}
                       min="1" max="300"
                       step="0.1"
                       placeholder="70"
                     />
+                    {errorDe('peso_kg') && (
+                      <small className="fa-campo-error">⚠ {errorDe('peso_kg')}</small>
+                    )}
                   </div>
                   <div className="fa-signo">
                     <label className="fa-campo__label">Talla (cm)</label>
                     <input
-                      className="fa-campo__input"
+                      className={`fa-campo__input ${errorDe('talla_cm') ? 'fa-input-error' : ''}`}
                       type="number"
                       name="talla_cm"
                       value={form.talla_cm}
                       onChange={handleChange}
+                      onBlur={() => marcarTocado('talla_cm')}
                       min="30" max="250"
                       step="0.1"
                       placeholder="170"
                     />
+                    {errorDe('talla_cm') && (
+                      <small className="fa-campo-error">⚠ {errorDe('talla_cm')}</small>
+                    )}
                   </div>
 
-                  {/* IMC calculado en tiempo real */}
                   {form.peso_kg && form.talla_cm && (
                     <div className="fa-imc-preview">
                       <span className="fa-imc-preview__label">IMC calculado</span>
@@ -713,6 +756,8 @@ export default function FormularioAclaracion() {
                   name="exploracion_por_sistemas"
                   value={form.exploracion_por_sistemas}
                   onChange={handleChange}
+                  onBlur={() => marcarTocado('exploracion_por_sistemas')}
+                  error={errorDe('exploracion_por_sistemas')}
                   filas={3}
                   placeholder="Hallazgos por sistemas: cardiovascular, respiratorio, neurológico..."
                 />
@@ -811,6 +856,8 @@ export default function FormularioAclaracion() {
                       name="incapacidad_dias"
                       value={form.incapacidad_dias}
                       onChange={handleChange}
+                      onBlur={() => marcarTocado('incapacidad_dias')}
+                      error={errorDe('incapacidad_dias')}
                       tipo="number"
                       min="0"
                       max="180"
@@ -884,7 +931,6 @@ export default function FormularioAclaracion() {
                   />
                 </div>
 
-                {/* Vista previa del cierre */}
                 <div className="fa-firma-preview">
                   <div className="fa-firma-preview__linea" />
                   <p className="fa-firma-preview__nombre">

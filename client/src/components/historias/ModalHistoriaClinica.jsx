@@ -1,17 +1,30 @@
 // client/src/components/historias/ModalHistoriaClinica.jsx
 // MELIKA — Modal de creación/visualización/aclaración de Historia Clínica
-// Incluye validación profesional end-to-end por paso, al guardar, Y TAMBIÉN
-// validación EN TIEMPO REAL por campo individual: cada campo se valida
-// apenas el médico escribe/cambia su valor, mostrando el error de inmediato
-// debajo del campo y bloqueando "Siguiente"/"Guardar todo" hasta que el paso
-// actual esté correctamente diligenciado.
+// Validación profesional end-to-end: por paso, al guardar, Y EN TIEMPO REAL
+// por campo individual — cada campo se valida apenas el médico escribe o
+// cambia su valor, mostrando el error de inmediato debajo del campo y
+// bloqueando "Siguiente"/"Guardar todo" hasta que el paso actual esté
+// correctamente diligenciado.
 //
-// Las reglas de validación de texto clínico viven en
-// client/src/utils/validacionClinica.js — ESPEJO EXACTO de
-// server/src/utils/validacionesHistoria.js. Esto evita que el médico pueda
-// escribir datos ilógicos (números, símbolos, texto repetido) en campos que
-// exigen una descripción clínica real; el mismo criterio que aplicará el
-// backend se aplica aquí desde el primer carácter.
+// Las reglas de validación viven en client/src/utils/validacionClinica.js —
+// ESPEJO de server/src/utils/validacionesHistoria.js.
+//
+// FIX v3:
+//   - Se agregó validación (texto y/o rango numérico) a TODOS los campos
+//     opcionales que antes dejaban pasar cualquier dato sin control:
+//     eps_aseguradora, contacto_responsable_nombre,
+//     contacto_responsable_telefono, antecedentes_ginecoobstetricos,
+//     exploracion_por_sistemas, frecuencia_respiratoria, incapacidad_dias.
+//   - Peso y talla ahora se validan por RANGO CLÍNICO en tiempo real
+//     (validarRangoSignoVital), no solo por el min/max decorativo del
+//     <input type="number">. Antes de este fix, valores como "1 kg" o
+//     "10 kg" en un paciente adulto no eran detectados por ninguna capa.
+//   - Cuando se conoce la fecha de nacimiento del paciente (historia ya
+//     cargada), el rango de peso/talla se ajusta a la edad real; si no se
+//     conoce (historia nueva), se asume paciente adulto.
+//   - Se agrega el campo "ordenes_medicas" al paso 5 y a la vista de solo
+//     lectura (existía en el estado y se enviaba al backend, pero no tenía
+//     <textarea> renderizado).
 
 import { useState, useEffect, useMemo } from 'react';
 import { PDFDownloadLink } from '@react-pdf/renderer';
@@ -22,6 +35,8 @@ import {
   validarTextoClinico,
   validarSoloDigitos,
   validarCie10,
+  validarRangoSignoVital,
+  calcularEdadAnios,
   esTextoTrivial,
 } from '../../utils/validacionClinica';
 import './ModalHistoriaClinica.css';
@@ -67,25 +82,23 @@ const FORM_INICIAL = {
 // texto ilógico (números/símbolos donde debe ir una descripción real).
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Campos que se validan EN TIEMPO REAL (por campo) para cada paso.
-// Se usa para: (1) decidir qué mostrar como error inline debajo del input
-// apenas el usuario lo toca, y (2) decidir si el paso actual está "limpio"
-// sin necesidad de esperar al clic en "Siguiente". Incluye también campos
-// opcionales: si el médico escribe algo trivial en un campo opcional, debe
-// verlo marcado igualmente (aunque dejarlo vacío sí está permitido).
+// Campos que se validan EN TIEMPO REAL (por campo) para cada paso. Incluye
+// también campos opcionales: si el médico escribe algo trivial/ilógico en
+// un campo opcional, debe verlo marcado igualmente, aunque dejarlo vacío sí
+// esté permitido.
 const CAMPOS_VALIDABLES_POR_PASO = {
-  1: ['motivo_consulta'],
+  1: ['motivo_consulta', 'eps_aseguradora', 'contacto_responsable_nombre', 'contacto_responsable_telefono'],
   2: [
     'anamnesis', 'antecedentes_patologicos', 'antecedentes_alergicos',
-    'antecedentes_quirurgicos', 'antecedentes_familiares', 'habitos',
+    'antecedentes_quirurgicos', 'antecedentes_familiares', 'antecedentes_ginecoobstetricos', 'habitos',
   ],
   3: [
     'tension_arterial_sistolica', 'tension_arterial_diastolica',
-    'frecuencia_cardiaca', 'temperatura_corporal', 'peso_kg', 'talla_cm',
-    'examen_fisico',
+    'frecuencia_cardiaca', 'frecuencia_respiratoria', 'temperatura_corporal',
+    'peso_kg', 'talla_cm', 'exploracion_por_sistemas', 'examen_fisico',
   ],
   4: ['diagnostico_cie10', 'descripcion_diagnostico'],
-  5: ['plan_tratamiento', 'recomendaciones', 'observaciones'],
+  5: ['plan_tratamiento', 'ordenes_medicas', 'recomendaciones', 'incapacidad_dias', 'observaciones'],
   6: ['medico_nombre_firma', 'medico_cedula_firma', 'medico_rethus_firma'],
 };
 
@@ -94,45 +107,62 @@ const CAMPOS_VALIDABLES_POR_PASO = {
 // exigen contenido real (no solo "no vacío"); los opcionales solo se
 // rechazan si el médico escribe algo trivial, nunca por dejarlos vacíos.
 const REGLAS_TEXTO_CAMPOS = {
-  motivo_consulta:          { minCaracteres: 8,  permitirNegacion: false, obligatorio: true  },
-  anamnesis:                { minCaracteres: 15, permitirNegacion: false, obligatorio: true  },
-  antecedentes_patologicos: { minCaracteres: 8,  permitirNegacion: true,  obligatorio: true  },
-  antecedentes_alergicos:   { minCaracteres: 8,  permitirNegacion: true,  obligatorio: true  },
-  antecedentes_quirurgicos: { minCaracteres: 5,  permitirNegacion: true,  obligatorio: false },
-  antecedentes_familiares:  { minCaracteres: 5,  permitirNegacion: true,  obligatorio: false },
-  habitos:                  { minCaracteres: 5,  permitirNegacion: true,  obligatorio: false },
-  examen_fisico:            { minCaracteres: 10, permitirNegacion: false, obligatorio: true  },
-  descripcion_diagnostico:  { minCaracteres: 8,  permitirNegacion: false, obligatorio: true  },
-  plan_tratamiento:         { minCaracteres: 10, permitirNegacion: false, obligatorio: true  },
-  medico_nombre_firma:      { minCaracteres: 5,  permitirNegacion: false, obligatorio: true  },
-  recomendaciones:          { minCaracteres: 0,  permitirNegacion: false, obligatorio: false },
-  observaciones:            { minCaracteres: 0,  permitirNegacion: false, obligatorio: false },
+  motivo_consulta:                { minCaracteres: 8,  permitirNegacion: false, obligatorio: true  },
+  anamnesis:                      { minCaracteres: 15, permitirNegacion: false, obligatorio: true  },
+  antecedentes_patologicos:       { minCaracteres: 8,  permitirNegacion: true,  obligatorio: true  },
+  antecedentes_alergicos:         { minCaracteres: 8,  permitirNegacion: true,  obligatorio: true  },
+  antecedentes_quirurgicos:       { minCaracteres: 5,  permitirNegacion: true,  obligatorio: false },
+  antecedentes_familiares:        { minCaracteres: 5,  permitirNegacion: true,  obligatorio: false },
+  antecedentes_ginecoobstetricos: { minCaracteres: 5,  permitirNegacion: true,  obligatorio: false },
+  habitos:                        { minCaracteres: 5,  permitirNegacion: true,  obligatorio: false },
+  exploracion_por_sistemas:       { minCaracteres: 5,  permitirNegacion: false, obligatorio: false },
+  examen_fisico:                  { minCaracteres: 10, permitirNegacion: false, obligatorio: true  },
+  descripcion_diagnostico:        { minCaracteres: 8,  permitirNegacion: false, obligatorio: true  },
+  plan_tratamiento:               { minCaracteres: 10, permitirNegacion: false, obligatorio: true  },
+  medico_nombre_firma:            { minCaracteres: 5,  permitirNegacion: false, obligatorio: true  },
+  eps_aseguradora:                { minCaracteres: 3,  permitirNegacion: false, obligatorio: false },
+  contacto_responsable_nombre:    { minCaracteres: 3,  permitirNegacion: false, obligatorio: false },
+  ordenes_medicas:                { minCaracteres: 0,  permitirNegacion: false, obligatorio: false },
+  recomendaciones:                { minCaracteres: 0,  permitirNegacion: false, obligatorio: false },
+  observaciones:                  { minCaracteres: 0,  permitirNegacion: false, obligatorio: false },
 };
 
 const ETIQUETAS_CAMPOS = {
-  motivo_consulta:          'El motivo de consulta',
-  anamnesis:                'La enfermedad actual (anamnesis)',
-  antecedentes_patologicos: 'Los antecedentes patológicos',
-  antecedentes_alergicos:   'Los antecedentes alérgicos',
-  antecedentes_quirurgicos: 'Los antecedentes quirúrgicos',
-  antecedentes_familiares:  'Los antecedentes familiares',
-  habitos:                  'Los hábitos',
-  examen_fisico:            'Los hallazgos del examen físico',
-  descripcion_diagnostico:  'La descripción del diagnóstico',
-  plan_tratamiento:         'El plan de tratamiento',
-  medico_nombre_firma:      'El nombre del médico firmante',
-  recomendaciones:          'Las recomendaciones',
-  observaciones:            'Las observaciones',
+  motivo_consulta:                'El motivo de consulta',
+  anamnesis:                      'La enfermedad actual (anamnesis)',
+  antecedentes_patologicos:       'Los antecedentes patológicos',
+  antecedentes_alergicos:         'Los antecedentes alérgicos',
+  antecedentes_quirurgicos:       'Los antecedentes quirúrgicos',
+  antecedentes_familiares:        'Los antecedentes familiares',
+  antecedentes_ginecoobstetricos: 'Los antecedentes ginecoobstétricos',
+  habitos:                        'Los hábitos',
+  exploracion_por_sistemas:       'La exploración por sistemas',
+  examen_fisico:                  'Los hallazgos del examen físico',
+  descripcion_diagnostico:        'La descripción del diagnóstico',
+  plan_tratamiento:               'El plan de tratamiento',
+  medico_nombre_firma:            'El nombre del médico firmante',
+  eps_aseguradora:                'La EPS / aseguradora',
+  contacto_responsable_nombre:    'El nombre del responsable',
+  contacto_responsable_telefono:  'El teléfono del responsable',
+  ordenes_medicas:                'Las órdenes médicas / exámenes',
+  recomendaciones:                'Las recomendaciones',
+  observaciones:                  'Las observaciones',
+  tension_arterial_sistolica:     'La tensión arterial sistólica',
+  tension_arterial_diastolica:    'La tensión arterial diastólica',
+  frecuencia_cardiaca:            'La frecuencia cardíaca',
+  frecuencia_respiratoria:        'La frecuencia respiratoria',
+  temperatura_corporal:           'La temperatura corporal',
+  peso_kg:                        'El peso',
+  talla_cm:                       'La talla',
+  incapacidad_dias:               'Los días de incapacidad',
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // VALIDACIÓN EN TIEMPO REAL — POR CAMPO INDIVIDUAL
 // Se ejecuta en cada cambio del campo para dar feedback inmediato al médico,
-// ANTES de que intente avanzar de paso o guardar. Complementa (no reemplaza)
-// validarPaso/validarFormularioCompleto, que siguen siendo la última barrera
-// antes de avanzar de paso o persistir en el backend.
+// ANTES de que intente avanzar de paso o guardar.
 // ─────────────────────────────────────────────────────────────────────────────
-function validarCampoUnico(campo, valorCrudo, form, esTeleconsulta) {
+function validarCampoUnico(campo, valorCrudo, form, esTeleconsulta, edadAnios) {
   const v = (valorCrudo ?? '').toString();
 
   // Campos de texto clínico — validados contra la misma regla del backend
@@ -141,6 +171,9 @@ function validarCampoUnico(campo, valorCrudo, form, esTeleconsulta) {
   }
 
   switch (campo) {
+    case 'contacto_responsable_telefono':
+      return validarSoloDigitos(v, ETIQUETAS_CAMPOS.contacto_responsable_telefono, false);
+
     case 'tension_arterial_sistolica':
     case 'tension_arterial_diastolica': {
       const sis = (form.tension_arterial_sistolica ?? '').toString();
@@ -148,25 +181,34 @@ function validarCampoUnico(campo, valorCrudo, form, esTeleconsulta) {
       if ((sis && !dia) || (!sis && dia)) {
         return 'Debe registrar sistólica y diastólica juntas.';
       }
-      if (!esTeleconsulta && !v) return 'Obligatoria en consulta presencial.';
-      return null;
+      return validarRangoSignoVital(campo, v, ETIQUETAS_CAMPOS[campo], {
+        obligatorio: !esTeleconsulta,
+        edadAnios,
+      });
     }
 
     case 'frecuencia_cardiaca':
-      if (!esTeleconsulta && !v) return 'Obligatoria en consulta presencial.';
-      return null;
-
     case 'temperatura_corporal':
-      if (!esTeleconsulta && !v) return 'Obligatoria en consulta presencial.';
-      return null;
+      return validarRangoSignoVital(campo, v, ETIQUETAS_CAMPOS[campo], {
+        obligatorio: !esTeleconsulta,
+        edadAnios,
+      });
+
+    case 'frecuencia_respiratoria':
+      return validarRangoSignoVital(campo, v, ETIQUETAS_CAMPOS[campo], {
+        obligatorio: false,
+        edadAnios,
+      });
 
     case 'peso_kg':
-      if (!esTeleconsulta && !v) return 'Obligatorio en consulta presencial.';
-      return null;
-
     case 'talla_cm':
-      if (!esTeleconsulta && !v) return 'Obligatoria en consulta presencial.';
-      return null;
+      return validarRangoSignoVital(campo, v, ETIQUETAS_CAMPOS[campo], {
+        obligatorio: !esTeleconsulta,
+        edadAnios,
+      });
+
+    case 'incapacidad_dias':
+      return validarRangoSignoVital(campo, v, ETIQUETAS_CAMPOS.incapacidad_dias, { obligatorio: false });
 
     case 'diagnostico_cie10':
       return validarCie10(v, { obligatorio: true });
@@ -182,11 +224,11 @@ function validarCampoUnico(campo, valorCrudo, form, esTeleconsulta) {
   }
 }
 
-function validarPaso(numeroPaso, form, recetas, examenes, esTeleconsulta) {
+function validarPaso(numeroPaso, form, recetas, examenes, esTeleconsulta, edadAnios) {
   const errores = [];
 
   (CAMPOS_VALIDABLES_POR_PASO[numeroPaso] || []).forEach(campo => {
-    const msg = validarCampoUnico(campo, form[campo], form, esTeleconsulta);
+    const msg = validarCampoUnico(campo, form[campo], form, esTeleconsulta, edadAnios);
     if (msg) errores.push(msg);
   });
 
@@ -218,10 +260,10 @@ function validarPaso(numeroPaso, form, recetas, examenes, esTeleconsulta) {
   return [...new Set(errores)];
 }
 
-function validarFormularioCompleto(form, recetas, examenes, esTeleconsulta) {
+function validarFormularioCompleto(form, recetas, examenes, esTeleconsulta, edadAnios) {
   let todos = [];
   for (let p = 1; p <= 6; p++) {
-    todos = todos.concat(validarPaso(p, form, recetas, examenes, esTeleconsulta));
+    todos = todos.concat(validarPaso(p, form, recetas, examenes, esTeleconsulta, edadAnios));
   }
   return [...new Set(todos)];
 }
@@ -252,10 +294,15 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
   const [erroresDetalle, setErroresDetalle] = useState([]);
 
   // ── Validación en tiempo real: qué campos ha "tocado" el médico ──────────
-  // Un campo solo muestra su error inline DESPUÉS de que el usuario lo tocó
-  // (cambió su valor) — así no se bombardea con errores rojos al abrir el
-  // formulario vacío, pero sí apenas empieza a escribir algo incompleto.
   const [tocado, setTocado] = useState({});
+
+  // Edad del paciente, cuando se conoce (historia ya cargada trae
+  // paciente_fecha_nac). Si no se conoce — típicamente al crear una
+  // historia nueva — validarRangoSignoVital asume paciente adulto.
+  const edadPacienteAnios = useMemo(
+    () => calcularEdadAnios(historiaFull?.paciente_fecha_nac ?? historia?.paciente_fecha_nac ?? null),
+    [historiaFull, historia]
+  );
 
   useEffect(() => {
     if (!cita?.id) return;
@@ -318,17 +365,11 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
   }, [cita?.id]);
 
   // ── handleChange: actualiza el valor Y marca el campo como "tocado" ──────
-  // Esto es lo que dispara la validación en tiempo real: apenas el campo
-  // se marca como tocado, el mensaje de error (si existe) aparece de
-  // inmediato debajo del input, sin esperar a que el médico haga clic en
-  // "Siguiente" o "Guardar".
   function handleChange(campo, valor) {
     setForm(prev => ({ ...prev, [campo]: valor }));
     setTocado(prev => (prev[campo] ? prev : { ...prev, [campo]: true }));
   }
 
-  // Marca un campo como tocado sin cambiar su valor — útil para onBlur en
-  // selects, radios o campos que no pasan por handleChange directamente.
   function marcarTocado(campo) {
     setTocado(prev => (prev[campo] ? prev : { ...prev, [campo]: true }));
   }
@@ -374,35 +415,26 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
   }
 
   // ── Errores en tiempo real del PASO ACTUAL (recalculados en cada render) ──
-  // Se usan para: (a) pintar el mensaje inline bajo cada campo tocado, y
-  // (b) desactivar "Siguiente"/"Guardar todo" mientras el paso no esté OK.
   const erroresCamposActuales = useMemo(() => {
     const campos = CAMPOS_VALIDABLES_POR_PASO[paso] || [];
     const mapa = {};
     campos.forEach(campo => {
-      const msg = validarCampoUnico(campo, form[campo], form, esTeleconsulta);
+      const msg = validarCampoUnico(campo, form[campo], form, esTeleconsulta, edadPacienteAnios);
       if (msg) mapa[campo] = msg;
     });
     return mapa;
-  }, [paso, form, esTeleconsulta]);
+  }, [paso, form, esTeleconsulta, edadPacienteAnios]);
 
-  // Errores "oficiales" del paso (misma regla que usa el backend) — es la
-  // fuente de verdad para bloquear la navegación, aunque el usuario aún no
-  // haya tocado todos los campos (evita que combine campos sin tocar con
-  // botón habilitado).
   const erroresPasoActualLive = useMemo(
-    () => validarPaso(paso, form, recetas, examenes, esTeleconsulta),
-    [paso, form, recetas, examenes, esTeleconsulta]
+    () => validarPaso(paso, form, recetas, examenes, esTeleconsulta, edadPacienteAnios),
+    [paso, form, recetas, examenes, esTeleconsulta, edadPacienteAnios]
   );
 
   const erroresFormularioCompletoLive = useMemo(
-    () => validarFormularioCompleto(form, recetas, examenes, esTeleconsulta),
-    [form, recetas, examenes, esTeleconsulta]
+    () => validarFormularioCompleto(form, recetas, examenes, esTeleconsulta, edadPacienteAnios),
+    [form, recetas, examenes, esTeleconsulta, edadPacienteAnios]
   );
 
-  // Pequeño helper de render: muestra el mensaje de error de un campo SOLO
-  // si el médico ya lo tocó — feedback inmediato sin ensuciar el formulario
-  // vacío al abrirlo.
   function renderErrorCampo(campo) {
     if (!tocado[campo] || !erroresCamposActuales[campo]) return null;
     return <small className="mhc-campo-error">⚠ {erroresCamposActuales[campo]}</small>;
@@ -413,10 +445,10 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
   }
 
   async function handleGuardar() {
-    const errores = validarFormularioCompleto(form, recetas, examenes, esTeleconsulta);
+    const errores = validarFormularioCompleto(form, recetas, examenes, esTeleconsulta, edadPacienteAnios);
     if (errores.length > 0) {
       mostrarErrores(errores);
-      setPaso(1); // regresa al inicio para que el médico revise todo el flujo
+      setPaso(1);
       return;
     }
 
@@ -461,9 +493,6 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
   }
 
   function pasoSiguiente() {
-    // Marcar todos los campos validables del paso como "tocados" para que,
-    // si por algún motivo el usuario llegó aquí con el botón habilitado por
-    // error, vea inmediatamente cuáles campos fallan.
     const campos = CAMPOS_VALIDABLES_POR_PASO[paso] || [];
     setTocado(prev => {
       const nuevo = { ...prev };
@@ -471,7 +500,7 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
       return nuevo;
     });
 
-    const errores = validarPaso(paso, form, recetas, examenes, esTeleconsulta);
+    const errores = validarPaso(paso, form, recetas, examenes, esTeleconsulta, edadPacienteAnios);
     if (errores.length > 0) {
       mostrarErrores(errores);
       return;
@@ -506,8 +535,6 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
 
   const puedeEditarOAclarar = esMedico && historia;
 
-  // El paso actual tiene errores según la MISMA regla del backend →
-  // esto es lo que realmente bloquea "Siguiente"/"Guardar todo".
   const pasoActualInvalido = erroresPasoActualLive.length > 0;
   const formularioCompletoInvalido = erroresFormularioCompletoLive.length > 0;
 
@@ -525,7 +552,6 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
             </p>
           </div>
           <div className="mhc-cabecera__acciones">
-            {/* 1. Botón Historia */}
             {historiaFull && !modoEdicion && !modoAclaracion && (
               <PDFDownloadLink
                 document={<PlantillaHistoriaPDF historia={historiaFull} aclaraciones={aclaraciones} />}
@@ -536,7 +562,6 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
               </PDFDownloadLink>
             )}
 
-            {/* 2. Botón Fórmula */}
             {historiaFull && recetas.length > 0 && !modoEdicion && !modoAclaracion && (
               <PDFDownloadLink
                 document={<PlantillaFormulaPDF historia={historiaFull} recetas={recetas} />}
@@ -547,7 +572,6 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
               </PDFDownloadLink>
             )}
 
-            {/* 3. Botón Exámenes */}
             {historiaFull && examenes.length > 0 && !modoEdicion && !modoAclaracion && (
               <PDFDownloadLink
                 document={<PlantillaExamenesPDF historia={historiaFull} examenes={examenes} />}
@@ -602,9 +626,41 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
                       <div className="mhc-seccion">
                         <h3 className="mhc-seccion__titulo"><span className="mhc-seccion__num">1</span>Identificación Administrativa</h3>
                         <div className="mhc-grid-2">
-                          <div className="mhc-campo"><label>EPS / Aseguradora</label><input type="text" value={form.eps_aseguradora} onChange={e => handleChange('eps_aseguradora', e.target.value)} placeholder="Ej: Sura…" /></div>
-                          <div className="mhc-campo"><label>Nombre del responsable</label><input type="text" value={form.contacto_responsable_nombre} onChange={e => handleChange('contacto_responsable_nombre', e.target.value)} placeholder="Acompañante" /></div>
-                          <div className="mhc-campo"><label>Teléfono del responsable</label><input type="tel" value={form.contacto_responsable_telefono} onChange={e => handleChange('contacto_responsable_telefono', e.target.value)} /></div>
+                          <div className="mhc-campo">
+                            <label>EPS / Aseguradora</label>
+                            <input
+                              className={claseError('eps_aseguradora')}
+                              type="text"
+                              value={form.eps_aseguradora}
+                              onChange={e => handleChange('eps_aseguradora', e.target.value)}
+                              onBlur={() => marcarTocado('eps_aseguradora')}
+                              placeholder="Ej: Sura…"
+                            />
+                            {renderErrorCampo('eps_aseguradora')}
+                          </div>
+                          <div className="mhc-campo">
+                            <label>Nombre del responsable</label>
+                            <input
+                              className={claseError('contacto_responsable_nombre')}
+                              type="text"
+                              value={form.contacto_responsable_nombre}
+                              onChange={e => handleChange('contacto_responsable_nombre', e.target.value)}
+                              onBlur={() => marcarTocado('contacto_responsable_nombre')}
+                              placeholder="Acompañante"
+                            />
+                            {renderErrorCampo('contacto_responsable_nombre')}
+                          </div>
+                          <div className="mhc-campo">
+                            <label>Teléfono del responsable</label>
+                            <input
+                              className={claseError('contacto_responsable_telefono')}
+                              type="tel"
+                              value={form.contacto_responsable_telefono}
+                              onChange={e => handleChange('contacto_responsable_telefono', e.target.value)}
+                              onBlur={() => marcarTocado('contacto_responsable_telefono')}
+                            />
+                            {renderErrorCampo('contacto_responsable_telefono')}
+                          </div>
                         </div>
                         <div className="mhc-campo mhc-campo--requerido">
                           <label>Motivo de consulta <span>*</span></label>
@@ -683,7 +739,18 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
                           />
                           {renderErrorCampo('antecedentes_familiares')}
                         </div>
-                        <div className="mhc-campo"><label>Antecedentes ginecoobstétricos</label><textarea rows={2} value={form.antecedentes_ginecoobstetricos} onChange={e => handleChange('antecedentes_ginecoobstetricos', e.target.value)} /></div>
+                        <div className="mhc-campo">
+                          <label>Antecedentes ginecoobstétricos</label>
+                          <textarea
+                            className={claseError('antecedentes_ginecoobstetricos')}
+                            rows={2}
+                            value={form.antecedentes_ginecoobstetricos}
+                            onChange={e => handleChange('antecedentes_ginecoobstetricos', e.target.value)}
+                            onBlur={() => marcarTocado('antecedentes_ginecoobstetricos')}
+                            placeholder='Escriba "No aplica" si no corresponde'
+                          />
+                          {renderErrorCampo('antecedentes_ginecoobstetricos')}
+                        </div>
                         <div className="mhc-campo">
                           <label>Hábitos</label>
                           <textarea
@@ -736,7 +803,17 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
                             />
                             {renderErrorCampo('frecuencia_cardiaca')}
                           </div>
-                          <div className="mhc-campo"><label>FR (rpm)</label><input type="number" min="5" max="60" value={form.frecuencia_respiratoria} onChange={e => handleChange('frecuencia_respiratoria', e.target.value)} /></div>
+                          <div className="mhc-campo">
+                            <label>FR (rpm)</label>
+                            <input
+                              className={claseError('frecuencia_respiratoria')}
+                              type="number" min="5" max="60"
+                              value={form.frecuencia_respiratoria}
+                              onChange={e => handleChange('frecuencia_respiratoria', e.target.value)}
+                              onBlur={() => marcarTocado('frecuencia_respiratoria')}
+                            />
+                            {renderErrorCampo('frecuencia_respiratoria')}
+                          </div>
                           <div className="mhc-campo">
                             <label>Temp (°C) {!esTeleconsulta && <span style={{color:'#E8856A'}}>*</span>}</label>
                             <input
@@ -772,7 +849,17 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
                           </div>
                           <div className="mhc-campo mhc-campo--imc"><label>IMC</label><div className="mhc-imc-display">{imcCalculado() ? <span className="mhc-imc-valor">{imcCalculado()} kg/m²</span> : <span className="mhc-imc-vacio">Calculando…</span>}</div></div>
                         </div>
-                        <div className="mhc-campo"><label>Exploración por sistemas</label><textarea rows={3} value={form.exploracion_por_sistemas} onChange={e => handleChange('exploracion_por_sistemas', e.target.value)} /></div>
+                        <div className="mhc-campo">
+                          <label>Exploración por sistemas</label>
+                          <textarea
+                            className={claseError('exploracion_por_sistemas')}
+                            rows={3}
+                            value={form.exploracion_por_sistemas}
+                            onChange={e => handleChange('exploracion_por_sistemas', e.target.value)}
+                            onBlur={() => marcarTocado('exploracion_por_sistemas')}
+                          />
+                          {renderErrorCampo('exploracion_por_sistemas')}
+                        </div>
                         <div className="mhc-campo mhc-campo--requerido">
                           <label>Hallazgos adicionales <span>*</span></label>
                           <textarea
@@ -916,6 +1003,19 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
                         </div>
 
                         <div className="mhc-campo" style={{ marginTop: '1.5rem' }}>
+                          <label>Órdenes médicas / notas adicionales de exámenes</label>
+                          <textarea
+                            className={claseError('ordenes_medicas')}
+                            rows={2}
+                            value={form.ordenes_medicas}
+                            onChange={e => handleChange('ordenes_medicas', e.target.value)}
+                            onBlur={() => marcarTocado('ordenes_medicas')}
+                            placeholder="Interconsultas, indicaciones sobre laboratorios ya ordenados, aclaraciones…"
+                          />
+                          {renderErrorCampo('ordenes_medicas')}
+                        </div>
+
+                        <div className="mhc-campo" style={{ marginTop: '1.5rem' }}>
                           <label>Recomendaciones generales y signos de alarma</label>
                           <textarea
                             className={claseError('recomendaciones')}
@@ -929,7 +1029,14 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
                         <div className="mhc-grid-2">
                           <div className="mhc-campo">
                             <label>Días de incapacidad</label>
-                            <input type="number" min="0" max="180" value={form.incapacidad_dias} onChange={e => handleChange('incapacidad_dias', e.target.value)} />
+                            <input
+                              className={claseError('incapacidad_dias')}
+                              type="number" min="0" max="180"
+                              value={form.incapacidad_dias}
+                              onChange={e => handleChange('incapacidad_dias', e.target.value)}
+                              onBlur={() => marcarTocado('incapacidad_dias')}
+                            />
+                            {renderErrorCampo('incapacidad_dias')}
                             {parseInt(form.incapacidad_dias, 10) > 0 && !form.diagnostico_cie10.trim() && (
                               <small style={{ color: '#DC2626' }}>⚠ Requiere diagnóstico CIE-10 (paso 4).</small>
                             )}
@@ -1029,7 +1136,6 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
                 </>
               )}
 
-              {/* ── VISTA DE SOLO LECTURA ── */}
               {!modoEdicion && !modoAclaracion && historia && (
                 <div className="mhc-vista">
                   <VistaHistoria historia={historia} recetas={recetas} examenes={examenes} />
@@ -1124,8 +1230,8 @@ function VistaHistoria({ historia, recetas = [], examenes = [] }) {
       <div className="mhc-vista-seccion">
         <h4>5. Plan de manejo y conducta</h4>
         {campo('Tratamiento General', historia.plan_tratamiento)}
+        {campo('Órdenes médicas / Exámenes', historia.ordenes_medicas)}
 
-        {/* RENDER TABULAR DE MEDICAMENTOS RECETADOS */}
         {recetas.length > 0 && (
           <div style={{ marginTop: '1rem', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '10px', backgroundColor: '#f8fafc' }}>
             <span style={{ fontWeight: 'bold', fontSize: '0.85rem', color: '#1e293b', display: 'block', marginBottom: '6px' }}>💊 Fórmula Médica:</span>
@@ -1157,7 +1263,6 @@ function VistaHistoria({ historia, recetas = [], examenes = [] }) {
           </div>
         )}
 
-        {/* RENDER DE EXÁMENES ORDENADOS */}
         {examenes.length > 0 && (
           <div style={{ marginTop: '1rem', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '10px', backgroundColor: '#f8fafc' }}>
             <span style={{ fontWeight: 'bold', fontSize: '0.85rem', color: '#1e293b', display: 'block', marginBottom: '6px' }}>🔬 Exámenes Ordenados:</span>
