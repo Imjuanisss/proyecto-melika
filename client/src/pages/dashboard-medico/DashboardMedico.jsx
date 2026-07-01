@@ -109,13 +109,13 @@ export default function DashboardMedico() {
   }, [fechaSeleccionada, vistaActiva, dispoTab, cargarAgenda, cargarFranjas]);
 
   // ── Interactividad del calendario ───────────────────────────────────────
-  function handleDateClick(info) {
-    setFechaSeleccionada(info.dateStr);
+ function handleDateClick(info) {
+    setFechaSeleccionada(info.dateStr.split('T')[0]); // 👈 fix: solo YYYY-MM-DD
     const calApi = calendarRef.current?.getApi();
     if (calApi && calApi.view.type === 'dayGridMonth') {
-      calApi.changeView('timeGridDay', info.dateStr);
+      calApi.changeView('timeGridDay', info.dateStr.split('T')[0]);
     }
-  }
+}
 
   // Click en evento del calendario: si es una franja disponible (sin
   // paciente), abre el panel de gestión rápida (editar/eliminar). Si es
@@ -351,11 +351,14 @@ export default function DashboardMedico() {
   }
 
   function formatFecha(fechaStr) {
-    if (!fechaStr) return '';
-    return new Date(fechaStr + 'T00:00:00').toLocaleDateString('es-CO', {
-      weekday: 'long', day: 'numeric', month: 'long',
+    if (!fechaStr) return '—';
+    const soloFecha = String(fechaStr).split('T')[0];
+    const fecha = new Date(`${soloFecha}T00:00:00`);
+    if (isNaN(fecha.getTime())) return '—';
+    return fecha.toLocaleDateString('es-CO', {
+        weekday: 'long', day: 'numeric', month: 'long',
     });
-  }
+}
 
   function formatHora(horaStr) {
     if (!horaStr) return '';

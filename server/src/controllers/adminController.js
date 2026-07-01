@@ -58,7 +58,8 @@ async function getStats(req, res) {
 
     // Últimas 5 citas
     const ultimasCitas = await pool.query(
-      `SELECT c.id, c.fecha, c.hora_inicio, c.estado, c.tipo_consulta,
+      `SELECT c.id, TO_CHAR(c.fecha, 'YYYY-MM-DD') AS fecha,
+              c.hora_inicio, c.estado, c.tipo_consulta,
               up.nombre AS paciente_nombre, up.primer_apellido AS paciente_apellido,
               um.nombre AS medico_nombre, um.primer_apellido AS medico_apellido,
               e.nombre  AS especialidad
