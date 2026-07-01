@@ -113,6 +113,17 @@ export default function Registro() {
   const [error, setError]     = useState(null);
   const [erroresDetalle, setErroresDetalle] = useState([]);
 
+  // ── Estado del correo de verificación ─────────────────────────────────────
+  // La cuenta puede quedar creada en el backend aunque el envío del correo
+  // falle (por ejemplo, un problema temporal con la API de Gmail). En ese
+  // caso NO debemos avanzar a la pantalla de "verificar código" — el usuario
+  // no tendría ningún código que ingresar. En su lugar, mostramos un aviso
+  // claro y un botón para reintentar el envío, y solo navegamos cuando el
+  // correo efectivamente salió.
+  const [cuentaCreada, setCuentaCreada] = useState(false);
+  const [reenviando,   setReenviando]   = useState(false);
+  const [avisoCorreo,  setAvisoCorreo]  = useState(null);
+
   function handleChange(e) {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
   }
@@ -121,6 +132,7 @@ export default function Registro() {
     e.preventDefault();
     setError(null);
     setErroresDetalle([]);
+    setAvisoCorreo(null);
 
     const errores = validarFormulario(form);
     if (errores.length > 0) {
@@ -131,20 +143,63 @@ export default function Registro() {
 
     setLoading(true);
     try {
-      await api.post('/auth/register', {
+      const emailNormalizado = form.email.trim().toLowerCase();
+      const res = await api.post('/auth/register', {
         ...form,
         nombre:           form.nombre.trim(),
         primer_apellido:  form.primer_apellido.trim(),
-        email:            form.email.trim().toLowerCase(),
+        email:            emailNormalizado,
         numero_documento: form.numero_documento.trim(),
       });
-      navigate(`/verificar?email=${encodeURIComponent(form.email.trim().toLowerCase())}`);
+
+      // La cuenta ya quedó creada en la base de datos — a partir de aquí
+      // un reintento de /auth/register fallaría con 409 "correo ya
+      // registrado", así que cualquier reintento debe hacerse contra
+      // /auth/reenviar-codigo, no volviendo a enviar el formulario.
+      setCuentaCreada(true);
+
+      if (res?.correoEnviado === false) {
+        // ⚠️ NO navegamos: no hay código útil esperando al usuario.
+        setAvisoCorreo(
+          'Tu cuenta fue creada, pero no pudimos enviarte el correo con el código de verificación. ' +
+          'Intenta reenviarlo con el botón de abajo.'
+        );
+      } else {
+        navigate(`/verificar?email=${encodeURIComponent(emailNormalizado)}`);
+      }
     } catch (err) {
       const detalle = Array.isArray(err?.errores) ? err.errores : [];
       setErroresDetalle(detalle);
       setError(detalle.length > 0 ? detalle.join(' ') : (err.message || 'No se pudo crear la cuenta.'));
     } finally {
       setLoading(false);
+    }
+  }
+
+  // ── Reintentar el envío del correo de verificación ────────────────────────
+  // Solo navega a /verificar cuando el reenvío efectivamente tuvo éxito.
+  async function handleReenviarCodigo() {
+    const emailNormalizado = form.email.trim().toLowerCase();
+    setReenviando(true);
+    setAvisoCorreo(null);
+    try {
+      const res = await api.post('/auth/reenviar-codigo', {
+        email: emailNormalizado,
+        tipo:  'registro',
+      });
+
+      if (res?.correoEnviado === false) {
+        setAvisoCorreo(
+          'Seguimos sin poder enviar el correo. Verifica tu conexión o intenta de nuevo en unos minutos.'
+        );
+        return;
+      }
+
+      navigate(`/verificar?email=${encodeURIComponent(emailNormalizado)}`);
+    } catch (err) {
+      setAvisoCorreo(err?.mensaje || err?.message || 'No se pudo reenviar el código. Intenta de nuevo.');
+    } finally {
+      setReenviando(false);
     }
   }
 
@@ -164,6 +219,25 @@ export default function Registro() {
                 {erroresDetalle.map((e, i) => <li key={i}>{e}</li>)}
               </ul>
             ) : error}
+          </div>
+        )}
+
+        {/* ── Aviso: cuenta creada pero el correo de verificación falló ──
+            No navegamos a /verificar en este caso porque el usuario no
+            tendría ningún código válido esperándolo. Se ofrece reintentar
+            el envío explícitamente. */}
+        {avisoCorreo && (
+          <div className="auth-error" style={{ background: '#FEF3C7', borderColor: '#B45309', color: '#92400E' }}>
+            <p style={{ margin: '0 0 10px' }}>⚠️ {avisoCorreo}</p>
+            <button
+              type="button"
+              className="auth-btn"
+              onClick={handleReenviarCodigo}
+              disabled={reenviando}
+              style={{ width: 'auto', padding: '8px 18px' }}
+            >
+              {reenviando ? 'Reenviando…' : '📩 Reenviar código'}
+            </button>
           </div>
         )}
 
@@ -260,8 +334,8 @@ export default function Registro() {
             />
           </div>
 
-          <button type="submit" className="auth-btn" disabled={loading}>
-            {loading ? 'Creando cuenta…' : 'Crear cuenta'}
+          <button type="submit" className="auth-btn" disabled={loading || cuentaCreada}>
+            {loading ? 'Creando cuenta…' : cuentaCreada ? 'Cuenta creada ✓' : 'Crear cuenta'}
           </button>
         </form>
 

@@ -1,8 +1,13 @@
 // client/src/components/historias/ModalHistoriaClinica.jsx
 // MELIKA — Modal de creación/visualización/aclaración de Historia Clínica
-// Incluye validación profesional end-to-end por paso y al guardar.
+// Incluye validación profesional end-to-end por paso, al guardar, Y AHORA
+// TAMBIÉN validación EN TIEMPO REAL por campo individual: cada campo se
+// valida apenas el médico escribe/cambia su valor, mostrando el error de
+// inmediato debajo del campo y bloqueando "Siguiente"/"Guardar todo" hasta
+// que el paso actual esté correctamente diligenciado. Ya no es posible
+// llegar al final del formulario y enterarse ahí de que algo falta.
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { useAuth } from '../../context/AuthContext';
 import { api }    from '../../lib/apiClient';
@@ -49,6 +54,108 @@ const FORM_INICIAL = {
 // al servidor con una historia incompleta o clínicamente inconsistente.
 // ─────────────────────────────────────────────────────────────────────────────
 const REGEX_CIE10 = /^[A-Z][0-9]{2}(\.[0-9X]{1,2})?$/;
+
+// Campos que se validan EN TIEMPO REAL (por campo) para cada paso.
+// Se usa para: (1) decidir qué mostrar como error inline debajo del input
+// apenas el usuario lo toca, y (2) decidir si el paso actual está "limpio"
+// sin necesidad de esperar al clic en "Siguiente".
+const CAMPOS_VALIDABLES_POR_PASO = {
+  1: ['motivo_consulta'],
+  2: ['anamnesis', 'antecedentes_patologicos', 'antecedentes_alergicos'],
+  3: [
+    'tension_arterial_sistolica', 'tension_arterial_diastolica',
+    'frecuencia_cardiaca', 'temperatura_corporal', 'peso_kg', 'talla_cm',
+    'examen_fisico',
+  ],
+  4: ['diagnostico_cie10', 'descripcion_diagnostico'],
+  5: ['plan_tratamiento'],
+  6: ['medico_nombre_firma', 'medico_rethus_firma'],
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// VALIDACIÓN EN TIEMPO REAL — POR CAMPO INDIVIDUAL
+// Se ejecuta en cada cambio del campo para dar feedback inmediato al médico,
+// ANTES de que intente avanzar de paso o guardar. Complementa (no reemplaza)
+// validarPaso/validarFormularioCompleto, que siguen siendo la última barrera
+// antes de avanzar de paso o persistir en el backend.
+// ─────────────────────────────────────────────────────────────────────────────
+function validarCampoUnico(campo, valorCrudo, form, esTeleconsulta) {
+  const v = (valorCrudo ?? '').toString();
+  const vTrim = v.trim();
+
+  switch (campo) {
+    case 'motivo_consulta':
+      if (!vTrim) return 'El motivo de consulta es obligatorio.';
+      return null;
+
+    case 'anamnesis':
+      if (!vTrim) return 'La enfermedad actual (anamnesis) es obligatoria.';
+      return null;
+
+    case 'antecedentes_patologicos':
+      if (!vTrim) return 'Obligatorio. Escriba "Niega" si no aplica.';
+      return null;
+
+    case 'antecedentes_alergicos':
+      if (!vTrim) return 'Obligatorio. Escriba "Niega" si no aplica.';
+      return null;
+
+    case 'tension_arterial_sistolica':
+    case 'tension_arterial_diastolica': {
+      const sis = (form.tension_arterial_sistolica ?? '').toString();
+      const dia = (form.tension_arterial_diastolica ?? '').toString();
+      if ((sis && !dia) || (!sis && dia)) {
+        return 'Debe registrar sistólica y diastólica juntas.';
+      }
+      if (!esTeleconsulta && !v) return 'Obligatoria en consulta presencial.';
+      return null;
+    }
+
+    case 'frecuencia_cardiaca':
+      if (!esTeleconsulta && !v) return 'Obligatoria en consulta presencial.';
+      return null;
+
+    case 'temperatura_corporal':
+      if (!esTeleconsulta && !v) return 'Obligatoria en consulta presencial.';
+      return null;
+
+    case 'peso_kg':
+      if (!esTeleconsulta && !v) return 'Obligatorio en consulta presencial.';
+      return null;
+
+    case 'talla_cm':
+      if (!esTeleconsulta && !v) return 'Obligatoria en consulta presencial.';
+      return null;
+
+    case 'examen_fisico':
+      if (!vTrim) return 'Los hallazgos del examen físico son obligatorios.';
+      return null;
+
+    case 'diagnostico_cie10':
+      if (!vTrim) return 'El código CIE-10 es obligatorio.';
+      if (!REGEX_CIE10.test(vTrim.toUpperCase())) return 'Formato inválido (ej. J06.9).';
+      return null;
+
+    case 'descripcion_diagnostico':
+      if (!vTrim) return 'La descripción del diagnóstico es obligatoria.';
+      return null;
+
+    case 'plan_tratamiento':
+      if (!vTrim) return 'El plan de tratamiento es obligatorio.';
+      return null;
+
+    case 'medico_nombre_firma':
+      if (!vTrim) return 'El nombre del médico firmante es obligatorio.';
+      return null;
+
+    case 'medico_rethus_firma':
+      if (!vTrim) return 'El registro ReTHUS es obligatorio.';
+      return null;
+
+    default:
+      return null;
+  }
+}
 
 function validarPaso(numeroPaso, form, recetas, examenes, esTeleconsulta) {
   const errores = [];
@@ -155,6 +262,12 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
   const [error,         setError]         = useState(null);
   const [erroresDetalle, setErroresDetalle] = useState([]);
 
+  // ── Validación en tiempo real: qué campos ha "tocado" el médico ──────────
+  // Un campo solo muestra su error inline DESPUÉS de que el usuario lo tocó
+  // (cambió su valor) — así no se bombardea con errores rojos al abrir el
+  // formulario vacío, pero sí apenas empieza a escribir algo incompleto.
+  const [tocado, setTocado] = useState({});
+
   useEffect(() => {
     if (!cita?.id) return;
     setLoading(true);
@@ -215,8 +328,20 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
       .finally(() => setLoading(false));
   }, [cita?.id]);
 
+  // ── handleChange: actualiza el valor Y marca el campo como "tocado" ──────
+  // Esto es lo que dispara la validación en tiempo real: apenas el campo
+  // se marca como tocado, el mensaje de error (si existe) aparece de
+  // inmediato debajo del input, sin esperar a que el médico haga clic en
+  // "Siguiente" o "Guardar".
   function handleChange(campo, valor) {
     setForm(prev => ({ ...prev, [campo]: valor }));
+    setTocado(prev => (prev[campo] ? prev : { ...prev, [campo]: true }));
+  }
+
+  // Marca un campo como tocado sin cambiar su valor — útil para onBlur en
+  // selects, radios o campos que no pasan por handleChange directamente.
+  function marcarTocado(campo) {
+    setTocado(prev => (prev[campo] ? prev : { ...prev, [campo]: true }));
   }
 
   const agregarMedicamento = () => {
@@ -257,6 +382,45 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
   function mostrarErrores(listaErrores, fallback) {
     setErroresDetalle(listaErrores);
     setError(listaErrores.length > 0 ? listaErrores.join(' ') : fallback);
+  }
+
+  // ── Errores en tiempo real del PASO ACTUAL (recalculados en cada render) ──
+  // Se usan para: (a) pintar el mensaje inline bajo cada campo tocado, y
+  // (b) desactivar "Siguiente"/"Guardar todo" mientras el paso no esté OK.
+  const erroresCamposActuales = useMemo(() => {
+    const campos = CAMPOS_VALIDABLES_POR_PASO[paso] || [];
+    const mapa = {};
+    campos.forEach(campo => {
+      const msg = validarCampoUnico(campo, form[campo], form, esTeleconsulta);
+      if (msg) mapa[campo] = msg;
+    });
+    return mapa;
+  }, [paso, form, esTeleconsulta]);
+
+  // Errores "oficiales" del paso (misma regla que usa el backend) — es la
+  // fuente de verdad para bloquear la navegación, aunque el usuario aún no
+  // haya tocado todos los campos (evita que combine campos sin tocar con
+  // botón habilitado).
+  const erroresPasoActualLive = useMemo(
+    () => validarPaso(paso, form, recetas, examenes, esTeleconsulta),
+    [paso, form, recetas, examenes, esTeleconsulta]
+  );
+
+  const erroresFormularioCompletoLive = useMemo(
+    () => validarFormularioCompleto(form, recetas, examenes, esTeleconsulta),
+    [form, recetas, examenes, esTeleconsulta]
+  );
+
+  // Pequeño helper de render: muestra el mensaje de error de un campo SOLO
+  // si el médico ya lo tocó — feedback inmediato sin ensuciar el formulario
+  // vacío al abrirlo.
+  function renderErrorCampo(campo) {
+    if (!tocado[campo] || !erroresCamposActuales[campo]) return null;
+    return <small className="mhc-campo-error">⚠ {erroresCamposActuales[campo]}</small>;
+  }
+
+  function claseError(campo) {
+    return tocado[campo] && erroresCamposActuales[campo] ? 'mhc-input-error' : '';
   }
 
   async function handleGuardar() {
@@ -308,6 +472,16 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
   }
 
   function pasoSiguiente() {
+    // Marcar todos los campos validables del paso como "tocados" para que,
+    // si por algún motivo el usuario llegó aquí con el botón habilitado por
+    // error, vea inmediatamente cuáles campos fallan.
+    const campos = CAMPOS_VALIDABLES_POR_PASO[paso] || [];
+    setTocado(prev => {
+      const nuevo = { ...prev };
+      campos.forEach(c => { nuevo[c] = true; });
+      return nuevo;
+    });
+
     const errores = validarPaso(paso, form, recetas, examenes, esTeleconsulta);
     if (errores.length > 0) {
       mostrarErrores(errores);
@@ -332,6 +506,7 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
     setPaso(1);
     setError(null);
     setErroresDetalle([]);
+    setTocado({});
   }
 
   function cancelarAclaracion() {
@@ -341,6 +516,11 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
   }
 
   const puedeEditarOAclarar = esMedico && historia;
+
+  // El paso actual tiene errores según la MISMA regla del backend →
+  // esto es lo que realmente bloquea "Siguiente"/"Guardar todo".
+  const pasoActualInvalido = erroresPasoActualLive.length > 0;
+  const formularioCompletoInvalido = erroresFormularioCompletoLive.length > 0;
 
   return (
     <div className="mhc-overlay" role="dialog" aria-modal="true" aria-label="Historia Clínica">
@@ -439,7 +619,15 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
                         </div>
                         <div className="mhc-campo mhc-campo--requerido">
                           <label>Motivo de consulta <span>*</span></label>
-                          <textarea rows={3} value={form.motivo_consulta} onChange={e => handleChange('motivo_consulta', e.target.value)} placeholder="Palabras del paciente…" />
+                          <textarea
+                            className={claseError('motivo_consulta')}
+                            rows={3}
+                            value={form.motivo_consulta}
+                            onChange={e => handleChange('motivo_consulta', e.target.value)}
+                            onBlur={() => marcarTocado('motivo_consulta')}
+                            placeholder="Palabras del paciente…"
+                          />
+                          {renderErrorCampo('motivo_consulta')}
                         </div>
                       </div>
                     )}
@@ -447,10 +635,42 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
                     {paso === 2 && (
                       <div className="mhc-seccion">
                         <h3 className="mhc-seccion__titulo"><span className="mhc-seccion__num">2</span>Anamnesis</h3>
-                        <div className="mhc-campo mhc-campo--requerido"><label>Enfermedad actual <span>*</span></label><textarea rows={4} value={form.anamnesis} onChange={e => handleChange('anamnesis', e.target.value)} /></div>
-                        <div className="mhc-campo mhc-campo--requerido"><label>Antecedentes patológicos <span>*</span></label><textarea rows={2} value={form.antecedentes_patologicos} onChange={e => handleChange('antecedentes_patologicos', e.target.value)} placeholder='Escriba "Niega" si no aplica' /></div>
+                        <div className="mhc-campo mhc-campo--requerido">
+                          <label>Enfermedad actual <span>*</span></label>
+                          <textarea
+                            className={claseError('anamnesis')}
+                            rows={4}
+                            value={form.anamnesis}
+                            onChange={e => handleChange('anamnesis', e.target.value)}
+                            onBlur={() => marcarTocado('anamnesis')}
+                          />
+                          {renderErrorCampo('anamnesis')}
+                        </div>
+                        <div className="mhc-campo mhc-campo--requerido">
+                          <label>Antecedentes patológicos <span>*</span></label>
+                          <textarea
+                            className={claseError('antecedentes_patologicos')}
+                            rows={2}
+                            value={form.antecedentes_patologicos}
+                            onChange={e => handleChange('antecedentes_patologicos', e.target.value)}
+                            onBlur={() => marcarTocado('antecedentes_patologicos')}
+                            placeholder='Escriba "Niega" si no aplica'
+                          />
+                          {renderErrorCampo('antecedentes_patologicos')}
+                        </div>
                         <div className="mhc-campo"><label>Antecedentes quirúrgicos</label><textarea rows={2} value={form.antecedentes_quirurgicos} onChange={e => handleChange('antecedentes_quirurgicos', e.target.value)} /></div>
-                        <div className="mhc-campo mhc-campo--requerido"><label>Antecedentes alérgicos <span>*</span></label><textarea rows={2} value={form.antecedentes_alergicos} onChange={e => handleChange('antecedentes_alergicos', e.target.value)} placeholder='Escriba "Niega" si no aplica' /></div>
+                        <div className="mhc-campo mhc-campo--requerido">
+                          <label>Antecedentes alérgicos <span>*</span></label>
+                          <textarea
+                            className={claseError('antecedentes_alergicos')}
+                            rows={2}
+                            value={form.antecedentes_alergicos}
+                            onChange={e => handleChange('antecedentes_alergicos', e.target.value)}
+                            onBlur={() => marcarTocado('antecedentes_alergicos')}
+                            placeholder='Escriba "Niega" si no aplica'
+                          />
+                          {renderErrorCampo('antecedentes_alergicos')}
+                        </div>
                         <div className="mhc-campo"><label>Antecedentes familiares</label><textarea rows={2} value={form.antecedentes_familiares} onChange={e => handleChange('antecedentes_familiares', e.target.value)} /></div>
                         <div className="mhc-campo"><label>Antecedentes ginecoobstétricos</label><textarea rows={2} value={form.antecedentes_ginecoobstetricos} onChange={e => handleChange('antecedentes_ginecoobstetricos', e.target.value)} /></div>
                         <div className="mhc-campo"><label>Hábitos</label><textarea rows={2} value={form.habitos} onChange={e => handleChange('habitos', e.target.value)} /></div>
@@ -461,17 +681,87 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
                       <div className="mhc-seccion">
                         <h3 className="mhc-seccion__titulo"><span className="mhc-seccion__num">3</span>Examen Físico {esTeleconsulta && <small style={{ fontWeight: 400, fontSize: '0.7rem', color: '#94a3b8' }}>(teleconsulta — signos vitales opcionales)</small>}</h3>
                         <div className="mhc-grid-signos">
-                          <div className="mhc-campo"><label>TA Sistólica {!esTeleconsulta && <span style={{color:'#E8856A'}}>*</span>}</label><input type="number" min="50" max="250" value={form.tension_arterial_sistolica} onChange={e => handleChange('tension_arterial_sistolica', e.target.value)} /></div>
-                          <div className="mhc-campo"><label>TA Diastólica {!esTeleconsulta && <span style={{color:'#E8856A'}}>*</span>}</label><input type="number" min="30" max="150" value={form.tension_arterial_diastolica} onChange={e => handleChange('tension_arterial_diastolica', e.target.value)} /></div>
-                          <div className="mhc-campo"><label>FC (lpm) {!esTeleconsulta && <span style={{color:'#E8856A'}}>*</span>}</label><input type="number" min="20" max="250" value={form.frecuencia_cardiaca} onChange={e => handleChange('frecuencia_cardiaca', e.target.value)} /></div>
+                          <div className="mhc-campo">
+                            <label>TA Sistólica {!esTeleconsulta && <span style={{color:'#E8856A'}}>*</span>}</label>
+                            <input
+                              className={claseError('tension_arterial_sistolica')}
+                              type="number" min="50" max="250"
+                              value={form.tension_arterial_sistolica}
+                              onChange={e => handleChange('tension_arterial_sistolica', e.target.value)}
+                              onBlur={() => marcarTocado('tension_arterial_sistolica')}
+                            />
+                            {renderErrorCampo('tension_arterial_sistolica')}
+                          </div>
+                          <div className="mhc-campo">
+                            <label>TA Diastólica {!esTeleconsulta && <span style={{color:'#E8856A'}}>*</span>}</label>
+                            <input
+                              className={claseError('tension_arterial_diastolica')}
+                              type="number" min="30" max="150"
+                              value={form.tension_arterial_diastolica}
+                              onChange={e => handleChange('tension_arterial_diastolica', e.target.value)}
+                              onBlur={() => marcarTocado('tension_arterial_diastolica')}
+                            />
+                            {renderErrorCampo('tension_arterial_diastolica')}
+                          </div>
+                          <div className="mhc-campo">
+                            <label>FC (lpm) {!esTeleconsulta && <span style={{color:'#E8856A'}}>*</span>}</label>
+                            <input
+                              className={claseError('frecuencia_cardiaca')}
+                              type="number" min="20" max="250"
+                              value={form.frecuencia_cardiaca}
+                              onChange={e => handleChange('frecuencia_cardiaca', e.target.value)}
+                              onBlur={() => marcarTocado('frecuencia_cardiaca')}
+                            />
+                            {renderErrorCampo('frecuencia_cardiaca')}
+                          </div>
                           <div className="mhc-campo"><label>FR (rpm)</label><input type="number" min="5" max="60" value={form.frecuencia_respiratoria} onChange={e => handleChange('frecuencia_respiratoria', e.target.value)} /></div>
-                          <div className="mhc-campo"><label>Temp (°C) {!esTeleconsulta && <span style={{color:'#E8856A'}}>*</span>}</label><input type="number" min="30" max="43" step="0.1" value={form.temperatura_corporal} onChange={e => handleChange('temperatura_corporal', e.target.value)} /></div>
-                          <div className="mhc-campo"><label>Peso (kg) {!esTeleconsulta && <span style={{color:'#E8856A'}}>*</span>}</label><input type="number" min="1" max="300" step="0.1" value={form.peso_kg} onChange={e => handleChange('peso_kg', e.target.value)} /></div>
-                          <div className="mhc-campo"><label>Talla (cm) {!esTeleconsulta && <span style={{color:'#E8856A'}}>*</span>}</label><input type="number" min="30" max="250" value={form.talla_cm} onChange={e => handleChange('talla_cm', e.target.value)} /></div>
+                          <div className="mhc-campo">
+                            <label>Temp (°C) {!esTeleconsulta && <span style={{color:'#E8856A'}}>*</span>}</label>
+                            <input
+                              className={claseError('temperatura_corporal')}
+                              type="number" min="30" max="43" step="0.1"
+                              value={form.temperatura_corporal}
+                              onChange={e => handleChange('temperatura_corporal', e.target.value)}
+                              onBlur={() => marcarTocado('temperatura_corporal')}
+                            />
+                            {renderErrorCampo('temperatura_corporal')}
+                          </div>
+                          <div className="mhc-campo">
+                            <label>Peso (kg) {!esTeleconsulta && <span style={{color:'#E8856A'}}>*</span>}</label>
+                            <input
+                              className={claseError('peso_kg')}
+                              type="number" min="1" max="300" step="0.1"
+                              value={form.peso_kg}
+                              onChange={e => handleChange('peso_kg', e.target.value)}
+                              onBlur={() => marcarTocado('peso_kg')}
+                            />
+                            {renderErrorCampo('peso_kg')}
+                          </div>
+                          <div className="mhc-campo">
+                            <label>Talla (cm) {!esTeleconsulta && <span style={{color:'#E8856A'}}>*</span>}</label>
+                            <input
+                              className={claseError('talla_cm')}
+                              type="number" min="30" max="250"
+                              value={form.talla_cm}
+                              onChange={e => handleChange('talla_cm', e.target.value)}
+                              onBlur={() => marcarTocado('talla_cm')}
+                            />
+                            {renderErrorCampo('talla_cm')}
+                          </div>
                           <div className="mhc-campo mhc-campo--imc"><label>IMC</label><div className="mhc-imc-display">{imcCalculado() ? <span className="mhc-imc-valor">{imcCalculado()} kg/m²</span> : <span className="mhc-imc-vacio">Calculando…</span>}</div></div>
                         </div>
                         <div className="mhc-campo"><label>Exploración por sistemas</label><textarea rows={3} value={form.exploracion_por_sistemas} onChange={e => handleChange('exploracion_por_sistemas', e.target.value)} /></div>
-                        <div className="mhc-campo mhc-campo--requerido"><label>Hallazgos adicionales <span>*</span></label><textarea rows={2} value={form.examen_fisico} onChange={e => handleChange('examen_fisico', e.target.value)} /></div>
+                        <div className="mhc-campo mhc-campo--requerido">
+                          <label>Hallazgos adicionales <span>*</span></label>
+                          <textarea
+                            className={claseError('examen_fisico')}
+                            rows={2}
+                            value={form.examen_fisico}
+                            onChange={e => handleChange('examen_fisico', e.target.value)}
+                            onBlur={() => marcarTocado('examen_fisico')}
+                          />
+                          {renderErrorCampo('examen_fisico')}
+                        </div>
                       </div>
                     )}
 
@@ -481,10 +771,29 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
                         <div className="mhc-grid-2">
                           <div className="mhc-campo mhc-campo--requerido">
                             <label>Código CIE-10 <span>*</span></label>
-                            <input type="text" value={form.diagnostico_cie10} onChange={e => handleChange('diagnostico_cie10', e.target.value.toUpperCase())} maxLength={10} placeholder="Ej: J06.9" />
+                            <input
+                              className={claseError('diagnostico_cie10')}
+                              type="text"
+                              value={form.diagnostico_cie10}
+                              onChange={e => handleChange('diagnostico_cie10', e.target.value.toUpperCase())}
+                              onBlur={() => marcarTocado('diagnostico_cie10')}
+                              maxLength={10}
+                              placeholder="Ej: J06.9"
+                            />
+                            {renderErrorCampo('diagnostico_cie10')}
                           </div>
                         </div>
-                        <div className="mhc-campo mhc-campo--requerido"><label>Descripción del diagnóstico <span>*</span></label><textarea rows={4} value={form.descripcion_diagnostico} onChange={e => handleChange('descripcion_diagnostico', e.target.value)} /></div>
+                        <div className="mhc-campo mhc-campo--requerido">
+                          <label>Descripción del diagnóstico <span>*</span></label>
+                          <textarea
+                            className={claseError('descripcion_diagnostico')}
+                            rows={4}
+                            value={form.descripcion_diagnostico}
+                            onChange={e => handleChange('descripcion_diagnostico', e.target.value)}
+                            onBlur={() => marcarTocado('descripcion_diagnostico')}
+                          />
+                          {renderErrorCampo('descripcion_diagnostico')}
+                        </div>
                       </div>
                     )}
 
@@ -494,7 +803,15 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
 
                         <div className="mhc-campo mhc-campo--requerido">
                           <label>Plan de tratamiento general <span>*</span></label>
-                          <textarea rows={2} value={form.plan_tratamiento} onChange={e => handleChange('plan_tratamiento', e.target.value)} placeholder="Tratamiento o conducta general…" />
+                          <textarea
+                            className={claseError('plan_tratamiento')}
+                            rows={2}
+                            value={form.plan_tratamiento}
+                            onChange={e => handleChange('plan_tratamiento', e.target.value)}
+                            onBlur={() => marcarTocado('plan_tratamiento')}
+                            placeholder="Tratamiento o conducta general…"
+                          />
+                          {renderErrorCampo('plan_tratamiento')}
                         </div>
 
                         <div className="mhc-dinamico-container" style={{ marginTop: '1.5rem', border: '1px solid #e2e8f0', padding: '1rem', borderRadius: '8px' }}>
@@ -506,8 +823,10 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
                           {recetas.length === 0 ? (
                             <p style={{ color: '#64748b', fontSize: '0.9rem', fontStyle: 'italic' }}>No hay medicamentos agregados a la fórmula.</p>
                           ) : (
-                            recetas.map((r, index) => (
-                              <div key={index} style={{ background: '#f8fafc', padding: '1rem', borderRadius: '6px', marginBottom: '1rem', border: '1px solid #f1f5f9' }}>
+                            recetas.map((r, index) => {
+                              const recetaIncompleta = !r.medicamento?.trim() || !r.dosis?.trim() || !r.frecuencia?.trim() || !r.duracion?.trim();
+                              return (
+                              <div key={index} style={{ background: '#f8fafc', padding: '1rem', borderRadius: '6px', marginBottom: '1rem', border: recetaIncompleta ? '1px solid #DC2626' : '1px solid #f1f5f9' }}>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '10px' }}>
                                   <input type="text" placeholder="Nombre del medicamento *" value={r.medicamento} onChange={e => handleRecetaChange(index, 'medicamento', e.target.value)} style={{ padding: '6px', borderRadius: '4px', border: '1px solid #cbd5e1' }} />
                                   <input type="text" placeholder="Dosis (Ej: 500mg) *" value={r.dosis} onChange={e => handleRecetaChange(index, 'dosis', e.target.value)} style={{ padding: '6px', borderRadius: '4px', border: '1px solid #cbd5e1' }} />
@@ -519,8 +838,13 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
                                   <button type="button" onClick={() => eliminarMedicamento(index)} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '1.1rem', cursor: 'pointer' }} title="Eliminar row">🗑️</button>
                                 </div>
                                 <input type="text" placeholder="Indicaciones adicionales (Ej: Tomar con alimentos)" value={r.indicaciones} onChange={e => handleRecetaChange(index, 'indicaciones', e.target.value)} style={{ padding: '6px', width: '100%', marginTop: '8px', borderRadius: '4px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
+                                {recetaIncompleta && (
+                                  <small className="mhc-campo-error" style={{ display: 'block', marginTop: '6px' }}>
+                                    ⚠ Complete medicamento, dosis, frecuencia y duración, o elimine esta fórmula.
+                                  </small>
+                                )}
                               </div>
-                            ))
+                            );})
                           )}
                         </div>
 
@@ -533,8 +857,10 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
                           {examenes.length === 0 ? (
                             <p style={{ color: '#64748b', fontSize: '0.9rem', fontStyle: 'italic' }}>No hay órdenes médicas agregadas.</p>
                           ) : (
-                            examenes.map((ex, index) => (
-                              <div key={index} style={{ background: '#f8fafc', padding: '1rem', borderRadius: '6px', marginBottom: '1rem', border: '1px solid #f1f5f9' }}>
+                            examenes.map((ex, index) => {
+                              const examenIncompleto = !ex.nombre_examen?.trim();
+                              return (
+                              <div key={index} style={{ background: '#f8fafc', padding: '1rem', borderRadius: '6px', marginBottom: '1rem', border: examenIncompleto ? '1px solid #DC2626' : '1px solid #f1f5f9' }}>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 20px', gap: '10px', alignItems: 'center', marginBottom: '10px' }}>
                                   <select value={ex.tipo_examen} onChange={e => handleExamenChange(index, 'tipo_examen', e.target.value)} style={{ padding: '6px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: 'white' }}>
                                     <option value="Laboratorio">Laboratorio</option>
@@ -545,8 +871,13 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
                                   <button type="button" onClick={() => eliminarExamen(index)} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '1.1rem', cursor: 'pointer' }}>🗑️</button>
                                 </div>
                                 <input type="text" placeholder="Justificación clínica / diagnóstico sospechado" value={ex.justificacion_clinica} onChange={e => handleExamenChange(index, 'justificacion_clinica', e.target.value)} style={{ padding: '6px', width: '100%', borderRadius: '4px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
+                                {examenIncompleto && (
+                                  <small className="mhc-campo-error" style={{ display: 'block', marginTop: '6px' }}>
+                                    ⚠ El nombre del examen es obligatorio, o elimínelo.
+                                  </small>
+                                )}
                               </div>
-                            ))
+                            );})
                           )}
                         </div>
 
@@ -571,9 +902,29 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
                       <div className="mhc-seccion">
                         <h3 className="mhc-seccion__titulo"><span className="mhc-seccion__num">6</span>Cierre Legal — Firma del Médico</h3>
                         <div className="mhc-grid-2">
-                          <div className="mhc-campo mhc-campo--requerido"><label>Nombre del médico firmante <span>*</span></label><input type="text" value={form.medico_nombre_firma} onChange={e => handleChange('medico_nombre_firma', e.target.value)} /></div>
+                          <div className="mhc-campo mhc-campo--requerido">
+                            <label>Nombre del médico firmante <span>*</span></label>
+                            <input
+                              className={claseError('medico_nombre_firma')}
+                              type="text"
+                              value={form.medico_nombre_firma}
+                              onChange={e => handleChange('medico_nombre_firma', e.target.value)}
+                              onBlur={() => marcarTocado('medico_nombre_firma')}
+                            />
+                            {renderErrorCampo('medico_nombre_firma')}
+                          </div>
                           <div className="mhc-campo"><label>Cédula profesional</label><input type="text" value={form.medico_cedula_firma} onChange={e => handleChange('medico_cedula_firma', e.target.value)} /></div>
-                          <div className="mhc-campo mhc-campo--requerido"><label>Registro ReTHUS <span>*</span></label><input type="text" value={form.medico_rethus_firma} onChange={e => handleChange('medico_rethus_firma', e.target.value)} /></div>
+                          <div className="mhc-campo mhc-campo--requerido">
+                            <label>Registro ReTHUS <span>*</span></label>
+                            <input
+                              className={claseError('medico_rethus_firma')}
+                              type="text"
+                              value={form.medico_rethus_firma}
+                              onChange={e => handleChange('medico_rethus_firma', e.target.value)}
+                              onBlur={() => marcarTocado('medico_rethus_firma')}
+                            />
+                            {renderErrorCampo('medico_rethus_firma')}
+                          </div>
                         </div>
                       </div>
                     )}
@@ -594,9 +945,23 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
                     <div className="mhc-nav__pasos">
                       {paso > 1 && <button className="mhc-btn mhc-btn--secundario" onClick={pasoAnterior}>← Anterior</button>}
                       {paso < TOTAL_PASOS ? (
-                        <button className="mhc-btn mhc-btn--primary" onClick={pasoSiguiente}>Siguiente →</button>
+                        <button
+                          className="mhc-btn mhc-btn--primary"
+                          onClick={pasoSiguiente}
+                          disabled={pasoActualInvalido}
+                          title={pasoActualInvalido ? 'Complete correctamente los campos obligatorios de este paso para continuar.' : undefined}
+                        >
+                          Siguiente →
+                        </button>
                       ) : (
-                        <button className="mhc-btn mhc-btn--guardar" onClick={handleGuardar} disabled={guardando}>{guardando ? 'Guardando…' : '✓ Guardar todo'}</button>
+                        <button
+                          className="mhc-btn mhc-btn--guardar"
+                          onClick={handleGuardar}
+                          disabled={guardando || formularioCompletoInvalido}
+                          title={formularioCompletoInvalido ? 'Aún hay campos obligatorios sin diligenciar correctamente en el formulario.' : undefined}
+                        >
+                          {guardando ? 'Guardando…' : '✓ Guardar todo'}
+                        </button>
                       )}
                     </div>
                   </div>

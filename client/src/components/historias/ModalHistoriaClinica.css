@@ -698,3 +698,38 @@
   .mhc-nav  { flex-direction: column-reverse; }
   .mhc-nav__pasos { width: 100%; justify-content: flex-end; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   15. VALIDACIÓN EN TIEMPO REAL — mensajes inline y bordes de error
+   Se activan apenas el médico toca un campo obligatorio incompleto/erróneo,
+   sin esperar a que intente avanzar de paso.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.mhc-campo-error {
+  display:     block;
+  margin-top:  4px;
+  font-size:   12px;
+  font-weight: 600;
+  color:       var(--melika-error, #DC2626);
+  line-height: 1.4;
+}
+
+.mhc-campo input.mhc-input-error,
+.mhc-campo textarea.mhc-input-error,
+.mhc-campo select.mhc-input-error {
+  border-color: var(--melika-error, #DC2626) !important;
+  background:   #FEF2F2;
+}
+
+.mhc-campo input.mhc-input-error:focus,
+.mhc-campo textarea.mhc-input-error:focus {
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15) !important;
+}
+
+/* Botones de navegación deshabilitados por validación pendiente */
+.mhc-btn--primary:disabled,
+.mhc-btn--guardar:disabled {
+  opacity:        0.5;
+  cursor:         not-allowed;
+  filter:         grayscale(0.3);
+}
