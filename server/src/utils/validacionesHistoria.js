@@ -1,17 +1,29 @@
 // server/src/utils/validacionesHistoria.js
-// MELIKA — Validador profesional de Historia Clínica (v3)
+// MELIKA — Validador profesional de Historia Clínica (v5)
 //
-// CAMBIOS v3 respecto a v2:
-//  1. validarCierreLegal ahora exige que el ReTHUS sea también solo dígitos
-//     (antes solo se validaba que no fuera texto trivial, lo que permitía
-//     letras o símbolos sueltos en un número de registro profesional).
-//  2. Se expone exigirEdadValida(): si el controlador no puede resolver la
-//     edad del paciente (sin fecha de nacimiento registrada), los rangos
-//     de peso/talla usan el rango "adulto" más estricto en vez del rango
-//     amplio de "sin dato" (1-300 kg), salvo que se indique explícitamente
-//     lo contrario. Esto cierra el hueco que permitía registrar 1 kg en
-//     un paciente adulto cuando la edad no llegaba calculada desde el
-//     controlador.
+// CAMBIOS v5 — CRÍTICO: nombres propios aceptaban dígitos y correos.
+//   "medico_nombre_firma" y "contacto_responsable_nombre" pasaban por
+//   validarTextoClinico() (texto descriptivo genérico), cuya defensa
+//   contra mezclas alfanuméricas (esRuidoSospechoso) exige 3+ transiciones
+//   letra↔dígito en un mismo token para disparar. Un valor como "juan76"
+//   tiene UNA sola transición → pasaba. "juan@gmail.com" no tiene ninguna
+//   transición numérica → también pasaba. Se agrega validarNombrePropio(),
+//   una regla estricta que NO permite ningún dígito, ningún "@" y solo
+//   acepta letras/espacios/guiones — y se conecta a ambos campos. Además,
+//   se cierra un hueco de seguridad real: el servidor NUNCA validaba
+//   eps_aseguradora / contacto_responsable_nombre / contacto_responsable_
+//   telefono / exploracion_por_sistemas — solo el frontend lo hacía, así
+//   que cualquiera podía saltarse la UI y mandar basura directo a la API.
+//
+// CAMBIOS v4:
+//  1. esRuidoSospechoso() — segunda capa de detección de texto inválido
+//     PARA TEXTO DESCRIPTIVO (anamnesis, antecedentes, hallazgos, etc.):
+//     mezclas letra-número tipo teclado, palabras sin vocales, patrones
+//     repetitivos, proporción de letras demasiado baja.
+//
+// CAMBIOS v3:
+//  1. validarCierreLegal exige que el ReTHUS sea también solo dígitos.
+//  2. Rangos de peso/talla usan "adulto" cuando no hay fecha de nacimiento.
 
 'use strict';
 
@@ -22,8 +34,9 @@ const TERMINOS_NEGACION_VALIDOS = [
   'no tiene', 'ninguna conocida', 'ninguno conocido',
 ];
 
-const REGEX_CIE10        = /^[A-Z][0-9]{2}(\.[0-9X]{1,2})?$/;
-const REGEX_SOLO_DIGITOS = /^[0-9]{5,15}$/;
+const REGEX_CIE10          = /^[A-Z][0-9]{2}(\.[0-9X]{1,2})?$/;
+const REGEX_SOLO_DIGITOS   = /^[0-9]{5,15}$/;
+const REGEX_NOMBRE_PROPIO  = /^[a-zA-ZÀ-ÿñÑ\s'.-]+$/;
 
 function quitarTildes(str) {
   return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -47,6 +60,56 @@ function esTextoTrivial(valor) {
   return false;
 }
 
+// ─── DETECCIÓN DE "RUIDO" ALFANUMÉRICO EN TEXTO DESCRIPTIVO ────────────────
+// ESPEJO EXACTO de client/src/utils/validacionClinica.js. Ver comentarios
+// allá para el razonamiento completo de cada heurística. NO se usa para
+// nombres propios (ver validarNombrePropio más abajo).
+const VOCALES_REGEX = /[aeiouáéíóúü]/i;
+
+function contarTransicionesAlfaNumericas(token) {
+  const limpio = token.replace(/[^a-zA-Z0-9À-ÿñÑ]/g, '');
+  let transiciones = 0;
+  let claseAnterior = null;
+  for (const ch of limpio) {
+    const clase = /[0-9]/.test(ch) ? 'digito' : 'letra';
+    if (claseAnterior && clase !== claseAnterior) transiciones++;
+    claseAnterior = clase;
+  }
+  return transiciones;
+}
+
+function tieneTokenAlfanumericoSospechoso(texto) {
+  return texto.split(/\s+/).some(token => contarTransicionesAlfaNumericas(token) >= 3);
+}
+
+function tieneTokenSinVocales(texto) {
+  return texto.split(/\s+/).some(token => {
+    const soloLetras = quitarTildes(token.replace(/[^a-zA-ZÀ-ÿñÑ]/g, '').toLowerCase());
+    if (soloLetras.length < 4) return false;
+    return !VOCALES_REGEX.test(soloLetras);
+  });
+}
+
+function tienePatronRepetitivoCorto(texto) {
+  const sinEspacios = texto.replace(/\s/g, '');
+  return /^(.{1,4})\1{3,}$/i.test(sinEspacios);
+}
+
+function esRuidoSospechoso(valor) {
+  const v = String(valor ?? '').trim();
+  if (v.length === 0) return false;
+
+  if (tieneTokenAlfanumericoSospechoso(v)) return true;
+  if (tieneTokenSinVocales(v)) return true;
+  if (tienePatronRepetitivoCorto(v)) return true;
+
+  const totalSinEspacios = v.replace(/\s/g, '').length;
+  const letras = (v.match(/[a-zA-ZÀ-ÿñÑ]/g) || []).length;
+  if (totalSinEspacios > 0 && (letras / totalSinEspacios) < 0.45) return true;
+
+  return false;
+}
+
 function validarTextoClinico(valor, label, errores, opciones = {}) {
   const { minCaracteres = 10, permitirNegacion = false, obligatorio = true } = opciones;
 
@@ -64,8 +127,66 @@ function validarTextoClinico(valor, label, errores, opciones = {}) {
     return;
   }
 
+  if (esRuidoSospechoso(v)) {
+    errores.push(`${label} no es válido: combina letras, números o símbolos de una forma que no corresponde a una descripción clínica real (parece texto de relleno). Escriba una descripción clínica real${permitirNegacion ? ' o un término como "Niega"/"Ninguna"' : ''}.`);
+    return;
+  }
+
   if (v.length < minCaracteres) {
     errores.push(`${label} es demasiado corto (mínimo ${minCaracteres} caracteres). Escriba una descripción clínica completa.`);
+  }
+}
+
+// ─── VALIDACIÓN DE NOMBRES PROPIOS ──────────────────────────────────────────
+// Para "medico_nombre_firma" y "contacto_responsable_nombre". Es
+// DELIBERADAMENTE más estricta que validarTextoClinico(): un nombre real
+// nunca lleva dígitos ni "@", y no admite las excepciones que sí tiene el
+// texto clínico libre (dosis, códigos como "T4", etc.).
+// ESPEJO de validarNombrePropio() en client/src/utils/validacionClinica.js.
+function validarNombrePropio(valor, label, errores, opciones = {}) {
+  const { obligatorio = true, exigirNombreCompleto = false } = opciones;
+
+  if (esVacio(valor)) {
+    if (obligatorio) errores.push(`${label} es obligatorio.`);
+    return;
+  }
+
+  const v = String(valor).trim();
+
+  if (esTextoTrivial(v)) {
+    errores.push(`${label} no es válido: no puede contener solo números, símbolos o caracteres repetidos.`);
+    return;
+  }
+
+  if (/[0-9]/.test(v)) {
+    errores.push(`${label} no puede contener números — escriba el nombre completo real, sin cifras.`);
+    return;
+  }
+
+  if (v.includes('@') || /https?:\/\//i.test(v) || /www\./i.test(v)) {
+    errores.push(`${label} no puede ser un correo electrónico ni una URL — escriba el nombre completo real.`);
+    return;
+  }
+
+  if (!REGEX_NOMBRE_PROPIO.test(v)) {
+    errores.push(`${label} solo puede contener letras, espacios y guiones (sin símbolos ni números).`);
+    return;
+  }
+
+  if (esRuidoSospechoso(v)) {
+    errores.push(`${label} no corresponde a un nombre real.`);
+    return;
+  }
+
+  const palabras = v.split(/\s+/).filter(Boolean);
+
+  if (exigirNombreCompleto && palabras.length < 2) {
+    errores.push(`${label} debe incluir nombre y apellido completos.`);
+    return;
+  }
+
+  if (palabras.some(p => p.replace(/[.'-]/g, '').length < 2)) {
+    errores.push(`${label} contiene palabras demasiado cortas para ser un nombre real.`);
   }
 }
 
@@ -93,10 +214,6 @@ function calcularEdadAnios(fechaNacimiento) {
 }
 
 function rangoPesoPorEdad(edadAnios) {
-  // FIX: si no hay edad registrada, ya NO se usa un rango "permisivo"
-  // de 1-300 kg (eso es lo que dejaba pasar a un adulto con 1 kg).
-  // Se aplica el rango adulto, el más conservador, hasta que el
-  // paciente tenga fecha de nacimiento registrada.
   if (edadAnios === null)  return { min: 30,  max: 300, etapa: 'adulto (sin fecha de nacimiento registrada)' };
   if (edadAnios < 1)       return { min: 2,   max: 15,  etapa: 'lactante (<1 año)' };
   if (edadAnios < 5)       return { min: 7,   max: 25,  etapa: 'primera infancia (1-4 años)' };
@@ -201,16 +318,18 @@ function validarDiagnostico(payload, errores) {
   });
 }
 
+// ── CIERRE LEGAL — el nombre del médico firmante es un NOMBRE PROPIO ────────
+// (antes usaba validarTextoClinico, que dejaba pasar "juan76" o
+// "juan@gmail.com"). Se exige nombre + apellido porque es un dato de
+// cierre legal vinculante.
 function validarCierreLegal(payload, errores) {
-  validarTextoClinico(payload.medico_nombre_firma, 'El nombre del médico firmante', errores, {
-    minCaracteres: 5, permitirNegacion: false, obligatorio: true,
+  validarNombrePropio(payload.medico_nombre_firma, 'El nombre del médico firmante', errores, {
+    obligatorio: true,
+    exigirNombreCompleto: true,
   });
+
   validarSoloDigitos(payload.medico_cedula_firma, 'La cédula del médico', errores, false);
 
-  // FIX: el ReTHUS es un número de registro profesional — antes solo se
-  // rechazaba si era "texto trivial" (repetido/vacío), lo que dejaba
-  // pasar valores con letras o símbolos. Ahora, igual que la cédula,
-  // debe ser estrictamente numérico.
   if (esVacio(payload.medico_rethus_firma)) {
     errores.push('El número de registro profesional (ReTHUS) es obligatorio para el cierre legal.');
   } else {
@@ -218,6 +337,29 @@ function validarCierreLegal(payload, errores) {
   }
 }
 
+// ── IDENTIFICACIÓN ADMINISTRATIVA (Paso 1) ──────────────────────────────────
+// FIX v5: antes NUNCA se validaba en el servidor — solo en el cliente. Se
+// centraliza aquí para que ambas rutas (historia principal y aclaración)
+// la reutilicen y quede cerrado el hueco de "saltarse el frontend".
+function validarIdentificacionAdministrativa(payload, errores) {
+  validarTextoClinico(payload.eps_aseguradora, 'La EPS / aseguradora', errores, {
+    minCaracteres: 3, permitirNegacion: false, obligatorio: false,
+  });
+
+  // El nombre del responsable/acompañante también es un NOMBRE PROPIO —
+  // este es exactamente el campo reportado con "juan76", "juan21", etc.
+  validarNombrePropio(payload.contacto_responsable_nombre, 'El nombre del responsable', errores, {
+    obligatorio: false,
+    exigirNombreCompleto: false,
+  });
+
+  validarSoloDigitos(payload.contacto_responsable_telefono, 'El teléfono del responsable', errores, false);
+}
+
+// ── RECETAS Y EXÁMENES ──────────────────────────────────────────────────────
+// validarTextoClinico() ya incluye esTextoTrivial() + esRuidoSospechoso(),
+// por lo que "medicamento" y "nombre_examen" quedan protegidos contra
+// mezclas tipo "paracetamol2x1" o "amoxi123" de forma automática.
 function validarRecetas(recetas, errores) {
   if (!Array.isArray(recetas)) return;
   recetas.forEach((r, i) => {
@@ -244,6 +386,8 @@ function validarExamenes(examenes, errores) {
 function validarHistoriaPrincipal(payload, edadAnios = null) {
   const errores = [];
 
+  validarIdentificacionAdministrativa(payload, errores);
+
   validarTextoClinico(payload.motivo_consulta, 'El motivo de consulta', errores, {
     minCaracteres: 8, permitirNegacion: false, obligatorio: true,
   });
@@ -256,20 +400,26 @@ function validarHistoriaPrincipal(payload, edadAnios = null) {
   validarTextoClinico(payload.antecedentes_alergicos, 'Los antecedentes alérgicos', errores, {
     minCaracteres: 8, permitirNegacion: true, obligatorio: true,
   });
-  validarTextoClinico(payload.examen_fisico, 'Los hallazgos del examen físico', errores, {
-    minCaracteres: 10, permitirNegacion: false, obligatorio: true,
-  });
-  validarTextoClinico(payload.plan_tratamiento, 'El plan de tratamiento', errores, {
-    minCaracteres: 10, permitirNegacion: false, obligatorio: true,
-  });
   validarTextoClinico(payload.antecedentes_quirurgicos, 'Los antecedentes quirúrgicos', errores, {
     minCaracteres: 5, permitirNegacion: true, obligatorio: false,
   });
   validarTextoClinico(payload.antecedentes_familiares, 'Los antecedentes familiares', errores, {
     minCaracteres: 5, permitirNegacion: true, obligatorio: false,
   });
+  validarTextoClinico(payload.antecedentes_ginecoobstetricos, 'Los antecedentes ginecoobstétricos', errores, {
+    minCaracteres: 5, permitirNegacion: true, obligatorio: false,
+  });
   validarTextoClinico(payload.habitos, 'Los hábitos', errores, {
     minCaracteres: 5, permitirNegacion: true, obligatorio: false,
+  });
+  validarTextoClinico(payload.exploracion_por_sistemas, 'La exploración por sistemas', errores, {
+    minCaracteres: 5, permitirNegacion: false, obligatorio: false,
+  });
+  validarTextoClinico(payload.examen_fisico, 'Los hallazgos del examen físico', errores, {
+    minCaracteres: 10, permitirNegacion: false, obligatorio: true,
+  });
+  validarTextoClinico(payload.plan_tratamiento, 'El plan de tratamiento', errores, {
+    minCaracteres: 10, permitirNegacion: false, obligatorio: true,
   });
 
   validarSignosVitalesPrincipal(payload, edadAnios, errores);
@@ -279,8 +429,11 @@ function validarHistoriaPrincipal(payload, edadAnios = null) {
   validarExamenes(payload.examenes, errores);
 
   ['ordenes_medicas', 'recomendaciones', 'observaciones'].forEach(campo => {
-    if (!esVacio(payload[campo]) && esTextoTrivial(String(payload[campo]))) {
-      errores.push(`El campo "${campo.replace(/_/g, ' ')}" no puede contener solo números o símbolos.`);
+    if (!esVacio(payload[campo])) {
+      const valor = String(payload[campo]);
+      if (esTextoTrivial(valor) || esRuidoSospechoso(valor)) {
+        errores.push(`El campo "${campo.replace(/_/g, ' ')}" no puede contener solo números, símbolos, o una mezcla de letras y números que no corresponda a una descripción real.`);
+      }
     }
   });
 
@@ -312,8 +465,11 @@ function validarNotaAclaracion(payload, edadAnios = null) {
   validarExamenes(payload.examenes, errores);
 
   ['ordenes_medicas', 'recomendaciones', 'observaciones', 'anamnesis', 'examen_fisico', 'plan_tratamiento'].forEach(campo => {
-    if (!esVacio(payload[campo]) && esTextoTrivial(String(payload[campo]))) {
-      errores.push(`El campo "${campo.replace(/_/g, ' ')}" no puede contener solo números o símbolos.`);
+    if (!esVacio(payload[campo])) {
+      const valor = String(payload[campo]);
+      if (esTextoTrivial(valor) || esRuidoSospechoso(valor)) {
+        errores.push(`El campo "${campo.replace(/_/g, ' ')}" no puede contener solo números, símbolos, o una mezcla de letras y números que no corresponda a una descripción real.`);
+      }
     }
   });
 
@@ -333,7 +489,9 @@ module.exports = {
   rangoTallaPorEdad,
   esVacio,
   esTextoTrivial,
+  esRuidoSospechoso,
   esNegacionValida,
+  validarNombrePropio,
   REGEX_CIE10,
   REGEX_SOLO_DIGITOS,
   TERMINOS_NEGACION_VALIDOS,

@@ -9,6 +9,13 @@
 // Las reglas de validación viven en client/src/utils/validacionClinica.js —
 // ESPEJO de server/src/utils/validacionesHistoria.js.
 //
+// FIX v4:
+//   - Fórmula médica (medicamento) y órdenes de exámenes (nombre_examen)
+//     ahora también pasan por esRuidoSospechoso(), además de
+//     esTextoTrivial(). Antes solo se rechazaba texto PURAMENTE numérico/
+//     simbólico/repetido, dejando pasar mezclas ilógicas tipo
+//     "paracetamol2x1" o "amoxi123" en el nombre de un medicamento o examen.
+//
 // FIX v3:
 //   - Se agregó validación (texto y/o rango numérico) a TODOS los campos
 //     opcionales que antes dejaban pasar cualquier dato sin control:
@@ -36,8 +43,10 @@ import {
   validarSoloDigitos,
   validarCie10,
   validarRangoSignoVital,
+  validarNombrePropio,
   calcularEdadAnios,
   esTextoTrivial,
+  esRuidoSospechoso,
 } from '../../utils/validacionClinica';
 import './ModalHistoriaClinica.css';
 
@@ -79,7 +88,7 @@ const FORM_INICIAL = {
 // VALIDACIÓN PROFESIONAL — debe reflejar exactamente las reglas del backend
 // (server/src/utils/validacionesHistoria.js) para que el médico nunca llegue
 // al servidor con una historia incompleta, clínicamente inconsistente o con
-// texto ilógico (números/símbolos donde debe ir una descripción real).
+// texto ilógico (números/símbolos/mezclas donde debe ir una descripción real).
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Campos que se validan EN TIEMPO REAL (por campo) para cada paso. Incluye
@@ -105,7 +114,8 @@ const CAMPOS_VALIDABLES_POR_PASO = {
 // Reglas de texto clínico — MISMOS valores que validarHistoriaPrincipal()
 // en server/src/utils/validacionesHistoria.js. Los campos obligatorios
 // exigen contenido real (no solo "no vacío"); los opcionales solo se
-// rechazan si el médico escribe algo trivial, nunca por dejarlos vacíos.
+// rechazan si el médico escribe algo trivial o ilógico, nunca por dejarlos
+// vacíos.
 const REGLAS_TEXTO_CAMPOS = {
   motivo_consulta:                { minCaracteres: 8,  permitirNegacion: false, obligatorio: true  },
   anamnesis:                      { minCaracteres: 15, permitirNegacion: false, obligatorio: true  },
@@ -119,9 +129,7 @@ const REGLAS_TEXTO_CAMPOS = {
   examen_fisico:                  { minCaracteres: 10, permitirNegacion: false, obligatorio: true  },
   descripcion_diagnostico:        { minCaracteres: 8,  permitirNegacion: false, obligatorio: true  },
   plan_tratamiento:               { minCaracteres: 10, permitirNegacion: false, obligatorio: true  },
-  medico_nombre_firma:            { minCaracteres: 5,  permitirNegacion: false, obligatorio: true  },
   eps_aseguradora:                { minCaracteres: 3,  permitirNegacion: false, obligatorio: false },
-  contacto_responsable_nombre:    { minCaracteres: 3,  permitirNegacion: false, obligatorio: false },
   ordenes_medicas:                { minCaracteres: 0,  permitirNegacion: false, obligatorio: false },
   recomendaciones:                { minCaracteres: 0,  permitirNegacion: false, obligatorio: false },
   observaciones:                  { minCaracteres: 0,  permitirNegacion: false, obligatorio: false },
@@ -157,6 +165,16 @@ const ETIQUETAS_CAMPOS = {
   incapacidad_dias:               'Los días de incapacidad',
 };
 
+// Un campo de texto libre de una receta/examen es inválido si es trivial
+// (vacío, solo dígitos/símbolos, carácter repetido) O si es "ruido"
+// alfanumérico (mezcla ilógica de letras y números tipo "paracetamol2x1").
+// Centralizado aquí para no duplicar la lógica en cada punto de uso.
+function esTextoLibreInvalido(valor) {
+  const v = String(valor ?? '').trim();
+  if (!v) return true;
+  return esTextoTrivial(v) || esRuidoSospechoso(v);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // VALIDACIÓN EN TIEMPO REAL — POR CAMPO INDIVIDUAL
 // Se ejecuta en cada cambio del campo para dar feedback inmediato al médico,
@@ -165,12 +183,23 @@ const ETIQUETAS_CAMPOS = {
 function validarCampoUnico(campo, valorCrudo, form, esTeleconsulta, edadAnios) {
   const v = (valorCrudo ?? '').toString();
 
-  // Campos de texto clínico — validados contra la misma regla del backend
   if (REGLAS_TEXTO_CAMPOS[campo]) {
     return validarTextoClinico(v, ETIQUETAS_CAMPOS[campo], REGLAS_TEXTO_CAMPOS[campo]);
   }
 
   switch (campo) {
+    // NUEVO — nombres propios: rechazan dígitos y correos ("juan76",
+    // "juan@gmail.com"), a diferencia del texto clínico libre.
+    case 'medico_nombre_firma':
+      return validarNombrePropio(v, ETIQUETAS_CAMPOS.medico_nombre_firma, {
+        obligatorio: true, exigirNombreCompleto: true,
+      });
+
+    case 'contacto_responsable_nombre':
+      return validarNombrePropio(v, ETIQUETAS_CAMPOS.contacto_responsable_nombre, {
+        obligatorio: false, exigirNombreCompleto: false,
+      });
+
     case 'contacto_responsable_telefono':
       return validarSoloDigitos(v, ETIQUETAS_CAMPOS.contacto_responsable_telefono, false);
 
@@ -237,8 +266,8 @@ function validarPaso(numeroPaso, form, recetas, examenes, esTeleconsulta, edadAn
       const n = i + 1;
       if (!r.medicamento?.trim() || !r.dosis?.trim() || !r.frecuencia?.trim() || !r.duracion?.trim()) {
         errores.push(`Fórmula #${n}: complete medicamento, dosis, frecuencia y duración, o elimínela.`);
-      } else if (esTextoTrivial(r.medicamento)) {
-        errores.push(`Fórmula #${n}: el nombre del medicamento no es válido (no puede ser solo números o símbolos).`);
+      } else if (esTextoLibreInvalido(r.medicamento)) {
+        errores.push(`Fórmula #${n}: el nombre del medicamento no es válido (no puede ser solo números, símbolos, o una mezcla ilógica de letras y números).`);
       }
     });
 
@@ -246,8 +275,8 @@ function validarPaso(numeroPaso, form, recetas, examenes, esTeleconsulta, edadAn
       const n = i + 1;
       if (!ex.nombre_examen?.trim()) {
         errores.push(`Examen #${n}: el nombre del examen es obligatorio, o elimínelo.`);
-      } else if (esTextoTrivial(ex.nombre_examen)) {
-        errores.push(`Examen #${n}: el nombre del examen no es válido (no puede ser solo números o símbolos).`);
+      } else if (esTextoLibreInvalido(ex.nombre_examen)) {
+        errores.push(`Examen #${n}: el nombre del examen no es válido (no puede ser solo números, símbolos, o una mezcla ilógica de letras y números).`);
       }
     });
 
@@ -934,7 +963,7 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
                           ) : (
                             recetas.map((r, index) => {
                               const recetaIncompleta = !r.medicamento?.trim() || !r.dosis?.trim() || !r.frecuencia?.trim() || !r.duracion?.trim();
-                              const recetaTrivial = !recetaIncompleta && esTextoTrivial(r.medicamento);
+                              const recetaTrivial = !recetaIncompleta && esTextoLibreInvalido(r.medicamento);
                               return (
                               <div key={index} style={{ background: '#f8fafc', padding: '1rem', borderRadius: '6px', marginBottom: '1rem', border: (recetaIncompleta || recetaTrivial) ? '1px solid #DC2626' : '1px solid #f1f5f9' }}>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '10px' }}>
@@ -955,7 +984,7 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
                                 )}
                                 {!recetaIncompleta && recetaTrivial && (
                                   <small className="mhc-campo-error" style={{ display: 'block', marginTop: '6px' }}>
-                                    ⚠ El nombre del medicamento no es válido (no puede ser solo números o símbolos).
+                                    ⚠ El nombre del medicamento no es válido (no puede ser solo números, símbolos, o una mezcla ilógica de letras y números).
                                   </small>
                                 )}
                               </div>
@@ -974,7 +1003,7 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
                           ) : (
                             examenes.map((ex, index) => {
                               const examenIncompleto = !ex.nombre_examen?.trim();
-                              const examenTrivial = !examenIncompleto && esTextoTrivial(ex.nombre_examen);
+                              const examenTrivial = !examenIncompleto && esTextoLibreInvalido(ex.nombre_examen);
                               return (
                               <div key={index} style={{ background: '#f8fafc', padding: '1rem', borderRadius: '6px', marginBottom: '1rem', border: (examenIncompleto || examenTrivial) ? '1px solid #DC2626' : '1px solid #f1f5f9' }}>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 20px', gap: '10px', alignItems: 'center', marginBottom: '10px' }}>
@@ -994,7 +1023,7 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
                                 )}
                                 {!examenIncompleto && examenTrivial && (
                                   <small className="mhc-campo-error" style={{ display: 'block', marginTop: '6px' }}>
-                                    ⚠ El nombre del examen no es válido (no puede ser solo números o símbolos).
+                                    ⚠ El nombre del examen no es válido (no puede ser solo números, símbolos, o una mezcla ilógica de letras y números).
                                   </small>
                                 )}
                               </div>
