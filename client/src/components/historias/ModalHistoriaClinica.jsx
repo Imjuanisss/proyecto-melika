@@ -1,17 +1,29 @@
 // client/src/components/historias/ModalHistoriaClinica.jsx
 // MELIKA — Modal de creación/visualización/aclaración de Historia Clínica
-// Incluye validación profesional end-to-end por paso, al guardar, Y AHORA
-// TAMBIÉN validación EN TIEMPO REAL por campo individual: cada campo se
-// valida apenas el médico escribe/cambia su valor, mostrando el error de
-// inmediato debajo del campo y bloqueando "Siguiente"/"Guardar todo" hasta
-// que el paso actual esté correctamente diligenciado. Ya no es posible
-// llegar al final del formulario y enterarse ahí de que algo falta.
+// Incluye validación profesional end-to-end por paso, al guardar, Y TAMBIÉN
+// validación EN TIEMPO REAL por campo individual: cada campo se valida
+// apenas el médico escribe/cambia su valor, mostrando el error de inmediato
+// debajo del campo y bloqueando "Siguiente"/"Guardar todo" hasta que el paso
+// actual esté correctamente diligenciado.
+//
+// Las reglas de validación de texto clínico viven en
+// client/src/utils/validacionClinica.js — ESPEJO EXACTO de
+// server/src/utils/validacionesHistoria.js. Esto evita que el médico pueda
+// escribir datos ilógicos (números, símbolos, texto repetido) en campos que
+// exigen una descripción clínica real; el mismo criterio que aplicará el
+// backend se aplica aquí desde el primer carácter.
 
 import { useState, useEffect, useMemo } from 'react';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { useAuth } from '../../context/AuthContext';
 import { api }    from '../../lib/apiClient';
 import { PlantillaHistoriaPDF, PlantillaFormulaPDF, PlantillaExamenesPDF } from './PlantillaHistoriaPDF';
+import {
+  validarTextoClinico,
+  validarSoloDigitos,
+  validarCie10,
+  esTextoTrivial,
+} from '../../utils/validacionClinica';
 import './ModalHistoriaClinica.css';
 
 const FORM_INICIAL = {
@@ -51,25 +63,66 @@ const FORM_INICIAL = {
 // ─────────────────────────────────────────────────────────────────────────────
 // VALIDACIÓN PROFESIONAL — debe reflejar exactamente las reglas del backend
 // (server/src/utils/validacionesHistoria.js) para que el médico nunca llegue
-// al servidor con una historia incompleta o clínicamente inconsistente.
+// al servidor con una historia incompleta, clínicamente inconsistente o con
+// texto ilógico (números/símbolos donde debe ir una descripción real).
 // ─────────────────────────────────────────────────────────────────────────────
-const REGEX_CIE10 = /^[A-Z][0-9]{2}(\.[0-9X]{1,2})?$/;
 
 // Campos que se validan EN TIEMPO REAL (por campo) para cada paso.
 // Se usa para: (1) decidir qué mostrar como error inline debajo del input
 // apenas el usuario lo toca, y (2) decidir si el paso actual está "limpio"
-// sin necesidad de esperar al clic en "Siguiente".
+// sin necesidad de esperar al clic en "Siguiente". Incluye también campos
+// opcionales: si el médico escribe algo trivial en un campo opcional, debe
+// verlo marcado igualmente (aunque dejarlo vacío sí está permitido).
 const CAMPOS_VALIDABLES_POR_PASO = {
   1: ['motivo_consulta'],
-  2: ['anamnesis', 'antecedentes_patologicos', 'antecedentes_alergicos'],
+  2: [
+    'anamnesis', 'antecedentes_patologicos', 'antecedentes_alergicos',
+    'antecedentes_quirurgicos', 'antecedentes_familiares', 'habitos',
+  ],
   3: [
     'tension_arterial_sistolica', 'tension_arterial_diastolica',
     'frecuencia_cardiaca', 'temperatura_corporal', 'peso_kg', 'talla_cm',
     'examen_fisico',
   ],
   4: ['diagnostico_cie10', 'descripcion_diagnostico'],
-  5: ['plan_tratamiento'],
-  6: ['medico_nombre_firma', 'medico_rethus_firma'],
+  5: ['plan_tratamiento', 'recomendaciones', 'observaciones'],
+  6: ['medico_nombre_firma', 'medico_cedula_firma', 'medico_rethus_firma'],
+};
+
+// Reglas de texto clínico — MISMOS valores que validarHistoriaPrincipal()
+// en server/src/utils/validacionesHistoria.js. Los campos obligatorios
+// exigen contenido real (no solo "no vacío"); los opcionales solo se
+// rechazan si el médico escribe algo trivial, nunca por dejarlos vacíos.
+const REGLAS_TEXTO_CAMPOS = {
+  motivo_consulta:          { minCaracteres: 8,  permitirNegacion: false, obligatorio: true  },
+  anamnesis:                { minCaracteres: 15, permitirNegacion: false, obligatorio: true  },
+  antecedentes_patologicos: { minCaracteres: 8,  permitirNegacion: true,  obligatorio: true  },
+  antecedentes_alergicos:   { minCaracteres: 8,  permitirNegacion: true,  obligatorio: true  },
+  antecedentes_quirurgicos: { minCaracteres: 5,  permitirNegacion: true,  obligatorio: false },
+  antecedentes_familiares:  { minCaracteres: 5,  permitirNegacion: true,  obligatorio: false },
+  habitos:                  { minCaracteres: 5,  permitirNegacion: true,  obligatorio: false },
+  examen_fisico:            { minCaracteres: 10, permitirNegacion: false, obligatorio: true  },
+  descripcion_diagnostico:  { minCaracteres: 8,  permitirNegacion: false, obligatorio: true  },
+  plan_tratamiento:         { minCaracteres: 10, permitirNegacion: false, obligatorio: true  },
+  medico_nombre_firma:      { minCaracteres: 5,  permitirNegacion: false, obligatorio: true  },
+  recomendaciones:          { minCaracteres: 0,  permitirNegacion: false, obligatorio: false },
+  observaciones:            { minCaracteres: 0,  permitirNegacion: false, obligatorio: false },
+};
+
+const ETIQUETAS_CAMPOS = {
+  motivo_consulta:          'El motivo de consulta',
+  anamnesis:                'La enfermedad actual (anamnesis)',
+  antecedentes_patologicos: 'Los antecedentes patológicos',
+  antecedentes_alergicos:   'Los antecedentes alérgicos',
+  antecedentes_quirurgicos: 'Los antecedentes quirúrgicos',
+  antecedentes_familiares:  'Los antecedentes familiares',
+  habitos:                  'Los hábitos',
+  examen_fisico:            'Los hallazgos del examen físico',
+  descripcion_diagnostico:  'La descripción del diagnóstico',
+  plan_tratamiento:         'El plan de tratamiento',
+  medico_nombre_firma:      'El nombre del médico firmante',
+  recomendaciones:          'Las recomendaciones',
+  observaciones:            'Las observaciones',
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -81,25 +134,13 @@ const CAMPOS_VALIDABLES_POR_PASO = {
 // ─────────────────────────────────────────────────────────────────────────────
 function validarCampoUnico(campo, valorCrudo, form, esTeleconsulta) {
   const v = (valorCrudo ?? '').toString();
-  const vTrim = v.trim();
+
+  // Campos de texto clínico — validados contra la misma regla del backend
+  if (REGLAS_TEXTO_CAMPOS[campo]) {
+    return validarTextoClinico(v, ETIQUETAS_CAMPOS[campo], REGLAS_TEXTO_CAMPOS[campo]);
+  }
 
   switch (campo) {
-    case 'motivo_consulta':
-      if (!vTrim) return 'El motivo de consulta es obligatorio.';
-      return null;
-
-    case 'anamnesis':
-      if (!vTrim) return 'La enfermedad actual (anamnesis) es obligatoria.';
-      return null;
-
-    case 'antecedentes_patologicos':
-      if (!vTrim) return 'Obligatorio. Escriba "Niega" si no aplica.';
-      return null;
-
-    case 'antecedentes_alergicos':
-      if (!vTrim) return 'Obligatorio. Escriba "Niega" si no aplica.';
-      return null;
-
     case 'tension_arterial_sistolica':
     case 'tension_arterial_diastolica': {
       const sis = (form.tension_arterial_sistolica ?? '').toString();
@@ -127,30 +168,14 @@ function validarCampoUnico(campo, valorCrudo, form, esTeleconsulta) {
       if (!esTeleconsulta && !v) return 'Obligatoria en consulta presencial.';
       return null;
 
-    case 'examen_fisico':
-      if (!vTrim) return 'Los hallazgos del examen físico son obligatorios.';
-      return null;
-
     case 'diagnostico_cie10':
-      if (!vTrim) return 'El código CIE-10 es obligatorio.';
-      if (!REGEX_CIE10.test(vTrim.toUpperCase())) return 'Formato inválido (ej. J06.9).';
-      return null;
+      return validarCie10(v, { obligatorio: true });
 
-    case 'descripcion_diagnostico':
-      if (!vTrim) return 'La descripción del diagnóstico es obligatoria.';
-      return null;
-
-    case 'plan_tratamiento':
-      if (!vTrim) return 'El plan de tratamiento es obligatorio.';
-      return null;
-
-    case 'medico_nombre_firma':
-      if (!vTrim) return 'El nombre del médico firmante es obligatorio.';
-      return null;
+    case 'medico_cedula_firma':
+      return validarSoloDigitos(v, 'La cédula del médico', false);
 
     case 'medico_rethus_firma':
-      if (!vTrim) return 'El registro ReTHUS es obligatorio.';
-      return null;
+      return validarSoloDigitos(v, 'El número ReTHUS', true);
 
     default:
       return null;
@@ -160,73 +185,37 @@ function validarCampoUnico(campo, valorCrudo, form, esTeleconsulta) {
 function validarPaso(numeroPaso, form, recetas, examenes, esTeleconsulta) {
   const errores = [];
 
-  if (numeroPaso === 1) {
-    if (!form.motivo_consulta.trim()) errores.push('El motivo de consulta es obligatorio.');
-  }
-
-  if (numeroPaso === 2) {
-    if (!form.anamnesis.trim())
-      errores.push('La enfermedad actual (anamnesis) es obligatoria.');
-    if (!form.antecedentes_patologicos.trim())
-      errores.push('Los antecedentes patológicos son obligatorios (use "Niega" si no aplica).');
-    if (!form.antecedentes_alergicos.trim())
-      errores.push('Los antecedentes alérgicos son obligatorios (use "Niega" si no aplica).');
-  }
-
-  if (numeroPaso === 3) {
-    const tSis = form.tension_arterial_sistolica;
-    const tDia = form.tension_arterial_diastolica;
-    if ((tSis && !tDia) || (!tSis && tDia)) {
-      errores.push('La tensión arterial debe registrarse completa (sistólica y diastólica).');
-    }
-    if (!esTeleconsulta) {
-      if (!tSis || !tDia) errores.push('La tensión arterial es obligatoria en consultas presenciales.');
-      if (!form.frecuencia_cardiaca)  errores.push('La frecuencia cardíaca es obligatoria en consultas presenciales.');
-      if (!form.temperatura_corporal) errores.push('La temperatura corporal es obligatoria en consultas presenciales.');
-      if (!form.peso_kg)              errores.push('El peso es obligatorio en consultas presenciales.');
-      if (!form.talla_cm)             errores.push('La talla es obligatoria en consultas presenciales.');
-    }
-    if (!form.examen_fisico.trim())
-      errores.push('Los hallazgos del examen físico son obligatorios.');
-  }
-
-  if (numeroPaso === 4) {
-    if (!form.diagnostico_cie10.trim()) {
-      errores.push('El código CIE-10 es obligatorio.');
-    } else if (!REGEX_CIE10.test(form.diagnostico_cie10.trim().toUpperCase())) {
-      errores.push('El código CIE-10 no tiene un formato válido (ej. J06.9).');
-    }
-    if (!form.descripcion_diagnostico.trim())
-      errores.push('La descripción del diagnóstico es obligatoria.');
-  }
+  (CAMPOS_VALIDABLES_POR_PASO[numeroPaso] || []).forEach(campo => {
+    const msg = validarCampoUnico(campo, form[campo], form, esTeleconsulta);
+    if (msg) errores.push(msg);
+  });
 
   if (numeroPaso === 5) {
-    if (!form.plan_tratamiento.trim())
-      errores.push('El plan de tratamiento general es obligatorio.');
     recetas.forEach((r, i) => {
+      const n = i + 1;
       if (!r.medicamento?.trim() || !r.dosis?.trim() || !r.frecuencia?.trim() || !r.duracion?.trim()) {
-        errores.push(`Fórmula #${i + 1}: complete medicamento, dosis, frecuencia y duración, o elimínela.`);
+        errores.push(`Fórmula #${n}: complete medicamento, dosis, frecuencia y duración, o elimínela.`);
+      } else if (esTextoTrivial(r.medicamento)) {
+        errores.push(`Fórmula #${n}: el nombre del medicamento no es válido (no puede ser solo números o símbolos).`);
       }
     });
+
     examenes.forEach((ex, i) => {
+      const n = i + 1;
       if (!ex.nombre_examen?.trim()) {
-        errores.push(`Examen #${i + 1}: el nombre del examen es obligatorio, o elimínelo.`);
+        errores.push(`Examen #${n}: el nombre del examen es obligatorio, o elimínelo.`);
+      } else if (esTextoTrivial(ex.nombre_examen)) {
+        errores.push(`Examen #${n}: el nombre del examen no es válido (no puede ser solo números o símbolos).`);
       }
     });
+
     const dias = parseInt(form.incapacidad_dias, 10);
     if (dias > 0 && !form.diagnostico_cie10.trim()) {
       errores.push('No se puede otorgar incapacidad sin un diagnóstico CIE-10 registrado.');
     }
   }
 
-  if (numeroPaso === 6) {
-    if (!form.medico_nombre_firma.trim())
-      errores.push('El nombre del médico firmante es obligatorio.');
-    if (!form.medico_rethus_firma.trim())
-      errores.push('El número de registro ReTHUS es obligatorio para el cierre legal.');
-  }
-
-  return errores;
+  return [...new Set(errores)];
 }
 
 function validarFormularioCompleto(form, recetas, examenes, esTeleconsulta) {
@@ -658,7 +647,18 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
                           />
                           {renderErrorCampo('antecedentes_patologicos')}
                         </div>
-                        <div className="mhc-campo"><label>Antecedentes quirúrgicos</label><textarea rows={2} value={form.antecedentes_quirurgicos} onChange={e => handleChange('antecedentes_quirurgicos', e.target.value)} /></div>
+                        <div className="mhc-campo">
+                          <label>Antecedentes quirúrgicos</label>
+                          <textarea
+                            className={claseError('antecedentes_quirurgicos')}
+                            rows={2}
+                            value={form.antecedentes_quirurgicos}
+                            onChange={e => handleChange('antecedentes_quirurgicos', e.target.value)}
+                            onBlur={() => marcarTocado('antecedentes_quirurgicos')}
+                            placeholder='Escriba "Niega" si no aplica'
+                          />
+                          {renderErrorCampo('antecedentes_quirurgicos')}
+                        </div>
                         <div className="mhc-campo mhc-campo--requerido">
                           <label>Antecedentes alérgicos <span>*</span></label>
                           <textarea
@@ -671,9 +671,31 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
                           />
                           {renderErrorCampo('antecedentes_alergicos')}
                         </div>
-                        <div className="mhc-campo"><label>Antecedentes familiares</label><textarea rows={2} value={form.antecedentes_familiares} onChange={e => handleChange('antecedentes_familiares', e.target.value)} /></div>
+                        <div className="mhc-campo">
+                          <label>Antecedentes familiares</label>
+                          <textarea
+                            className={claseError('antecedentes_familiares')}
+                            rows={2}
+                            value={form.antecedentes_familiares}
+                            onChange={e => handleChange('antecedentes_familiares', e.target.value)}
+                            onBlur={() => marcarTocado('antecedentes_familiares')}
+                            placeholder='Escriba "Niega" si no aplica'
+                          />
+                          {renderErrorCampo('antecedentes_familiares')}
+                        </div>
                         <div className="mhc-campo"><label>Antecedentes ginecoobstétricos</label><textarea rows={2} value={form.antecedentes_ginecoobstetricos} onChange={e => handleChange('antecedentes_ginecoobstetricos', e.target.value)} /></div>
-                        <div className="mhc-campo"><label>Hábitos</label><textarea rows={2} value={form.habitos} onChange={e => handleChange('habitos', e.target.value)} /></div>
+                        <div className="mhc-campo">
+                          <label>Hábitos</label>
+                          <textarea
+                            className={claseError('habitos')}
+                            rows={2}
+                            value={form.habitos}
+                            onChange={e => handleChange('habitos', e.target.value)}
+                            onBlur={() => marcarTocado('habitos')}
+                            placeholder='Escriba "Niega" si no aplica'
+                          />
+                          {renderErrorCampo('habitos')}
+                        </div>
                       </div>
                     )}
 
@@ -825,8 +847,9 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
                           ) : (
                             recetas.map((r, index) => {
                               const recetaIncompleta = !r.medicamento?.trim() || !r.dosis?.trim() || !r.frecuencia?.trim() || !r.duracion?.trim();
+                              const recetaTrivial = !recetaIncompleta && esTextoTrivial(r.medicamento);
                               return (
-                              <div key={index} style={{ background: '#f8fafc', padding: '1rem', borderRadius: '6px', marginBottom: '1rem', border: recetaIncompleta ? '1px solid #DC2626' : '1px solid #f1f5f9' }}>
+                              <div key={index} style={{ background: '#f8fafc', padding: '1rem', borderRadius: '6px', marginBottom: '1rem', border: (recetaIncompleta || recetaTrivial) ? '1px solid #DC2626' : '1px solid #f1f5f9' }}>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '10px' }}>
                                   <input type="text" placeholder="Nombre del medicamento *" value={r.medicamento} onChange={e => handleRecetaChange(index, 'medicamento', e.target.value)} style={{ padding: '6px', borderRadius: '4px', border: '1px solid #cbd5e1' }} />
                                   <input type="text" placeholder="Dosis (Ej: 500mg) *" value={r.dosis} onChange={e => handleRecetaChange(index, 'dosis', e.target.value)} style={{ padding: '6px', borderRadius: '4px', border: '1px solid #cbd5e1' }} />
@@ -841,6 +864,11 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
                                 {recetaIncompleta && (
                                   <small className="mhc-campo-error" style={{ display: 'block', marginTop: '6px' }}>
                                     ⚠ Complete medicamento, dosis, frecuencia y duración, o elimine esta fórmula.
+                                  </small>
+                                )}
+                                {!recetaIncompleta && recetaTrivial && (
+                                  <small className="mhc-campo-error" style={{ display: 'block', marginTop: '6px' }}>
+                                    ⚠ El nombre del medicamento no es válido (no puede ser solo números o símbolos).
                                   </small>
                                 )}
                               </div>
@@ -859,8 +887,9 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
                           ) : (
                             examenes.map((ex, index) => {
                               const examenIncompleto = !ex.nombre_examen?.trim();
+                              const examenTrivial = !examenIncompleto && esTextoTrivial(ex.nombre_examen);
                               return (
-                              <div key={index} style={{ background: '#f8fafc', padding: '1rem', borderRadius: '6px', marginBottom: '1rem', border: examenIncompleto ? '1px solid #DC2626' : '1px solid #f1f5f9' }}>
+                              <div key={index} style={{ background: '#f8fafc', padding: '1rem', borderRadius: '6px', marginBottom: '1rem', border: (examenIncompleto || examenTrivial) ? '1px solid #DC2626' : '1px solid #f1f5f9' }}>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 20px', gap: '10px', alignItems: 'center', marginBottom: '10px' }}>
                                   <select value={ex.tipo_examen} onChange={e => handleExamenChange(index, 'tipo_examen', e.target.value)} style={{ padding: '6px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: 'white' }}>
                                     <option value="Laboratorio">Laboratorio</option>
@@ -876,6 +905,11 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
                                     ⚠ El nombre del examen es obligatorio, o elimínelo.
                                   </small>
                                 )}
+                                {!examenIncompleto && examenTrivial && (
+                                  <small className="mhc-campo-error" style={{ display: 'block', marginTop: '6px' }}>
+                                    ⚠ El nombre del examen no es válido (no puede ser solo números o símbolos).
+                                  </small>
+                                )}
                               </div>
                             );})
                           )}
@@ -883,7 +917,14 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
 
                         <div className="mhc-campo" style={{ marginTop: '1.5rem' }}>
                           <label>Recomendaciones generales y signos de alarma</label>
-                          <textarea rows={2} value={form.recomendaciones} onChange={e => handleChange('recomendaciones', e.target.value)} />
+                          <textarea
+                            className={claseError('recomendaciones')}
+                            rows={2}
+                            value={form.recomendaciones}
+                            onChange={e => handleChange('recomendaciones', e.target.value)}
+                            onBlur={() => marcarTocado('recomendaciones')}
+                          />
+                          {renderErrorCampo('recomendaciones')}
                         </div>
                         <div className="mhc-grid-2">
                           <div className="mhc-campo">
@@ -894,7 +935,17 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
                             )}
                           </div>
                         </div>
-                        <div className="mhc-campo"><label>Observaciones de control</label><textarea rows={2} value={form.observaciones} onChange={e => handleChange('observaciones', e.target.value)} /></div>
+                        <div className="mhc-campo">
+                          <label>Observaciones de control</label>
+                          <textarea
+                            className={claseError('observaciones')}
+                            rows={2}
+                            value={form.observaciones}
+                            onChange={e => handleChange('observaciones', e.target.value)}
+                            onBlur={() => marcarTocado('observaciones')}
+                          />
+                          {renderErrorCampo('observaciones')}
+                        </div>
                       </div>
                     )}
 
@@ -913,7 +964,17 @@ export default function ModalHistoriaClinica({ cita, onCerrar, onGuardada }) {
                             />
                             {renderErrorCampo('medico_nombre_firma')}
                           </div>
-                          <div className="mhc-campo"><label>Cédula profesional</label><input type="text" value={form.medico_cedula_firma} onChange={e => handleChange('medico_cedula_firma', e.target.value)} /></div>
+                          <div className="mhc-campo">
+                            <label>Cédula profesional</label>
+                            <input
+                              className={claseError('medico_cedula_firma')}
+                              type="text"
+                              value={form.medico_cedula_firma}
+                              onChange={e => handleChange('medico_cedula_firma', e.target.value)}
+                              onBlur={() => marcarTocado('medico_cedula_firma')}
+                            />
+                            {renderErrorCampo('medico_cedula_firma')}
+                          </div>
                           <div className="mhc-campo mhc-campo--requerido">
                             <label>Registro ReTHUS <span>*</span></label>
                             <input

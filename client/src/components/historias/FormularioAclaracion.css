@@ -650,3 +650,30 @@
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   14. VALIDACIÓN EN TIEMPO REAL — mensajes inline y bordes de error
+   Se activan apenas el médico toca un campo obligatorio incompleto/erróneo
+   o escribe texto ilógico (números/símbolos donde debe ir descripción real),
+   sin esperar a que intente avanzar de paso.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.fa-campo-error {
+  display:     block;
+  margin-top:  4px;
+  font-size:   12px;
+  font-weight: 600;
+  color:       var(--melika-danger, #DC2626);
+  line-height: 1.4;
+}
+
+.fa-campo__input.fa-input-error,
+.fa-campo__textarea.fa-input-error {
+  border-color: var(--melika-danger, #DC2626) !important;
+  background:   #FEF2F2;
+}
+
+.fa-campo__input.fa-input-error:focus,
+.fa-campo__textarea.fa-input-error:focus {
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15) !important;
+}

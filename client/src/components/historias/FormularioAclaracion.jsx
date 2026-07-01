@@ -5,11 +5,22 @@
 // Solo es accesible para el médico autor de la historia original.
 // Lógica append-only: POST /historias/:id/aclaracion
 // Al éxito dispara 'melika:aclaracion-creada' para que HistorialPaciente recargue.
-// Incluye validación profesional de consistencia clínica por paso.
+//
+// Incluye validación profesional de consistencia clínica por paso, Y TAMBIÉN
+// validación EN TIEMPO REAL por campo individual (mismo criterio que aplica
+// el backend en server/src/utils/validacionesHistoria.js), para que el
+// médico nunca pueda avanzar con texto ilógico (números/símbolos donde debe
+// ir una descripción clínica real).
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { api } from '../../lib/apiClient';
 import { useAuth } from '../../context/AuthContext';
+import {
+  validarTextoClinico,
+  validarSoloDigitos,
+  validarCie10,
+  esVacio,
+} from '../../utils/validacionClinica';
 import './FormularioAclaracion.css';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -70,12 +81,87 @@ const RANGOS = {
   incapacidad_dias:            { min: 0,   max: 180 },
 };
 
-const REGEX_CIE10 = /^[A-Z][0-9]{2}(\.[0-9X]{1,2})?$/;
+// ─────────────────────────────────────────────────────────────────────────────
+// VALIDACIÓN EN TIEMPO REAL — POR CAMPO INDIVIDUAL
+// ESPEJO de validarNotaAclaracion() en server/src/utils/validacionesHistoria.js
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Campos de texto clínico obligatorios en una nota
+const REGLAS_TEXTO_ACLARACION = {
+  motivo_consulta:     { minCaracteres: 10, permitirNegacion: false, obligatorio: true },
+  medico_nombre_firma: { minCaracteres: 5,  permitirNegacion: false, obligatorio: true },
+};
+
+// Campos que, si se diligencian, NO pueden ser texto trivial — pero no son
+// obligatorios en una nota de aclaración/evolución (pueden dejarse vacíos).
+const CAMPOS_TRIVIAL_OPCIONAL = [
+  'anamnesis', 'examen_fisico', 'plan_tratamiento',
+  'ordenes_medicas', 'recomendaciones', 'observaciones',
+];
+
+const ETIQUETAS_ACLARACION = {
+  motivo_consulta:         'El motivo de la nota',
+  medico_nombre_firma:     'El nombre del médico firmante',
+  descripcion_diagnostico: 'La descripción del diagnóstico',
+  anamnesis:               'La evolución / enfermedad actual',
+  examen_fisico:           'Los hallazgos del examen físico',
+  plan_tratamiento:        'El plan de tratamiento',
+  ordenes_medicas:         'Las órdenes médicas',
+  recomendaciones:         'Las recomendaciones',
+  observaciones:           'Las observaciones',
+};
+
+function validarCampoAclaracion(campo, valorCrudo, form) {
+  const v = (valorCrudo ?? '').toString();
+
+  if (REGLAS_TEXTO_ACLARACION[campo]) {
+    return validarTextoClinico(v, ETIQUETAS_ACLARACION[campo], REGLAS_TEXTO_ACLARACION[campo]);
+  }
+
+  if (CAMPOS_TRIVIAL_OPCIONAL.includes(campo)) {
+    return validarTextoClinico(v, ETIQUETAS_ACLARACION[campo], {
+      minCaracteres: 0, permitirNegacion: false, obligatorio: false,
+    });
+  }
+
+  switch (campo) {
+    // El diagnóstico es "todo o nada": si diligencia uno, el otro es obligatorio
+    case 'diagnostico_cie10': {
+      const tieneDescDx = !esVacio(form.descripcion_diagnostico);
+      const resultado = validarCie10(v, { obligatorio: false });
+      if (resultado) return resultado;
+      if (esVacio(v) && tieneDescDx) return 'El código CIE-10 es obligatorio si registra una descripción del diagnóstico.';
+      return null;
+    }
+    case 'descripcion_diagnostico': {
+      const tieneCie10 = !esVacio(form.diagnostico_cie10);
+      if (esVacio(v)) return tieneCie10 ? 'La descripción del diagnóstico es obligatoria si registra un CIE-10.' : null;
+      return validarTextoClinico(v, ETIQUETAS_ACLARACION.descripcion_diagnostico, {
+        minCaracteres: 8, permitirNegacion: false, obligatorio: true,
+      });
+    }
+    case 'medico_cedula_firma':
+      return validarSoloDigitos(v, 'La cédula del médico', false);
+    case 'medico_rethus_firma':
+      return validarSoloDigitos(v, 'El número ReTHUS', true);
+    default:
+      return null;
+  }
+}
+
+// Campos que se validan EN TIEMPO REAL en cada paso del wizard.
+// El paso 2 (signos vitales) se valida con validarRangosNumericos(), no aquí.
+const CAMPOS_POR_PASO_ACLARACION = {
+  1: ['motivo_consulta', 'anamnesis'],
+  2: [],
+  3: ['diagnostico_cie10', 'descripcion_diagnostico', 'plan_tratamiento', 'ordenes_medicas', 'recomendaciones', 'observaciones'],
+  4: ['medico_nombre_firma', 'medico_cedula_firma', 'medico_rethus_firma'],
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
-// COMPONENTE CAMPO — Etiqueta + input/textarea reutilizable
+// COMPONENTE CAMPO — Etiqueta + input/textarea reutilizable, con error inline
 // ─────────────────────────────────────────────────────────────────────────────
-function CampoInput({ label, name, value, onChange, tipo = 'text', requerido = false, placeholder = '', min, max, step }) {
+function CampoInput({ label, name, value, onChange, onBlur, tipo = 'text', requerido = false, placeholder = '', min, max, step, error }) {
   return (
     <div className="fa-campo">
       <label className="fa-campo__label" htmlFor={name}>
@@ -84,11 +170,12 @@ function CampoInput({ label, name, value, onChange, tipo = 'text', requerido = f
       </label>
       <input
         id={name}
-        className="fa-campo__input"
+        className={`fa-campo__input ${error ? 'fa-input-error' : ''}`}
         type={tipo}
         name={name}
         value={value}
         onChange={onChange}
+        onBlur={onBlur}
         placeholder={placeholder}
         required={requerido}
         autoComplete="off"
@@ -96,11 +183,12 @@ function CampoInput({ label, name, value, onChange, tipo = 'text', requerido = f
         max={max}
         step={step}
       />
+      {error && <small className="fa-campo-error">⚠ {error}</small>}
     </div>
   );
 }
 
-function CampoTextarea({ label, name, value, onChange, requerido = false, placeholder = '', filas = 3 }) {
+function CampoTextarea({ label, name, value, onChange, onBlur, requerido = false, placeholder = '', filas = 3, error }) {
   return (
     <div className="fa-campo">
       <label className="fa-campo__label" htmlFor={name}>
@@ -109,14 +197,16 @@ function CampoTextarea({ label, name, value, onChange, requerido = false, placeh
       </label>
       <textarea
         id={name}
-        className="fa-campo__textarea"
+        className={`fa-campo__textarea ${error ? 'fa-input-error' : ''}`}
         name={name}
         value={value}
         onChange={onChange}
+        onBlur={onBlur}
         placeholder={placeholder}
         required={requerido}
         rows={filas}
       />
+      {error && <small className="fa-campo-error">⚠ {error}</small>}
     </div>
   );
 }
@@ -138,6 +228,29 @@ export default function FormularioAclaracion() {
   const [enviando,   setEnviando]   = useState(false);
   const [error,      setError]      = useState(null);
   const [exito,      setExito]      = useState(false);
+
+  // ── Validación en tiempo real: qué campos ha "tocado" el médico ──────────
+  const [tocado, setTocado] = useState({});
+
+  function marcarTocado(campo) {
+    setTocado(prev => (prev[campo] ? prev : { ...prev, [campo]: true }));
+  }
+
+  // Errores en tiempo real del paso actual, recalculados en cada render
+  const erroresCamposActuales = useMemo(() => {
+    const campos = CAMPOS_POR_PASO_ACLARACION[pasoActual] || [];
+    const mapa = {};
+    campos.forEach(campo => {
+      const msg = validarCampoAclaracion(campo, form[campo], form);
+      if (msg) mapa[campo] = msg;
+    });
+    return mapa;
+  }, [pasoActual, form]);
+
+  // Helper de render: solo muestra el error si el campo ya fue tocado
+  function errorDe(campo) {
+    return tocado[campo] ? erroresCamposActuales[campo] : undefined;
+  }
 
   // ── Cerrar el modal ─────────────────────────────────────────────────────────
   // Memoizada con useCallback porque el useEffect del Escape (más abajo)
@@ -165,6 +278,7 @@ export default function FormularioAclaracion() {
       setPasoActual(1);
       setError(null);
       setExito(false);
+      setTocado({});
       setVisible(true);
     }
 
@@ -185,6 +299,7 @@ export default function FormularioAclaracion() {
   const handleChange = useCallback((e) => {
     const { name, value } = e.target;
     setForm(prev => ({ ...prev, [name]: value }));
+    setTocado(prev => (prev[name] ? prev : { ...prev, [name]: true }));
   }, []);
 
   // ── Validación de rangos numéricos (signos vitales) ────────────────────────
@@ -201,10 +316,21 @@ export default function FormularioAclaracion() {
     return null;
   }
 
-  // ── Validación por paso ────────────────────────────────────────────────────
+  // ── Validación por paso — usa el mismo criterio en tiempo real ─────────────
   function validarPasoActual() {
-    if (pasoActual === 1 && !form.motivo_consulta.trim()) {
-      setError('El motivo de la nota es obligatorio.');
+    const campos = CAMPOS_POR_PASO_ACLARACION[pasoActual] || [];
+    setTocado(prev => {
+      const nuevo = { ...prev };
+      campos.forEach(c => { nuevo[c] = true; });
+      return nuevo;
+    });
+
+    const erroresCampos = campos
+      .map(c => validarCampoAclaracion(c, form[c], form))
+      .filter(Boolean);
+
+    if (erroresCampos.length > 0) {
+      setError(erroresCampos.join(' '));
       return false;
     }
 
@@ -223,30 +349,9 @@ export default function FormularioAclaracion() {
     }
 
     if (pasoActual === 3) {
-      const tieneCie10  = form.diagnostico_cie10.trim();
-      const tieneDescDx = form.descripcion_diagnostico.trim();
-      if ((tieneCie10 && !tieneDescDx) || (!tieneCie10 && tieneDescDx)) {
-        setError('Si registra un diagnóstico, debe incluir tanto el código CIE-10 como su descripción.');
-        return false;
-      }
-      if (tieneCie10 && !REGEX_CIE10.test(tieneCie10.toUpperCase())) {
-        setError('El código CIE-10 no tiene un formato válido (ej. J06.9).');
-        return false;
-      }
       const dias = parseInt(form.incapacidad_dias, 10);
-      if (!Number.isNaN(dias) && dias > 0 && !tieneCie10) {
+      if (!Number.isNaN(dias) && dias > 0 && !form.diagnostico_cie10.trim()) {
         setError('No se puede otorgar incapacidad sin un diagnóstico CIE-10 registrado.');
-        return false;
-      }
-    }
-
-    if (pasoActual === 4) {
-      if (!form.medico_nombre_firma.trim()) {
-        setError('El nombre del médico firmante es obligatorio.');
-        return false;
-      }
-      if (!form.medico_rethus_firma.trim()) {
-        setError('El número ReTHUS es obligatorio para el cierre legal.');
         return false;
       }
     }
@@ -429,6 +534,8 @@ export default function FormularioAclaracion() {
                   name="motivo_consulta"
                   value={form.motivo_consulta}
                   onChange={handleChange}
+                  onBlur={() => marcarTocado('motivo_consulta')}
+                  error={errorDe('motivo_consulta')}
                   requerido
                   filas={4}
                   placeholder="Describa el motivo de esta nota de aclaración o evolución..."
@@ -439,6 +546,8 @@ export default function FormularioAclaracion() {
                   name="anamnesis"
                   value={form.anamnesis}
                   onChange={handleChange}
+                  onBlur={() => marcarTocado('anamnesis')}
+                  error={errorDe('anamnesis')}
                   filas={3}
                   placeholder="Evolución cronológica de los síntomas..."
                 />
@@ -613,6 +722,8 @@ export default function FormularioAclaracion() {
                   name="examen_fisico"
                   value={form.examen_fisico}
                   onChange={handleChange}
+                  onBlur={() => marcarTocado('examen_fisico')}
+                  error={errorDe('examen_fisico')}
                   filas={3}
                   placeholder="Descripción detallada del examen físico realizado..."
                 />
@@ -633,6 +744,8 @@ export default function FormularioAclaracion() {
                     name="diagnostico_cie10"
                     value={form.diagnostico_cie10}
                     onChange={e => handleChange({ target: { name: 'diagnostico_cie10', value: e.target.value.toUpperCase() } })}
+                    onBlur={() => marcarTocado('diagnostico_cie10')}
+                    error={errorDe('diagnostico_cie10')}
                     placeholder="Ej: J06.9"
                   />
                   <CampoInput
@@ -640,6 +753,8 @@ export default function FormularioAclaracion() {
                     name="descripcion_diagnostico"
                     value={form.descripcion_diagnostico}
                     onChange={handleChange}
+                    onBlur={() => marcarTocado('descripcion_diagnostico')}
+                    error={errorDe('descripcion_diagnostico')}
                     placeholder="Infección aguda de las vías respiratorias superiores..."
                   />
                 </div>
@@ -652,6 +767,8 @@ export default function FormularioAclaracion() {
                   name="plan_tratamiento"
                   value={form.plan_tratamiento}
                   onChange={handleChange}
+                  onBlur={() => marcarTocado('plan_tratamiento')}
+                  error={errorDe('plan_tratamiento')}
                   filas={3}
                   placeholder="Descripción del plan terapéutico..."
                 />
@@ -670,6 +787,8 @@ export default function FormularioAclaracion() {
                   name="ordenes_medicas"
                   value={form.ordenes_medicas}
                   onChange={handleChange}
+                  onBlur={() => marcarTocado('ordenes_medicas')}
+                  error={errorDe('ordenes_medicas')}
                   filas={3}
                   placeholder="Exámenes de laboratorio, imágenes, interconsultas..."
                 />
@@ -679,6 +798,8 @@ export default function FormularioAclaracion() {
                   name="recomendaciones"
                   value={form.recomendaciones}
                   onChange={handleChange}
+                  onBlur={() => marcarTocado('recomendaciones')}
+                  error={errorDe('recomendaciones')}
                   filas={3}
                   placeholder="Cuidados en casa, dieta, actividad física, signos de alarma..."
                 />
@@ -706,6 +827,8 @@ export default function FormularioAclaracion() {
                     name="observaciones"
                     value={form.observaciones}
                     onChange={handleChange}
+                    onBlur={() => marcarTocado('observaciones')}
+                    error={errorDe('observaciones')}
                     filas={2}
                   />
                 </div>
@@ -733,6 +856,8 @@ export default function FormularioAclaracion() {
                   name="medico_nombre_firma"
                   value={form.medico_nombre_firma}
                   onChange={handleChange}
+                  onBlur={() => marcarTocado('medico_nombre_firma')}
+                  error={errorDe('medico_nombre_firma')}
                   requerido
                   placeholder="Dr(a). Nombre Apellido"
                 />
@@ -743,6 +868,8 @@ export default function FormularioAclaracion() {
                     name="medico_cedula_firma"
                     value={form.medico_cedula_firma}
                     onChange={handleChange}
+                    onBlur={() => marcarTocado('medico_cedula_firma')}
+                    error={errorDe('medico_cedula_firma')}
                     placeholder="Número de cédula"
                   />
                   <CampoInput
@@ -750,6 +877,8 @@ export default function FormularioAclaracion() {
                     name="medico_rethus_firma"
                     value={form.medico_rethus_firma}
                     onChange={handleChange}
+                    onBlur={() => marcarTocado('medico_rethus_firma')}
+                    error={errorDe('medico_rethus_firma')}
                     requerido
                     placeholder="ReTHUS-XXXXXXXX"
                   />
