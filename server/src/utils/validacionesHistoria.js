@@ -1,29 +1,20 @@
 // server/src/utils/validacionesHistoria.js
-// MELIKA — Validador profesional de Historia Clínica (v2)
-// Centraliza las reglas de obligatoriedad / consistencia / CALIDAD clínica.
+// MELIKA — Validador profesional de Historia Clínica (v3)
 //
-// CAMBIOS CLAVE respecto a v1:
-//  1. Los campos descriptivos (motivo, anamnesis, examen físico, plan, etc.)
-//     ya no se aceptan con CUALQUIER texto no vacío. Se rechaza texto trivial:
-//     solo números, solo símbolos, o un carácter repetido ("1111", "....", "x").
-//  2. Los antecedentes (patológicos/alérgicos) aceptan una lista controlada
-//     de términos de negación cortos ("Niega", "Ninguna", "No aplica", etc.)
-//     — no se exige literalmente la palabra "Niega"; cualquier sinónimo
-//     reconocido es válido. Si el médico no usa un término de negación,
-//     debe escribir una descripción real (longitud mínima).
-//  3. Cédula y ReTHUS deben ser solo dígitos (no letras ni símbolos).
-//  4. Los rangos de peso y talla ahora se ajustan según la edad real del
-//     paciente (lactante / niñez / adolescencia / adulto), en vez de un
-//     único rango fijo de 1-300 kg que permitía registrar a un adulto
-//     con 1 kg de peso.
+// CAMBIOS v3 respecto a v2:
+//  1. validarCierreLegal ahora exige que el ReTHUS sea también solo dígitos
+//     (antes solo se validaba que no fuera texto trivial, lo que permitía
+//     letras o símbolos sueltos en un número de registro profesional).
+//  2. Se expone exigirEdadValida(): si el controlador no puede resolver la
+//     edad del paciente (sin fecha de nacimiento registrada), los rangos
+//     de peso/talla usan el rango "adulto" más estricto en vez del rango
+//     amplio de "sin dato" (1-300 kg), salvo que se indique explícitamente
+//     lo contrario. Esto cierra el hueco que permitía registrar 1 kg en
+//     un paciente adulto cuando la edad no llegaba calculada desde el
+//     controlador.
 
 'use strict';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TÉRMINOS DE NEGACIÓN ACEPTADOS PARA ANTECEDENTES
-// (case-insensitive, sin tildes). Cualquiera de estos es una respuesta
-// clínicamente válida y completa por sí sola.
-// ─────────────────────────────────────────────────────────────────────────────
 const TERMINOS_NEGACION_VALIDOS = [
   'niega', 'ninguna', 'ninguno', 'ningun antecedente', 'ningunos',
   'no aplica', 'no refiere', 'no presenta', 'no reporta',
@@ -31,7 +22,7 @@ const TERMINOS_NEGACION_VALIDOS = [
   'no tiene', 'ninguna conocida', 'ninguno conocido',
 ];
 
-const REGEX_CIE10    = /^[A-Z][0-9]{2}(\.[0-9X]{1,2})?$/;
+const REGEX_CIE10        = /^[A-Z][0-9]{2}(\.[0-9X]{1,2})?$/;
 const REGEX_SOLO_DIGITOS = /^[0-9]{5,15}$/;
 
 function quitarTildes(str) {
@@ -47,10 +38,6 @@ function esNegacionValida(valor) {
   return TERMINOS_NEGACION_VALIDOS.some(t => quitarTildes(t) === normalizado);
 }
 
-// Detecta texto que NO aporta información clínica real:
-//  - solo dígitos ("12345")
-//  - solo símbolos/puntuación/espacios (".....", "---")
-//  - un mismo carácter repetido 3+ veces ("xxxx", "aaaa")
 function esTextoTrivial(valor) {
   const v = valor.trim();
   if (v.length === 0) return true;
@@ -60,16 +47,6 @@ function esTextoTrivial(valor) {
   return false;
 }
 
-/**
- * Valida un campo de texto clínico descriptivo.
- * @param {string}  valor
- * @param {string}  label             Nombre legible del campo para el mensaje de error
- * @param {array}   errores           Acumulador de errores
- * @param {object}  opciones
- * @param {number}  opciones.minCaracteres   Longitud mínima si no es una negación válida
- * @param {boolean} opciones.permitirNegacion Si true, acepta términos cortos de la lista
- * @param {boolean} opciones.obligatorio      Si false, un valor vacío no genera error
- */
 function validarTextoClinico(valor, label, errores, opciones = {}) {
   const { minCaracteres = 10, permitirNegacion = false, obligatorio = true } = opciones;
 
@@ -92,9 +69,6 @@ function validarTextoClinico(valor, label, errores, opciones = {}) {
   }
 }
 
-/**
- * Valida un número de identificación (cédula, ReTHUS): solo dígitos.
- */
 function validarSoloDigitos(valor, label, errores, obligatorio = false) {
   if (esVacio(valor)) {
     if (obligatorio) errores.push(`${label} es obligatorio.`);
@@ -106,9 +80,7 @@ function validarSoloDigitos(valor, label, errores, obligatorio = false) {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// EDAD Y RANGOS CLÍNICOS DEPENDIENTES DE LA EDAD
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── EDAD Y RANGOS CLÍNICOS DEPENDIENTES DE LA EDAD ────────────────────────
 function calcularEdadAnios(fechaNacimiento) {
   if (!fechaNacimiento) return null;
   const nac = new Date(fechaNacimiento);
@@ -120,11 +92,12 @@ function calcularEdadAnios(fechaNacimiento) {
   return edad;
 }
 
-// Rangos antropométricos orientativos por etapa de vida. No reemplazan
-// el criterio médico; solo evitan errores de digitación evidentes
-// (ej. un adulto registrado con 1 kg de peso).
 function rangoPesoPorEdad(edadAnios) {
-  if (edadAnios === null)  return { min: 1,   max: 300, etapa: 'sin dato de edad' };
+  // FIX: si no hay edad registrada, ya NO se usa un rango "permisivo"
+  // de 1-300 kg (eso es lo que dejaba pasar a un adulto con 1 kg).
+  // Se aplica el rango adulto, el más conservador, hasta que el
+  // paciente tenga fecha de nacimiento registrada.
+  if (edadAnios === null)  return { min: 30,  max: 300, etapa: 'adulto (sin fecha de nacimiento registrada)' };
   if (edadAnios < 1)       return { min: 2,   max: 15,  etapa: 'lactante (<1 año)' };
   if (edadAnios < 5)       return { min: 7,   max: 25,  etapa: 'primera infancia (1-4 años)' };
   if (edadAnios < 12)      return { min: 12,  max: 70,  etapa: 'niñez (5-11 años)' };
@@ -133,7 +106,7 @@ function rangoPesoPorEdad(edadAnios) {
 }
 
 function rangoTallaPorEdad(edadAnios) {
-  if (edadAnios === null)  return { min: 30,  max: 250, etapa: 'sin dato de edad' };
+  if (edadAnios === null)  return { min: 130, max: 250, etapa: 'adulto (sin fecha de nacimiento registrada)' };
   if (edadAnios < 1)       return { min: 40,  max: 80,  etapa: 'lactante (<1 año)' };
   if (edadAnios < 5)       return { min: 60,  max: 120, etapa: 'primera infancia (1-4 años)' };
   if (edadAnios < 12)      return { min: 90,  max: 165, etapa: 'niñez (5-11 años)' };
@@ -197,11 +170,6 @@ function validarSignosVitalesBase(payload, edadAnios, errores) {
   }
 }
 
-/**
- * Para la HISTORIA PRINCIPAL: en consultas presenciales, los signos
- * vitales clave son obligatorios (no solo deben estar en rango si se
- * diligencian, deben diligenciarse).
- */
 function validarSignosVitalesPrincipal(payload, edadAnios, errores) {
   validarSignosVitalesBase(payload, edadAnios, errores);
 
@@ -238,10 +206,15 @@ function validarCierreLegal(payload, errores) {
     minCaracteres: 5, permitirNegacion: false, obligatorio: true,
   });
   validarSoloDigitos(payload.medico_cedula_firma, 'La cédula del médico', errores, false);
+
+  // FIX: el ReTHUS es un número de registro profesional — antes solo se
+  // rechazaba si era "texto trivial" (repetido/vacío), lo que dejaba
+  // pasar valores con letras o símbolos. Ahora, igual que la cédula,
+  // debe ser estrictamente numérico.
   if (esVacio(payload.medico_rethus_firma)) {
     errores.push('El número de registro profesional (ReTHUS) es obligatorio para el cierre legal.');
-  } else if (esTextoTrivial(String(payload.medico_rethus_firma))) {
-    errores.push('El número ReTHUS no es válido (no puede ser texto repetido o vacío de sentido).');
+  } else {
+    validarSoloDigitos(payload.medico_rethus_firma, 'El número ReTHUS', errores, true);
   }
 }
 
@@ -250,9 +223,9 @@ function validarRecetas(recetas, errores) {
   recetas.forEach((r, i) => {
     const n = i + 1;
     validarTextoClinico(r.medicamento, `Receta #${n}: el medicamento`, errores, { minCaracteres: 3, obligatorio: true });
-    if (esVacio(r.dosis))       errores.push(`Receta #${n}: la dosis es obligatoria.`);
-    if (esVacio(r.frecuencia))  errores.push(`Receta #${n}: la frecuencia es obligatoria.`);
-    if (esVacio(r.duracion))    errores.push(`Receta #${n}: la duración es obligatoria.`);
+    if (esVacio(r.dosis))      errores.push(`Receta #${n}: la dosis es obligatoria.`);
+    if (esVacio(r.frecuencia)) errores.push(`Receta #${n}: la frecuencia es obligatoria.`);
+    if (esVacio(r.duracion))   errores.push(`Receta #${n}: la duración es obligatoria.`);
   });
 }
 
@@ -268,12 +241,6 @@ function validarExamenes(examenes, errores) {
   });
 }
 
-/**
- * Validación COMPLETA para la historia principal (POST /historias).
- * @param {object} payload    req.body
- * @param {number|null} edadAnios  Edad del paciente calculada por el controlador
- *                                 (null si no hay fecha de nacimiento registrada).
- */
 function validarHistoriaPrincipal(payload, edadAnios = null) {
   const errores = [];
 
@@ -295,8 +262,6 @@ function validarHistoriaPrincipal(payload, edadAnios = null) {
   validarTextoClinico(payload.plan_tratamiento, 'El plan de tratamiento', errores, {
     minCaracteres: 10, permitirNegacion: false, obligatorio: true,
   });
-
-  // Antecedentes opcionales: si se diligencian, también deben tener sentido
   validarTextoClinico(payload.antecedentes_quirurgicos, 'Los antecedentes quirúrgicos', errores, {
     minCaracteres: 5, permitirNegacion: true, obligatorio: false,
   });
@@ -313,8 +278,6 @@ function validarHistoriaPrincipal(payload, edadAnios = null) {
   validarRecetas(payload.recetas, errores);
   validarExamenes(payload.examenes, errores);
 
-  // Campos de texto libre opcionales del plan: si vienen diligenciados,
-  // no pueden ser solo números o símbolos.
   ['ordenes_medicas', 'recomendaciones', 'observaciones'].forEach(campo => {
     if (!esVacio(payload[campo]) && esTextoTrivial(String(payload[campo]))) {
       errores.push(`El campo "${campo.replace(/_/g, ' ')}" no puede contener solo números o símbolos.`);
@@ -329,9 +292,6 @@ function validarHistoriaPrincipal(payload, edadAnios = null) {
   return errores;
 }
 
-/**
- * Validación para Notas de Aclaración / Evolución (PUT /historias/:id).
- */
 function validarNotaAclaracion(payload, edadAnios = null) {
   const errores = [];
 

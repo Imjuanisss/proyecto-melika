@@ -1,11 +1,18 @@
 // server/src/controllers/historiasController.js
 // MELIKA — Controlador integral de Historias Clínicas y Documentos Clínicos
 // Incluye validación profesional end-to-end antes de cualquier persistencia.
+//
+// FIX CRÍTICO v2: tanto crearHistoria como actualizarHistoria ahora calculan
+// la edad REAL del paciente (a partir de usuarios.fecha_nacimiento) y la
+// pasan a validarHistoriaPrincipal / validarNotaAclaracion. Antes esa edad
+// nunca se calculaba ni se enviaba, por lo que las validaciones de rango
+// peso/talla por edad nunca se aplicaban (permitían, por ejemplo, un adulto
+// registrado con 1 kg de peso).
 
 'use strict';
 
 const pool = require('../config/db');
-const { validarHistoriaPrincipal, validarNotaAclaracion } = require('../utils/validacionesHistoria');
+const { validarHistoriaPrincipal, validarNotaAclaracion, calcularEdadAnios } = require('../utils/validacionesHistoria');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPERS INTERNOS
@@ -61,6 +68,15 @@ async function citaExisteEntreAmbosPorCita(id_cita, id_medico) {
   return res.rows.length > 0 ? res.rows[0] : null;
 }
 
+// Obtiene la fecha de nacimiento del paciente y calcula su edad en años.
+// Centralizado aquí para que tanto crearHistoria como actualizarHistoria
+// validen contra la edad REAL, en vez de validar "a ciegas".
+async function obtenerEdadPaciente(id_paciente) {
+  const res = await pool.query('SELECT fecha_nacimiento FROM usuarios WHERE id = $1', [id_paciente]);
+  if (res.rows.length === 0) return null;
+  return calcularEdadAnios(res.rows[0].fecha_nacimiento);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /historias — CON VALIDACIÓN PROFESIONAL + SOPORTE RECETAS/EXÁMENES
 // ─────────────────────────────────────────────────────────────────────────────
@@ -82,23 +98,24 @@ async function crearHistoria(req, res) {
     return res.status(400).json({ mensaje: 'id_cita es obligatorio.' });
   }
 
-  // ── VALIDACIÓN PROFESIONAL COMPLETA ───────────────────────────────────────
-  // Se valida ANTES de tocar la base de datos: ninguna historia incompleta
-  // o clínicamente inconsistente debe llegar a persistirse.
-  const errores = validarHistoriaPrincipal(req.body);
-  if (errores.length > 0) {
-    return res.status(422).json({
-      mensaje: 'La historia clínica contiene campos obligatorios sin diligenciar o inconsistencias clínicas.',
-      errores,
-    });
-  }
-
   try {
     const id_medico = await resolverIdMedico(id_usuario);
     if (!id_medico) return res.status(403).json({ mensaje: 'No tienes perfil de médico registrado.' });
 
     const cita = await citaExisteEntreAmbosPorCita(id_cita, id_medico);
     if (!cita) return res.status(403).json({ mensaje: 'La cita no existe o no corresponde a tu agenda.' });
+
+    // ── EDAD REAL DEL PACIENTE — necesaria para validar peso/talla coherentes ──
+    const edadAnios = await obtenerEdadPaciente(cita.id_paciente);
+
+    // ── VALIDACIÓN PROFESIONAL COMPLETA (con edad real) ───────────────────────
+    const errores = validarHistoriaPrincipal(req.body, edadAnios);
+    if (errores.length > 0) {
+      return res.status(422).json({
+        mensaje: 'La historia clínica contiene campos obligatorios sin diligenciar o inconsistencias clínicas.',
+        errores,
+      });
+    }
 
     const existe = await pool.query(
       `SELECT id FROM historias_clinicas WHERE id_cita = $1 AND tipo_registro = 'historia_principal'`,
@@ -189,7 +206,6 @@ async function crearHistoria(req, res) {
     }
   } catch (err) {
     console.error('Error en crearHistoria:', err.message);
-    // Constraint de BD violado (defensa en profundidad) → mensaje claro
     if (err.code === '23514') {
       return res.status(422).json({ mensaje: 'La historia clínica viola una regla de integridad clínica (rango fuera de límite o campo inconsistente).' });
     }
@@ -197,7 +213,7 @@ async function crearHistoria(req, res) {
   }
 }
 
-// ─── PUT /historias/:id — Actualizar historia clínica (nota aclaración/evolución) ──
+// ─── PUT/POST /historias/:id(/aclaracion) — Actualizar historia clínica ───────
 async function actualizarHistoria(req, res) {
   const id_usuario = req.usuario.id;
   const { id } = req.params;
@@ -216,15 +232,6 @@ async function actualizarHistoria(req, res) {
     return res.status(400).json({ mensaje: "tipo_registro debe ser 'nota_aclaracion' o 'nota_evolucion'." });
   }
 
-  // ── VALIDACIÓN PROFESIONAL DE LA NOTA ─────────────────────────────────────
-  const errores = validarNotaAclaracion(req.body);
-  if (errores.length > 0) {
-    return res.status(422).json({
-      mensaje: 'La nota contiene campos obligatorios sin diligenciar o inconsistencias clínicas.',
-      errores,
-    });
-  }
-
   try {
     const id_medico = await resolverIdMedico(id_usuario);
     if (!id_medico) return res.status(403).json({ mensaje: 'No tienes perfil de médico registrado.' });
@@ -237,6 +244,19 @@ async function actualizarHistoria(req, res) {
     if (historiaRes.rows[0].id_medico !== id_medico) return res.status(403).json({ mensaje: 'Solo el médico autor puede agregar notas.' });
 
     const historiaOriginal = historiaRes.rows[0];
+
+    // ── EDAD REAL DEL PACIENTE ─────────────────────────────────────────────
+    const edadAnios = await obtenerEdadPaciente(historiaOriginal.id_paciente);
+
+    // ── VALIDACIÓN PROFESIONAL DE LA NOTA (con edad real) ─────────────────
+    const errores = validarNotaAclaracion(req.body, edadAnios);
+    if (errores.length > 0) {
+      return res.status(422).json({
+        mensaje: 'La nota contiene campos obligatorios sin diligenciar o inconsistencias clínicas.',
+        errores,
+      });
+    }
+
     let imcCalculado = null;
     if (peso_kg && talla_cm && parseFloat(talla_cm) > 0) {
       imcCalculado = parseFloat((parseFloat(peso_kg) / Math.pow(parseFloat(talla_cm) / 100, 2)).toFixed(2));
@@ -368,7 +388,6 @@ async function obtenerHistoria(req, res) {
       if (!tieneAcceso) return res.status(403).json({ mensaje: 'No tienes acceso a este expediente clínico.' });
     }
 
-    // Aclaraciones
     const aclaRes = await pool.query(
       `SELECT * FROM historias_clinicas WHERE id_historia_original = $1 AND tipo_registro IN ('nota_aclaracion', 'nota_evolucion') ORDER BY created_at ASC`,
       [historia.id]
@@ -377,10 +396,7 @@ async function obtenerHistoria(req, res) {
       ...ac, medicamentos_recetados: normalizarMedicamentosParaFrontend(ac.medicamentos_recetados),
     }));
 
-    // Recetas
     const recetasRes = await pool.query(`SELECT * FROM recetas_medicas WHERE id_historia = $1 ORDER BY id ASC`, [historia.id]);
-
-    // Exámenes
     const examenesRes = await pool.query(`SELECT * FROM ordenes_examenes WHERE id_historia = $1 ORDER BY id ASC`, [historia.id]);
 
     return res.json({
@@ -439,7 +455,6 @@ async function obtenerHistoriaCompleta(req, res) {
     const aclaRes = await pool.query(`SELECT * FROM historias_clinicas WHERE id_historia_original = $1 AND tipo_registro IN ('nota_aclaracion', 'nota_evolucion') ORDER BY created_at ASC`, [historia.id]);
     const aclaraciones = aclaRes.rows.map(ac => ({ ...ac, medicamentos_recetados: normalizarMedicamentosParaFrontend(ac.medicamentos_recetados) }));
 
-    // Recetas y Exámenes
     const recetasRes = await pool.query(`SELECT * FROM recetas_medicas WHERE id_historia = $1 ORDER BY id ASC`, [historia.id]);
     const examenesRes = await pool.query(`SELECT * FROM ordenes_examenes WHERE id_historia = $1 ORDER BY id ASC`, [historia.id]);
 
