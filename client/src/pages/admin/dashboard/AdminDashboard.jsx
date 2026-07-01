@@ -30,9 +30,16 @@ export default function AdminDashboard() {
       .finally(() => setLoading(false));
   }, []);
 
-  function formatFecha(fechaStr) {
-    if (!fechaStr) return '';
-    return new Date(fechaStr + 'T00:00:00').toLocaleDateString('es-CO', {
+ function formatFecha(fechaStr) {
+    if (!fechaStr) return '—';
+    // Blindaje: si fechaStr viene como ISO completo (con hora/zona, p.ej.
+    // "2024-01-01T00:00:00.000Z" porque el backend devolvió un Date crudo
+    // de Postgres) en vez de "YYYY-MM-DD", split('T')[0] evita concatenar
+    // dos fragmentos de hora y producir un Invalid Date.
+    const soloFecha = String(fechaStr).split('T')[0];
+    const fecha = new Date(`${soloFecha}T00:00:00`);
+    if (isNaN(fecha.getTime())) return '—';
+    return fecha.toLocaleDateString('es-CO', {
       day: 'numeric', month: 'short', year: 'numeric',
     });
   }
