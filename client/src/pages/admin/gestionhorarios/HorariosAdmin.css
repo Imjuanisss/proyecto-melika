@@ -537,3 +537,14 @@
     align-items:    stretch;
   }
 }
+ 
+
+.ha-modal-detalle__nota {
+  font-size: 0.78rem;
+  color: var(--melika-text-muted);
+  background: var(--melika-bg-secondary, #f8fafb);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  margin: 0;
+  line-height: 1.5;
+}

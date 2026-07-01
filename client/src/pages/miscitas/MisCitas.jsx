@@ -194,7 +194,7 @@ export default function MisCitas() {
       setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
     } catch (err) {
       console.error('Error al descargar PDF:', err);
-      setVisorError(`No se pudo generar/descargar el documento (${tipoDocumento}).`);
+      setVisorError(err.message || `No se pudo generar/descargar el documento (${tipoDocumento}).`);
     } finally {
       setVisorCargando(false);
     }

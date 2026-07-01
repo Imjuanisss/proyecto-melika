@@ -4,7 +4,6 @@ const pool = require('../config/db');
 function normalizarFecha(fecha) {
   if (!fecha) return null;
   if (fecha instanceof Date) {
-    // Extraer componentes UTC para evitar alteraciones de zona horaria local
     const yyyy = fecha.getUTCFullYear();
     const mm = String(fecha.getUTCMonth() + 1).padStart(2, '0');
     const dd = String(fecha.getUTCDate()).padStart(2, '0');
@@ -12,6 +11,23 @@ function normalizarFecha(fecha) {
   }
   return String(fecha).split('T')[0];
 }
+
+// Etiquetas/colores legibles para los eventos de calendario del paciente.
+// FIX: el mapa anterior incluía un estado 'confirmada' que no existe en el
+// esquema (citas.estado solo admite pendiente/completada/cancelada/
+// no_asistio), por lo que esas citas nunca tomaban un color correcto y
+// siempre caían al color por defecto.
+const ESTADO_LABEL = {
+  pendiente:  'Pendiente',
+  completada: 'Completada',
+  no_asistio: 'No asistió',
+};
+
+const COLOR_ESTADO = {
+  pendiente:  { bg: '#B45309', border: '#92400E' },
+  completada: { bg: '#1A7A52', border: '#145C3E' },
+  no_asistio: { bg: '#6B7280', border: '#4B5563' },
+};
 
 // =============================================================================
 // POST /citas — Crear cita
@@ -132,7 +148,7 @@ async function misCitas(req, res) {
 // =============================================================================
 async function citasCalendario(req, res) {
   const id_paciente = req.usuario.id;
-  
+
   let fechaInicio = req.query.inicio || req.query.start;
   let fechaFin    = req.query.fin || req.query.end;
 
@@ -170,18 +186,13 @@ async function citasCalendario(req, res) {
       [id_paciente, fechaInicio, fechaFin]
     );
 
-    const COLOR_ESTADO = {
-      pendiente:  { bg: '#B45309', border: '#92400E' },
-      confirmada: { bg: '#2351C4', border: '#1A3A8F' },
-      completada: { bg: '#1A7A52', border: '#145C3E' },
-    };
-
     const eventos = resultado.rows.map((c) => {
-      const colores = COLOR_ESTADO[c.estado] || { bg: '#8A9BBE', border: '#6B7FA6' };
+      const colores  = COLOR_ESTADO[c.estado] || { bg: '#8A9BBE', border: '#6B7FA6' };
+      const etiqueta = ESTADO_LABEL[c.estado] || c.estado;
 
       return {
         id:              String(c.id),
-        title:           `${c.especialidad}`,
+        title:           `${etiqueta} · ${c.especialidad}`,
         start:           `${c.fecha_str}T${c.hora_inicio}`, // 🌟 Combinación de strings perfecta sin desfases
         backgroundColor: colores.bg,
         borderColor:     colores.border,
@@ -205,11 +216,11 @@ async function citasCalendario(req, res) {
 }
 
 // =============================================================================
-// PATCH /citas/:id/cancelar — Cancelar cita
+// PATCH /citas/:id — Cancelar cita
 // =============================================================================
 async function cancelarCita(req, res) {
   const { id }              = req.params;
-  const { razon_cancelacion } = req.body; 
+  const { razon_cancelacion } = req.body;
   const id_usuario_auth     = req.usuario.id;
   const rol_usuario         = req.usuario.rol;
 

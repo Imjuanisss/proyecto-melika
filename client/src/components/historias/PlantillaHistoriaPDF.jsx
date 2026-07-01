@@ -387,6 +387,28 @@ function extraerTextoMedicamentos(campo) {
   return null;
 }
 
+// Formatea fecha + hora de forma segura. Si el valor es null/undefined o
+// no es una fecha válida, retorna un placeholder en vez de "Invalid Date"
+// (que sí ocurriría con new Date(undefined).toLocaleDateString()).
+function formatFechaHora(valor) {
+  if (!valor) return 'Fecha no registrada';
+  const fecha = new Date(valor);
+  if (Number.isNaN(fecha.getTime())) return 'Fecha no registrada';
+  return fecha.toLocaleDateString('es-CO', {
+    day: '2-digit', month: 'long', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
+}
+
+// Convierte a número de forma segura para campos que pueden llegar como
+// string (algunos drivers de PostgreSQL devuelven NUMERIC como string)
+// o null. Evita NaN visual en el PDF (ej. IMC, signos vitales).
+function aNumeroSeguro(valor) {
+  if (valor === null || valor === undefined || valor === '') return null;
+  const num = Number(valor);
+  return Number.isNaN(num) ? null : num;
+}
+
 // ─── Componentes reutilizables ────────────────────────────────────────────────
 
 function Campo({ etiqueta, valor }) {
@@ -634,7 +656,7 @@ export function PlantillaHistoriaPDF({ historia, aclaraciones = [] }) {
               {historia.imc && (
                 <View style={[base.signoCard, { backgroundColor: '#EDE9FE' }]}>
                   <Text style={[base.signoValor, { color: '#5B21B6' }]}>
-                    {Number(historia.imc).toFixed(1)}
+                    {(aNumeroSeguro(historia.imc) ?? 0).toFixed(1)}
                   </Text>
                   <Text style={base.signoUnidad}>kg/m²</Text>
                   <Text style={[base.signoLabel, { color: '#5B21B6' }]}>IMC</Text>
@@ -762,10 +784,7 @@ export function PlantillaHistoriaPDF({ historia, aclaraciones = [] }) {
                         : `Aclaración / Corrección #${i + 1}`}
                     </Text>
                     <Text style={base.aclaracionFecha}>
-                      {new Date(ac.created_at).toLocaleDateString('es-CO', {
-                        day: '2-digit', month: 'long', year: 'numeric',
-                        hour: '2-digit', minute: '2-digit',
-                      })}
+                      {formatFechaHora(ac.created_at)}
                     </Text>
                   </View>
 
@@ -847,218 +866,6 @@ export function PlantillaHistoriaPDF({ historia, aclaraciones = [] }) {
     </Document>
   );
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// PLANTILLA 2: Fórmula Médica
-// ─────────────────────────────────────────────────────────────────────────────
-
-const estilosFormula = StyleSheet.create({
-  pagina: {
-    fontFamily:      'Helvetica',
-    fontSize:        9,
-    color:           COLOR.grisTexto,
-    backgroundColor: COLOR.blanco,
-    paddingTop:      36,
-    paddingBottom:   52,
-    paddingLeft:     44,
-    paddingRight:    44,
-  },
-  bannerFormula: {
-    backgroundColor:   COLOR.verde,
-    borderRadius:      8,
-    paddingVertical:   10,
-    paddingHorizontal: 14,
-    marginBottom:      14,
-    flexDirection:     'row',
-    justifyContent:    'space-between',
-    alignItems:        'center',
-  },
-  bannerTitulo: {
-    fontSize:   13,
-    fontFamily: 'Helvetica-Bold',
-    color:      COLOR.blanco,
-  },
-  bannerSub: {
-    fontSize:  8,
-    color:     '#A7F3D0',
-    marginTop: 2,
-  },
-  bannerLogo: {
-    fontSize:      16,
-    fontFamily:    'Helvetica-Bold',
-    color:         COLOR.blanco,
-    letterSpacing: 2,
-  },
-  bannerLogoAccento: {
-    color: '#FCA5A5',
-  },
-  pacienteBox: {
-    backgroundColor: COLOR.azulPale,
-    borderRadius:    6,
-    padding:         10,
-    marginBottom:    10,
-  },
-  pacienteTitulo: {
-    fontSize:      8,
-    fontFamily:    'Helvetica-Bold',
-    color:         COLOR.azulMedio,
-    textTransform: 'uppercase',
-    marginBottom:  6,
-    letterSpacing: 0.5,
-  },
-  medBox: {
-    borderWidth:   1,
-    borderColor:   COLOR.verde,
-    borderRadius:  8,
-    marginBottom:  10,
-    overflow:      'hidden',
-  },
-  medBoxHeader: {
-    backgroundColor:   COLOR.verde,
-    paddingVertical:   5,
-    paddingHorizontal: 10,
-  },
-  medBoxHeaderTexto: {
-    fontSize:      8,
-    fontFamily:    'Helvetica-Bold',
-    color:         COLOR.blanco,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
-  medBoxCuerpo: {
-    padding: 10,
-  },
-  medTextoContenido: {
-    fontSize:   10,
-    color:      COLOR.negro,
-    lineHeight: 1.7,
-  },
-  ordenBox: {
-    borderWidth:   1,
-    borderColor:   COLOR.azulClaro,
-    borderRadius:  8,
-    marginBottom:  10,
-    overflow:      'hidden',
-  },
-  ordenHeader: {
-    backgroundColor:   COLOR.azulMedio,
-    paddingVertical:   5,
-    paddingHorizontal: 10,
-  },
-  ordenHeaderTexto: {
-    fontSize:      8,
-    fontFamily:    'Helvetica-Bold',
-    color:         COLOR.blanco,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
-  ordenCuerpo: {
-    padding:         10,
-    backgroundColor: COLOR.azulPale,
-  },
-  ordenTexto: {
-    fontSize:   9,
-    color:      COLOR.negro,
-    lineHeight: 1.5,
-  },
-  recomBox: {
-    backgroundColor: '#FFF7ED',
-    borderRadius:    6,
-    padding:         10,
-    marginBottom:    10,
-    borderLeftWidth: 3,
-    borderLeftColor: '#F97316',
-  },
-  recomTitulo: {
-    fontSize:      8,
-    fontFamily:    'Helvetica-Bold',
-    color:         '#C2410C',
-    textTransform: 'uppercase',
-    marginBottom:  4,
-  },
-  recomTexto: {
-    fontSize:   9,
-    color:      COLOR.grisTexto,
-    lineHeight: 1.5,
-  },
-  incapacidadFormula: {
-    backgroundColor: '#FEF9C3',
-    borderRadius:    6,
-    padding:         8,
-    marginBottom:    10,
-    flexDirection:   'row',
-    alignItems:      'center',
-    gap:             8,
-  },
-  incapacidadBadge: {
-    fontSize:          9,
-    fontFamily:        'Helvetica-Bold',
-    color:             COLOR.blanco,
-    backgroundColor:   '#CA8A04',
-    paddingVertical:   3,
-    paddingHorizontal: 8,
-    borderRadius:      4,
-  },
-  incapacidadDias: {
-    fontSize:   9,
-    fontFamily: 'Helvetica-Bold',
-    color:      '#854D0E',
-  },
-  cierreFormula: {
-    marginTop:      10,
-    flexDirection:  'row',
-    justifyContent: 'space-between',
-    alignItems:     'flex-end',
-    paddingTop:     10,
-    borderTopWidth: 1,
-    borderTopColor: COLOR.grisLinea,
-  },
-  selloBox: {
-    backgroundColor: COLOR.azulPale,
-    borderRadius:    6,
-    padding:         8,
-    width:           '45%',
-  },
-  selloTexto: {
-    fontSize:   7,
-    color:      COLOR.grisMuted,
-    lineHeight: 1.5,
-  },
-  firmaBox: {
-    alignItems: 'flex-end',
-    width:      '45%',
-  },
-  firmaLineaF: {
-    width:             140,
-    borderBottomWidth: 1,
-    borderBottomColor: COLOR.azulMedio,
-    marginBottom:      4,
-  },
-  firmaNombreF: {
-    fontSize:   9,
-    fontFamily: 'Helvetica-Bold',
-    color:      COLOR.azulPrimario,
-    textAlign:  'right',
-  },
-  firmaDatoF: {
-    fontSize:  8,
-    color:     COLOR.grisMuted,
-    textAlign: 'right',
-    marginTop: 2,
-  },
-  advertenciaFormula: {
-    marginTop:       8,
-    backgroundColor: '#FEF2F2',
-    borderRadius:    4,
-    padding:         6,
-  },
-  advertenciaTexto: {
-    fontSize:  7,
-    color:     '#991B1B',
-    textAlign: 'center',
-    lineHeight: 1.4,
-  },
-});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PLANTILLA 2: FÓRMULA MÉDICA (Receta)
@@ -1220,7 +1027,9 @@ export const PlantillaExamenesPDF = ({ historia, examenes = [] }) => {
           {examenes.map((ex, index) => (
             <View key={index} style={examStyles.examenItem}>
               <Text style={examStyles.exName}>{index + 1}. {ex.nombre_examen}</Text>
-              <Text style={examStyles.exDetalle}>Observaciones: {ex.observaciones || 'N/A'}</Text>
+              <Text style={examStyles.exDetalle}>
+                Justificación clínica: {ex.justificacion_clinica || ex.observaciones || 'No especificada'}
+              </Text>
             </View>
           ))}
         </View>

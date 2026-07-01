@@ -1,6 +1,6 @@
 // client/src/pages/dashboard-medico/DashboardMedico.jsx
-// MELIKA — Dashboard del Médico (Actualizado para mejor UX e interactividad)
-// Lógica profesional end to end para la gestión de horarios y visualización.
+// MELIKA — Dashboard del Médico
+// Lógica profesional end to end para gestión de horarios, agenda y disponibilidad.
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import FullCalendar      from '@fullcalendar/react';
@@ -70,7 +70,15 @@ export default function DashboardMedico() {
   const [guardandoGestion, setGuardandoGestion] = useState(false);
   const [errorGestion,     setErrorGestion]     = useState(null);
 
-  // Lógica profesional end to end: Carga inicial de perfil
+  // ── Gestión de franjas seleccionadas directamente desde el calendario ──────
+  // Permite editar o eliminar disponibilidad sin tener que ir a la pestaña
+  // "Disponibilidad" — flujo end to end más rápido para el médico.
+  const [franjaCalSel,       setFranjaCalSel]       = useState(null); // { id, fecha }
+  const [formFranjaCal,      setFormFranjaCal]      = useState({ hora_inicio: '', hora_fin: '' });
+  const [guardandoFranjaCal, setGuardandoFranjaCal] = useState(false);
+  const [errorFranjaCal,     setErrorFranjaCal]     = useState(null);
+
+  // Carga inicial de perfil
   useEffect(() => {
     api.get('/medico/perfil')
       .then(perfil => setIdMedico(perfil?.id || null))
@@ -80,7 +88,6 @@ export default function DashboardMedico() {
   const cargarFranjas = useCallback(() => {
     setLoadingFranjas(true);
     setErrorFranjas(null);
-    // Fetch integrado para obtener franjas con estado transparente
     api.get(`/medico/franjas?fecha=${fechaSeleccionada}`)
       .then(data => setFranjas(data || []))
       .catch(() => setErrorFranjas('No se pudieron cargar las franjas horarias.'))
@@ -90,7 +97,6 @@ export default function DashboardMedico() {
   const cargarAgenda = useCallback(() => {
     setLoadingDia(true);
     setErrorDia(null);
-    // Fetch de la agenda diaria resolviendo concurrencias
     api.get(`/medico/agenda?fecha=${fechaSeleccionada}`)
       .then(data  => setCitasDia(data.citas || []))
       .catch(() => setErrorDia('No se pudo cargar la agenda.'))
@@ -102,23 +108,38 @@ export default function DashboardMedico() {
     else if (dispoTab === DISPO_TABS.DIARIA) cargarFranjas();
   }, [fechaSeleccionada, vistaActiva, dispoTab, cargarAgenda, cargarFranjas]);
 
-  // Manejo de interactividad en el calendario
-  function handleDateClick(info)  {
+  // ── Interactividad del calendario ───────────────────────────────────────
+  function handleDateClick(info) {
     setFechaSeleccionada(info.dateStr);
-    const api = calendarRef.current?.getApi();
-    if (api && api.view.type === 'dayGridMonth') {
-        api.changeView('timeGridDay', info.dateStr);
+    const calApi = calendarRef.current?.getApi();
+    if (calApi && calApi.view.type === 'dayGridMonth') {
+      calApi.changeView('timeGridDay', info.dateStr);
     }
   }
 
-  function handleEventClick(info) { 
-    setFechaSeleccionada(info.event.startStr.split('T')[0]); 
+  // Click en evento del calendario: si es una franja disponible (sin
+  // paciente), abre el panel de gestión rápida (editar/eliminar). Si es
+  // una cita reservada, simplemente enfoca esa fecha en la agenda lateral.
+  function handleEventClick(info) {
+    const { esFranjaDisponible } = info.event.extendedProps;
+
+    if (esFranjaDisponible) {
+      const id          = info.event.id.replace('franja-', '');
+      const fecha        = info.event.startStr.split('T')[0];
+      const hora_inicio  = info.event.startStr.split('T')[1]?.substring(0, 5) || '';
+      const hora_fin     = info.event.endStr ? info.event.endStr.split('T')[1]?.substring(0, 5) : '';
+      setFranjaCalSel({ id, fecha });
+      setFormFranjaCal({ hora_inicio, hora_fin });
+      setErrorFranjaCal(null);
+      return;
+    }
+
+    setFechaSeleccionada(info.event.startStr.split('T')[0]);
   }
 
   function cargarEventos(fetchInfo, successCallback, failureCallback) {
     const inicio = fetchInfo.startStr.split('T')[0];
     const fin    = fetchInfo.endStr.split('T')[0];
-    // Consumo del endpoint para mostrar eventos en FullCalendar de forma precisa
     api.get(`/medico/agenda/rango?inicio=${inicio}&fin=${fin}`)
       .then(eventos => successCallback(eventos))
       .catch(() => failureCallback());
@@ -192,6 +213,57 @@ export default function DashboardMedico() {
   function onExitoSemanal() {
     calendarRef.current?.getApi().refetchEvents();
     if (dispoTab === DISPO_TABS.DIARIA) cargarFranjas();
+  }
+
+  // ── Gestión rápida de franja desde el calendario ────────────────────────
+  function cerrarFranjaCalendario() {
+    setFranjaCalSel(null);
+    setFormFranjaCal({ hora_inicio: '', hora_fin: '' });
+    setErrorFranjaCal(null);
+  }
+
+  async function handleGuardarFranjaCalendario() {
+    if (!franjaCalSel) return;
+    const { hora_inicio, hora_fin } = formFranjaCal;
+
+    if (!hora_inicio || !hora_fin) {
+      setErrorFranjaCal('Completa la hora de inicio y de fin.');
+      return;
+    }
+    if (hora_inicio >= hora_fin) {
+      setErrorFranjaCal('La hora de inicio debe ser anterior a la de fin.');
+      return;
+    }
+
+    setGuardandoFranjaCal(true);
+    setErrorFranjaCal(null);
+    try {
+      await api.patch(`/medico/franjas/${franjaCalSel.id}`, {
+        fecha: franjaCalSel.fecha,
+        hora_inicio,
+        hora_fin,
+      });
+      calendarRef.current?.getApi().refetchEvents();
+      if (dispoTab === DISPO_TABS.DIARIA) cargarFranjas();
+      cerrarFranjaCalendario();
+    } catch (err) {
+      setErrorFranjaCal(err.message || 'No se pudo actualizar la franja. Verifica que no se solape con otra.');
+    } finally {
+      setGuardandoFranjaCal(false);
+    }
+  }
+
+  async function handleEliminarFranjaCalendario() {
+    if (!franjaCalSel) return;
+    if (!window.confirm('¿Eliminar esta franja de disponibilidad?')) return;
+    try {
+      await api.delete(`/medico/franjas/${franjaCalSel.id}`);
+      calendarRef.current?.getApi().refetchEvents();
+      if (dispoTab === DISPO_TABS.DIARIA) cargarFranjas();
+      cerrarFranjaCalendario();
+    } catch (err) {
+      setErrorFranjaCal(err.message || 'No se pudo eliminar la franja.');
+    }
   }
 
   function abrirHistoria(cita) {
@@ -292,7 +364,6 @@ export default function DashboardMedico() {
 
   const franjasPrevisualizadas = previsualizarFranjas();
 
-  // Highlight logic para UX superior (Destaque visual dinámico)
   const dayCellClassNames = useCallback((arg) => {
     const tzOffset = (new Date()).getTimezoneOffset() * 60000;
     const localISOTime = (new Date(arg.date.getTime() - tzOffset)).toISOString().split('T')[0];
@@ -333,12 +404,15 @@ export default function DashboardMedico() {
 
           <div className="panel-calendario">
             <h2 className="panel-calendario__titulo">Calendario Semanal</h2>
-            {/* Implementación mejorada del FullCalendar para visibilidad y UX */}
+            <p className="panel-calendario__hint">
+              🟢 Disponible · 🟠 Pendiente · 🟢 Completada · ⚪ No asistió — haz clic en un bloque
+              <strong> disponible</strong> para editarlo o eliminarlo.
+            </p>
             <FullCalendar
               ref={calendarRef}
               plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-              initialView="timeGridWeek" // Vista por defecto para mejor gestión de franjas
-              firstDay={1} // Semana inicia el lunes (Lógica profesional)
+              initialView="timeGridWeek"
+              firstDay={1}
               selectable={true}
               selectMirror={true}
               locale={esLocale}
@@ -709,6 +783,59 @@ export default function DashboardMedico() {
                   : formGestion.estado === 'completada'
                     ? 'Confirmar consulta'
                     : 'Registrar ausencia'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Gestión rápida de franja desde el calendario ──────────────────── */}
+      {franjaCalSel && (
+        <div className="modal-overlay" onClick={cerrarFranjaCalendario}>
+          <div className="modal-gestion" onClick={e => e.stopPropagation()}>
+            <div className="modal-gestion__cabecera">
+              <div>
+                <h3 className="modal-gestion__titulo">Gestionar disponibilidad</h3>
+                <p className="modal-gestion__meta">{formatFecha(franjaCalSel.fecha)}</p>
+              </div>
+              <button className="btn-cerrar" onClick={cerrarFranjaCalendario}>✕</button>
+            </div>
+
+            {errorFranjaCal && <div className="historia-error">{errorFranjaCal}</div>}
+
+            <p className="modal-gestion__label">
+              Esta franja aún no tiene paciente asignado. Puedes editar su horario o eliminarla.
+            </p>
+
+            <div className="dispo-formulario__inputs">
+              <ClockPicker
+                label="Hora de inicio"
+                value={formFranjaCal.hora_inicio}
+                onChange={v => setFormFranjaCal(p => ({ ...p, hora_inicio: v, hora_fin: '' }))}
+              />
+              <ClockPicker
+                label="Hora de fin"
+                value={formFranjaCal.hora_fin}
+                onChange={v => setFormFranjaCal(p => ({ ...p, hora_fin: v }))}
+                afterTime={formFranjaCal.hora_inicio || undefined}
+                disabled={!formFranjaCal.hora_inicio}
+              />
+            </div>
+
+            <div className="modal-gestion__acciones">
+              <button
+                className="btn-gestion-confirmar btn-gestion-confirmar--ausente"
+                onClick={handleEliminarFranjaCalendario}
+                disabled={guardandoFranjaCal}
+              >
+                🗑️ Eliminar
+              </button>
+              <button
+                className="btn-gestion-confirmar"
+                onClick={handleGuardarFranjaCalendario}
+                disabled={guardandoFranjaCal}
+              >
+                {guardandoFranjaCal ? 'Guardando…' : 'Guardar cambios'}
               </button>
             </div>
           </div>

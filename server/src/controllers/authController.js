@@ -3,6 +3,7 @@ const pool   = require('../config/db');
 const bcrypt = require('bcrypt');
 const jwt    = require('jsonwebtoken');
 const { enviarCorreo } = require('../services/emailService');
+const { validarRegistroUsuario } = require('../utils/validacionesRegistro');
 
 function generarCodigo() {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -80,29 +81,31 @@ function templateRecuperacion(nombre, codigo) {
 }
 
 // ─── REGISTRO ─────────────────────────────────────────────────────────────
+// FIX PROFESIONAL: antes solo se validaba presencia de campos (truthy/falsy),
+// lo que permitía: numero_documento con letras, fecha_nacimiento incoherente
+// (ej. edad de 300 años o sin validar), genero fuera de M/F/O, y nombres con
+// solo números o caracteres repetidos. Ahora se aplica validarRegistroUsuario,
+// que centraliza estas reglas y reporta TODOS los errores encontrados de una
+// sola vez (mismo patrón usado en historias clínicas), no solo el primero.
 
 async function register(req, res) {
-  // 🛠️ SE AÑADEN fecha_nacimiento Y genero AL DESTRUCTURING
-  const { nombre, primer_apellido, email, password, tipo_documento, numero_documento, fecha_nacimiento, genero } = req.body;
+  const {
+    nombre, primer_apellido, email, password,
+    tipo_documento, numero_documento, fecha_nacimiento, genero,
+  } = req.body;
 
-  // Validación de campos obligatorios actualizada
-  if (!nombre || !primer_apellido || !email || !password || !tipo_documento || !numero_documento || !fecha_nacimiento || !genero) {
-    return res.status(400).json({ mensaje: 'Todos los campos son obligatorios, incluyendo fecha de nacimiento y género.' });
-  }
-
-  if (password.length < 6) {
-    return res.status(400).json({ mensaje: 'La contraseña debe tener mínimo 6 caracteres.' });
-  }
-
-  const tiposValidos = ['CC', 'CE', 'PASAPORTE'];
-  if (!tiposValidos.includes(tipo_documento)) {
-    return res.status(400).json({ mensaje: 'Tipo de documento inválido. Use CC, CE o PASAPORTE.' });
+  const errores = validarRegistroUsuario(req.body);
+  if (errores.length > 0) {
+    return res.status(422).json({
+      mensaje: 'El formulario de registro contiene campos inválidos o incompletos.',
+      errores,
+    });
   }
 
   try {
     const [emailExiste, docExiste] = await Promise.all([
-      pool.query('SELECT id FROM usuarios WHERE email = $1', [email]),
-      pool.query('SELECT id FROM usuarios WHERE numero_documento = $1', [numero_documento]),
+      pool.query('SELECT id FROM usuarios WHERE email = $1', [email.trim().toLowerCase()]),
+      pool.query('SELECT id FROM usuarios WHERE numero_documento = $1', [numero_documento.trim()]),
     ]);
 
     if (emailExiste.rows.length > 0) {
@@ -115,12 +118,14 @@ async function register(req, res) {
 
     const hash = await bcrypt.hash(password, 10);
 
-    // 🛠️ SE ACTUALIZA EL INSERT PARA INCLUIR fecha_nacimiento Y genero ($7 Y $8)
     await pool.query(
       `INSERT INTO usuarios
          (nombre, primer_apellido, email, password_hash, rol, activo, verificado, tipo_documento, numero_documento, fecha_nacimiento, genero)
        VALUES ($1, $2, $3, $4, 'paciente', FALSE, FALSE, $5, $6, $7, $8)`,
-      [nombre, primer_apellido, email, hash, tipo_documento, numero_documento, fecha_nacimiento, genero]
+      [
+        nombre.trim(), primer_apellido.trim(), email.trim().toLowerCase(), hash,
+        tipo_documento, numero_documento.trim(), fecha_nacimiento, genero,
+      ]
     );
 
     const codigo = generarCodigo();
@@ -128,13 +133,13 @@ async function register(req, res) {
 
     await pool.query(
       'DELETE FROM codigos_verificacion WHERE email = $1 AND tipo = $2',
-      [email, 'registro']
+      [email.trim().toLowerCase(), 'registro']
     );
 
     await pool.query(
       `INSERT INTO codigos_verificacion (email, codigo, tipo, expira_en)
        VALUES ($1, $2, 'registro', $3)`,
-      [email, codigo, expira]
+      [email.trim().toLowerCase(), codigo, expira]
     );
 
     let correoEnviado = true;

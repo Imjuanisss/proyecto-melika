@@ -1,10 +1,10 @@
 // client/src/pages/admin/gestionhorarios/HorariosAdmin.jsx
 // MELIKA — Gestión de horarios (Admin)
-// Refactorizado end-to-end:
 // · ClockPicker profesional en lugar de selects nativos de hora
 // · HorariosSemana con navegador interactivo de semanas
 // · Modal con layout limpio y secciones bien diferenciadas
 // · Franja puntual con DatePicker + ClockPicker integrados
+// · Edición y eliminación de franjas disponibles directamente desde el calendario
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import FullCalendar      from '@fullcalendar/react';
@@ -73,11 +73,10 @@ export default function HorariosAdmin() {
   const [medicos,      setMedicos]      = useState([]);
   const [filtroMedico, setFiltroMedico] = useState('');
 
-  // Modal
+  // Modal de creación (semana / puntual)
   const [modal, setModal] = useState(false); // 'semana' | 'puntual' | false
   const [tab,   setTab]   = useState('semana');
 
-  // Franja puntual — estado limpio y tipado
   const estadoPuntualInicial = {
     medico:      '',
     fecha:       '',
@@ -92,8 +91,12 @@ export default function HorariosAdmin() {
   const [guardandoPuntual,  setGuardandoPuntual]   = useState(false);
   const [resultadoPuntual,  setResultadoPuntual]   = useState(null);
 
-  // Detalle evento seleccionado
-  const [eventoSel, setEventoSel] = useState(null);
+  // Detalle / edición de evento seleccionado en el calendario
+  const [eventoSel,        setEventoSel]        = useState(null);
+  const [editandoEvento,   setEditandoEvento]   = useState(false);
+  const [formEdicion,      setFormEdicion]      = useState({ hora_inicio: '', hora_fin: '' });
+  const [guardandoEdicion, setGuardandoEdicion] = useState(false);
+  const [errorEdicion,     setErrorEdicion]     = useState(null);
 
   // ── Carga inicial ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -118,7 +121,22 @@ export default function HorariosAdmin() {
     calendarRef.current?.getApi().refetchEvents();
   }
 
-  // ── Modal ─────────────────────────────────────────────────────────────────
+  function handleEventClick(e) {
+    setEventoSel(e.event);
+    setEditandoEvento(false);
+    setErrorEdicion(null);
+    const hora_inicio = e.event.startStr.split('T')[1]?.substring(0, 5) || '';
+    const hora_fin    = e.event.endStr ? e.event.endStr.split('T')[1]?.substring(0, 5) : '';
+    setFormEdicion({ hora_inicio, hora_fin });
+  }
+
+  function cerrarDetalle() {
+    setEventoSel(null);
+    setEditandoEvento(false);
+    setErrorEdicion(null);
+  }
+
+  // ── Modal de creación ────────────────────────────────────────────────────
   function abrirModal(tabInicial = 'semana') {
     setTab(tabInicial);
     resetPuntual();
@@ -139,7 +157,6 @@ export default function HorariosAdmin() {
   function setPuntuCampo(campo, valor) {
     setPuntual(prev => {
       const next = { ...prev, [campo]: valor };
-      // Cascade: si cambia inicio, limpiar fin y descansos
       if (campo === 'inicio') {
         next.fin = '';
         next.iniDesc = '';
@@ -209,10 +226,54 @@ export default function HorariosAdmin() {
     if (!window.confirm('¿Eliminar esta franja de disponibilidad?')) return;
     try {
       await api.delete(`/admin/horarios/${id}`);
-      setEventoSel(null);
+      cerrarDetalle();
       calendarRef.current?.getApi().refetchEvents();
     } catch (err) {
       alert(err.message);
+    }
+  }
+
+  // ── Editar franja ─────────────────────────────────────────────────────────
+  function iniciarEdicion() {
+    setEditandoEvento(true);
+    setErrorEdicion(null);
+  }
+
+  function cancelarEdicion() {
+    setEditandoEvento(false);
+    setErrorEdicion(null);
+    // Restaurar el formulario al horario original del evento
+    if (eventoSel) {
+      const hora_inicio = eventoSel.startStr.split('T')[1]?.substring(0, 5) || '';
+      const hora_fin    = eventoSel.endStr ? eventoSel.endStr.split('T')[1]?.substring(0, 5) : '';
+      setFormEdicion({ hora_inicio, hora_fin });
+    }
+  }
+
+  async function handleGuardarEdicion() {
+    if (!eventoSel) return;
+    const { hora_inicio, hora_fin } = formEdicion;
+
+    if (!hora_inicio || !hora_fin) {
+      setErrorEdicion('Completa la hora de inicio y de fin.');
+      return;
+    }
+    if (hora_inicio >= hora_fin) {
+      setErrorEdicion('La hora de inicio debe ser anterior a la de fin.');
+      return;
+    }
+
+    const fecha = eventoSel.startStr.split('T')[0];
+    setGuardandoEdicion(true);
+    setErrorEdicion(null);
+    try {
+      await api.put(`/admin/horarios/${eventoSel.id}`, { fecha, hora_inicio, hora_fin });
+      calendarRef.current?.getApi().refetchEvents();
+      cerrarDetalle();
+    } catch (err) {
+      setErrorEdicion(err.message || 'No se pudo actualizar la franja. Verifica que no se solape con otra.');
+    } finally {
+      setGuardandoEdicion(false);
     }
   }
 
@@ -264,10 +325,10 @@ export default function HorariosAdmin() {
         </span>
         <span className="leyenda-item">
           <span className="leyenda-dot leyenda-dot--reservada" aria-hidden="true" />
-          Reservada
+          Reservada / Pendiente / Completada
         </span>
         <span className="leyenda-item leyenda-item--muted">
-          Franjas de {DURACION_FRANJA} min
+          Franjas de {DURACION_FRANJA} min · clic en un bloque disponible para editar o eliminar
         </span>
       </div>
 
@@ -284,7 +345,7 @@ export default function HorariosAdmin() {
             right:  'dayGridMonth,timeGridWeek,timeGridDay',
           }}
           events={cargarEventos}
-          eventClick={e => setEventoSel(e.event)}
+          eventClick={handleEventClick}
           height="auto"
           slotMinTime="06:00:00"
           slotMaxTime="22:00:00"
@@ -295,18 +356,20 @@ export default function HorariosAdmin() {
         />
       </div>
 
-      {/* ── Modal detalle de evento ───────────────────────────────────────── */}
+      {/* ── Modal detalle / edición de evento ───────────────────────────────── */}
       {eventoSel && (
-        <div className="admin-modal-overlay" onClick={() => setEventoSel(null)}>
+        <div className="admin-modal-overlay" onClick={cerrarDetalle}>
           <div className="admin-modal ha-modal-detalle" onClick={e => e.stopPropagation()}>
             <div className="ha-modal-detalle__header">
               <div>
-                <h3 className="ha-modal-detalle__titulo">Detalle de franja</h3>
+                <h3 className="ha-modal-detalle__titulo">
+                  {editandoEvento ? 'Editar franja' : 'Detalle de franja'}
+                </h3>
                 <p className="ha-modal-detalle__medico">{eventoSel.extendedProps.medico_nombre}</p>
               </div>
               <button
                 className="ha-btn-cerrar"
-                onClick={() => setEventoSel(null)}
+                onClick={cerrarDetalle}
                 aria-label="Cerrar"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
@@ -317,50 +380,95 @@ export default function HorariosAdmin() {
               </button>
             </div>
 
-            <div className="ha-modal-detalle__body">
-              <div className="ha-dato">
-                <span className="ha-dato__label">Especialidad</span>
-                <span className="ha-dato__valor">{eventoSel.extendedProps.especialidad}</span>
-              </div>
-              <div className="ha-dato">
-                <span className="ha-dato__label">Inicio</span>
-                <span className="ha-dato__valor">
-                  {new Date(eventoSel.start).toLocaleString('es-CO', {
-                    weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'
-                  })}
-                </span>
-              </div>
-              <div className="ha-dato">
-                <span className="ha-dato__label">Fin</span>
-                <span className="ha-dato__valor">
-                  {new Date(eventoSel.end).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
-                </span>
-              </div>
-              <div className="ha-dato">
-                <span className="ha-dato__label">Estado</span>
-                <span className={`ha-badge ${eventoSel.extendedProps.disponible ? 'ha-badge--verde' : 'ha-badge--naranja'}`}>
-                  {eventoSel.extendedProps.disponible ? 'Disponible' : 'Reservada'}
-                </span>
-              </div>
-              {eventoSel.extendedProps.paciente && (
-                <div className="ha-dato">
-                  <span className="ha-dato__label">Paciente</span>
-                  <span className="ha-dato__valor">{eventoSel.extendedProps.paciente}</span>
+            {!editandoEvento ? (
+              <>
+                <div className="ha-modal-detalle__body">
+                  <div className="ha-dato">
+                    <span className="ha-dato__label">Especialidad</span>
+                    <span className="ha-dato__valor">{eventoSel.extendedProps.especialidad}</span>
+                  </div>
+                  <div className="ha-dato">
+                    <span className="ha-dato__label">Inicio</span>
+                    <span className="ha-dato__valor">
+                      {new Date(eventoSel.start).toLocaleString('es-CO', {
+                        weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'
+                      })}
+                    </span>
+                  </div>
+                  <div className="ha-dato">
+                    <span className="ha-dato__label">Fin</span>
+                    <span className="ha-dato__valor">
+                      {new Date(eventoSel.end).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <div className="ha-dato">
+                    <span className="ha-dato__label">Estado</span>
+                    <span className={`ha-badge ${eventoSel.extendedProps.disponible ? 'ha-badge--verde' : 'ha-badge--naranja'}`}>
+                      {eventoSel.extendedProps.disponible
+                        ? 'Disponible'
+                        : (eventoSel.extendedProps.cita_estado_label || 'Reservada')}
+                    </span>
+                  </div>
+                  {eventoSel.extendedProps.paciente && (
+                    <div className="ha-dato">
+                      <span className="ha-dato__label">Paciente</span>
+                      <span className="ha-dato__valor">{eventoSel.extendedProps.paciente}</span>
+                    </div>
+                  )}
+                  {!eventoSel.extendedProps.disponible && (
+                    <p className="ha-modal-detalle__nota">
+                      Esta franja ya tiene una cita asociada. Para cambiar su estado, usa el módulo de Citas.
+                    </p>
+                  )}
                 </div>
-              )}
-            </div>
 
-            <div className="ha-modal-detalle__footer">
-              <button className="ha-btn-secundario" onClick={() => setEventoSel(null)}>Cerrar</button>
-              {eventoSel.extendedProps.disponible && (
-                <button
-                  className="ha-btn-danger"
-                  onClick={() => handleEliminar(eventoSel.id)}
-                >
-                  Eliminar franja
-                </button>
-              )}
-            </div>
+                <div className="ha-modal-detalle__footer">
+                  <button className="ha-btn-secundario" onClick={cerrarDetalle}>Cerrar</button>
+                  {eventoSel.extendedProps.disponible && (
+                    <>
+                      <button className="ha-btn-secundario" onClick={iniciarEdicion}>
+                        Editar
+                      </button>
+                      <button
+                        className="ha-btn-danger"
+                        onClick={() => handleEliminar(eventoSel.id)}
+                      >
+                        Eliminar
+                      </button>
+                    </>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="ha-modal-detalle__body">
+                  {errorEdicion && <div className="ha-error" role="alert">{errorEdicion}</div>}
+                  <div className="ha-puntual__fila-2">
+                    <CampoClock
+                      label="Inicio"
+                      value={formEdicion.hora_inicio}
+                      onChange={v => setFormEdicion(p => ({ ...p, hora_inicio: v, hora_fin: '' }))}
+                    />
+                    <CampoClock
+                      label="Fin"
+                      value={formEdicion.hora_fin}
+                      onChange={v => setFormEdicion(p => ({ ...p, hora_fin: v }))}
+                      afterTime={formEdicion.hora_inicio || undefined}
+                      disabled={!formEdicion.hora_inicio}
+                    />
+                  </div>
+                </div>
+
+                <div className="ha-modal-detalle__footer">
+                  <button className="ha-btn-secundario" onClick={cancelarEdicion} disabled={guardandoEdicion}>
+                    Cancelar
+                  </button>
+                  <button className="ha-btn-primario" onClick={handleGuardarEdicion} disabled={guardandoEdicion}>
+                    {guardandoEdicion ? 'Guardando…' : 'Guardar cambios'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -512,7 +620,6 @@ export default function HorariosAdmin() {
                           />
                         </div>
 
-                        {/* Preview de franjas */}
                         {nFranjasPuntual !== null && (
                           <ResumenFranja
                             inicio={puntual.inicio}
