@@ -1,10 +1,23 @@
-/* ── BASE ─────────────────────────────────────────────────── */
+/* client/src/pages/miscitas/MisCitas.css
+   MELIKA — Mis Citas del Paciente
+   Variables CSS globales · Sin Tailwind ni librerías externas
+   Integra estilos para el visor pdfslick (spinner, error de visor)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ════════════════════════════════════════════════════════════════════════════
+   1. PÁGINA BASE
+   ════════════════════════════════════════════════════════════════════════════ */
+
 .miscitas-pagina {
   min-height: calc(100vh - 64px);
   padding:    var(--space-10) 0 var(--space-16);
   background: var(--melika-bg-secondary);
   margin-top: 64px;
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   2. CABECERA CON TOGGLE DE VISTA
+   ════════════════════════════════════════════════════════════════════════════ */
 
 .miscitas-cabecera {
   display:         flex;
@@ -21,7 +34,7 @@
   color:       var(--melika-text-primary);
 }
 
-/* ── Toggle vista ──────────────────────────────────────────── */
+/* ── Toggle vista (Calendario / Lista) ── */
 .miscitas-toggle {
   display:       flex;
   gap:           var(--space-1);
@@ -41,7 +54,7 @@
   border-radius: var(--radius-sm);
   padding:       var(--space-2) var(--space-4);
   cursor:        pointer;
-  transition:    all 0.18s;
+  transition:    all 0.18s ease;
   white-space:   nowrap;
 }
 
@@ -52,10 +65,13 @@
 
 .miscitas-toggle__btn--activo {
   background: var(--melika-primary-600) !important;
-  color:      #fff !important;
+  color:      #ffffff !important;
 }
 
-/* ── Leyenda ───────────────────────────────────────────────── */
+/* ════════════════════════════════════════════════════════════════════════════
+   3. LEYENDA DE COLORES DEL CALENDARIO
+   ════════════════════════════════════════════════════════════════════════════ */
+
 .miscitas-leyenda {
   display:       flex;
   gap:           var(--space-4);
@@ -80,7 +96,10 @@
   flex-shrink:   0;
 }
 
-/* ── Grid calendario + detalle ─────────────────────────────── */
+/* ════════════════════════════════════════════════════════════════════════════
+   4. GRID CALENDARIO + PANEL DE DETALLE
+   ════════════════════════════════════════════════════════════════════════════ */
+
 .miscitas-grid {
   display:               grid;
   grid-template-columns: 1fr 340px;
@@ -88,7 +107,10 @@
   align-items:           start;
 }
 
-/* ── Contenedor FullCalendar ───────────────────────────────── */
+/* ════════════════════════════════════════════════════════════════════════════
+   5. CONTENEDOR FULLCALENDAR
+   ════════════════════════════════════════════════════════════════════════════ */
+
 .miscitas-calendar-wrap {
   background:    var(--melika-bg);
   border:        1px solid var(--melika-primary-100);
@@ -97,7 +119,9 @@
   box-shadow:    var(--shadow-sm);
 }
 
-.miscitas-calendar-wrap .fc { font-family: var(--font-body) !important; }
+.miscitas-calendar-wrap .fc {
+  font-family: var(--font-body) !important;
+}
 
 .miscitas-calendar-wrap .fc .fc-toolbar-title {
   font-family: var(--font-display) !important;
@@ -117,7 +141,7 @@
   padding:        6px 12px !important;
   box-shadow:     none !important;
   text-transform: none !important;
-  transition:     all 0.15s !important;
+  transition:     all 0.15s ease !important;
 }
 
 .miscitas-calendar-wrap .fc .fc-button:hover {
@@ -128,7 +152,7 @@
 .miscitas-calendar-wrap .fc .fc-button-primary:not(:disabled).fc-button-active {
   background:   var(--melika-primary-600) !important;
   border-color: var(--melika-primary-600) !important;
-  color:        #fff !important;
+  color:        #ffffff !important;
 }
 
 .miscitas-calendar-wrap .fc .fc-daygrid-day.fc-day-today {
@@ -145,7 +169,9 @@
   transition:    filter 0.1s !important;
 }
 
-.miscitas-calendar-wrap .fc .fc-event:hover { filter: brightness(1.12) !important; }
+.miscitas-calendar-wrap .fc .fc-event:hover {
+  filter: brightness(1.12) !important;
+}
 
 .miscitas-calendar-wrap .fc .fc-col-header-cell-cushion {
   font-family:    var(--font-display) !important;
@@ -156,11 +182,19 @@
   color:          var(--melika-text-muted) !important;
 }
 
-.miscitas-calendar-wrap .fc .fc-scrollgrid { border-color: var(--melika-primary-100) !important; }
-.miscitas-calendar-wrap .fc .fc-scrollgrid td,
-.miscitas-calendar-wrap .fc .fc-scrollgrid th { border-color: var(--melika-primary-50) !important; }
+.miscitas-calendar-wrap .fc .fc-scrollgrid {
+  border-color: var(--melika-primary-100) !important;
+}
 
-/* ── Panel detalle lateral ─────────────────────────────────── */
+.miscitas-calendar-wrap .fc .fc-scrollgrid td,
+.miscitas-calendar-wrap .fc .fc-scrollgrid th {
+  border-color: var(--melika-primary-50) !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   6. PANEL DE DETALLE LATERAL
+   ════════════════════════════════════════════════════════════════════════════ */
+
 .miscitas-detalle-panel {
   background:    var(--melika-bg);
   border:        1px solid var(--melika-primary-100);
@@ -179,20 +213,25 @@
 }
 
 .miscitas-detalle-vacio {
-  text-align:  center;
+  display:     flex;
+  flex-direction: column;
+  align-items: center;
+  gap:         var(--space-2);
   padding:     var(--space-8) var(--space-4);
   color:       var(--melika-text-muted);
   font-size:   14px;
+  text-align:  center;
   line-height: 1.6;
 }
 
 .miscitas-detalle-vacio span {
-  display:       block;
-  font-size:     32px;
-  margin-bottom: var(--space-3);
+  font-size: 32px;
 }
 
-/* ── Tarjeta detalle ───────────────────────────────────────── */
+/* ════════════════════════════════════════════════════════════════════════════
+   7. TARJETA DE DETALLE (panel lateral del calendario)
+   ════════════════════════════════════════════════════════════════════════════ */
+
 .detalle-cita {
   display:        flex;
   flex-direction: column;
@@ -200,22 +239,28 @@
 }
 
 .detalle-cita__header {
-  padding-bottom: var(--space-3);
-  border-bottom:  1px solid var(--melika-primary-50);
-  margin-bottom:  var(--space-1);
+  display:         flex;
+  justify-content: space-between;
+  align-items:     flex-start;
+  gap:             var(--space-2);
+  padding-bottom:  var(--space-3);
+  border-bottom:   1px solid var(--melika-primary-50);
+  margin-bottom:   var(--space-1);
+  flex-wrap:       wrap;
 }
 
 .detalle-cita__especialidad {
-  font-size:     17px;
-  font-weight:   700;
-  color:         var(--melika-text-primary);
-  margin-bottom: var(--space-2);
+  font-size:   17px;
+  font-weight: 700;
+  color:       var(--melika-text-primary);
+  margin:      0;
 }
 
 .detalle-fila {
   display:  flex;
   gap:      var(--space-2);
   font-size: 13px;
+  flex-wrap: wrap;
 }
 
 .detalle-fila__etiqueta {
@@ -225,7 +270,9 @@
   min-width:   64px;
 }
 
-.detalle-fila__valor { color: var(--melika-text-secondary); }
+.detalle-fila__valor {
+  color: var(--melika-text-secondary);
+}
 
 .detalle-cita__acciones {
   display:        flex;
@@ -236,16 +283,79 @@
   border-top:     1px solid var(--melika-primary-50);
 }
 
-/* ── Badges ────────────────────────────────────────────────── */
-.badge-pendiente  { background: var(--melika-warning-bg);  color: var(--melika-warning);     padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; white-space: nowrap; display: inline-block; }
-.badge-cancelada  { background: var(--melika-error-bg);    color: var(--melika-error);       padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; white-space: nowrap; display: inline-block; }
-.badge-completada { background: var(--melika-success-bg);  color: var(--melika-success);     padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; white-space: nowrap; display: inline-block; }
-.badge-confirmada { background: var(--melika-primary-50);  color: var(--melika-primary-600); padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; white-space: nowrap; display: inline-block; }
-.badge-no_asistio { background: #f1f5f9; color: #64748b; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; white-space: nowrap; display: inline-block; }
+/* Contenedor de historia clínica en detalle */
+.detalle-cita__historia {
+  display:        flex;
+  flex-direction: column;
+  gap:            var(--space-2);
+}
 
-/* ── Botones detalle ───────────────────────────────────────── */
+/* ════════════════════════════════════════════════════════════════════════════
+   8. BADGES DE ESTADO
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.badge-pendiente {
+  background:    var(--melika-warning-bg);
+  color:         var(--melika-warning);
+  padding:       3px 10px;
+  border-radius: 20px;
+  font-size:     12px;
+  font-weight:   700;
+  white-space:   nowrap;
+  display:       inline-block;
+}
+
+.badge-cancelada {
+  background:    var(--melika-error-bg);
+  color:         var(--melika-error);
+  padding:       3px 10px;
+  border-radius: 20px;
+  font-size:     12px;
+  font-weight:   700;
+  white-space:   nowrap;
+  display:       inline-block;
+}
+
+.badge-completada {
+  background:    var(--melika-success-bg);
+  color:         var(--melika-success);
+  padding:       3px 10px;
+  border-radius: 20px;
+  font-size:     12px;
+  font-weight:   700;
+  white-space:   nowrap;
+  display:       inline-block;
+}
+
+.badge-confirmada {
+  background:    var(--melika-primary-50);
+  color:         var(--melika-primary-600);
+  padding:       3px 10px;
+  border-radius: 20px;
+  font-size:     12px;
+  font-weight:   700;
+  white-space:   nowrap;
+  display:       inline-block;
+}
+
+.badge-no_asistio {
+  background:    #f1f5f9;
+  color:         #64748b;
+  padding:       3px 10px;
+  border-radius: 20px;
+  font-size:     12px;
+  font-weight:   700;
+  white-space:   nowrap;
+  display:       inline-block;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   9. BOTONES DE ACCIÓN
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* Cancelar en panel de detalle */
 .btn-cancelar-detalle {
-  background:    none;
+  background:    transparent;
   border:        1.5px solid var(--melika-warning);
   border-radius: var(--radius-sm);
   color:         var(--melika-warning);
@@ -254,15 +364,23 @@
   font-weight:   700;
   font-family:   var(--font-display);
   cursor:        pointer;
-  transition:    all 0.15s;
+  transition:    all 0.15s ease;
   width:         100%;
   text-align:    center;
 }
-.btn-cancelar-detalle:hover:not(:disabled) { background: var(--melika-warning-bg); }
-.btn-cancelar-detalle:disabled { opacity: 0.5; cursor: not-allowed; }
 
+.btn-cancelar-detalle:hover:not(:disabled) {
+  background: var(--melika-warning-bg);
+}
+
+.btn-cancelar-detalle:disabled {
+  opacity: 0.5;
+  cursor:  not-allowed;
+}
+
+/* Eliminar en panel de detalle */
 .btn-eliminar-detalle {
-  background:    none;
+  background:    transparent;
   border:        1.5px solid var(--melika-error);
   border-radius: var(--radius-sm);
   color:         var(--melika-error);
@@ -271,18 +389,26 @@
   font-weight:   700;
   font-family:   var(--font-display);
   cursor:        pointer;
-  transition:    all 0.15s;
+  transition:    all 0.15s ease;
   width:         100%;
   text-align:    center;
 }
-.btn-eliminar-detalle:hover:not(:disabled) { background: var(--melika-error-bg); }
-.btn-eliminar-detalle:disabled { opacity: 0.5; cursor: not-allowed; }
 
+.btn-eliminar-detalle:hover:not(:disabled) {
+  background: var(--melika-error-bg);
+}
+
+.btn-eliminar-detalle:disabled {
+  opacity: 0.5;
+  cursor:  not-allowed;
+}
+
+/* Agendar nueva cita */
 .btn-agendar-nueva {
   display:       block;
   width:         100%;
   background:    var(--melika-accent);
-  color:         #fff;
+  color:         #ffffff;
   border:        none;
   border-radius: var(--radius-sm);
   padding:       var(--space-3) var(--space-4);
@@ -290,13 +416,169 @@
   font-weight:   700;
   font-family:   var(--font-display);
   cursor:        pointer;
-  transition:    background 0.2s;
+  transition:    background 0.2s ease;
   text-align:    center;
   margin-top:    var(--space-2);
 }
-.btn-agendar-nueva:hover { background: var(--melika-accent-dark); }
 
-/* ── Vista lista ───────────────────────────────────────────── */
+.btn-agendar-nueva:hover {
+  background: var(--melika-accent-dark);
+}
+
+/* Botón "Ver historia clínica" */
+.btn-historia {
+  display:       inline-flex;
+  align-items:   center;
+  justify-content: center;
+  gap:           var(--space-1);
+  background:    transparent;
+  border:        1.5px solid var(--melika-primary-300);
+  border-radius: var(--radius-sm);
+  color:         var(--melika-primary-600);
+  padding:       var(--space-2) var(--space-4);
+  font-size:     13px;
+  font-weight:   700;
+  font-family:   var(--font-display);
+  cursor:        pointer;
+  transition:    all 0.15s ease;
+  white-space:   nowrap;
+}
+
+.btn-historia:hover:not(:disabled) {
+  background:   var(--melika-primary-50);
+  border-color: var(--melika-primary-200);
+}
+
+.btn-historia:disabled {
+  opacity: 0.65;
+  cursor:  not-allowed;
+}
+
+/* Variante bloque: ancho completo */
+.btn-historia--bloque {
+  display: flex;
+  width:   100%;
+}
+
+/* Contenedor historia en tarjeta de lista */
+.cita-card__historia {
+  display:        flex;
+  flex-direction: column;
+  gap:            var(--space-1);
+}
+
+/* Cancelar en vista lista */
+.btn-cancelar-lista {
+  background:    transparent;
+  border:        1.5px solid var(--melika-warning);
+  border-radius: var(--radius-sm);
+  color:         var(--melika-warning);
+  padding:       var(--space-2) var(--space-4);
+  font-size:     13px;
+  font-weight:   700;
+  font-family:   var(--font-display);
+  cursor:        pointer;
+  transition:    all 0.15s ease;
+  white-space:   nowrap;
+}
+
+.btn-cancelar-lista:hover:not(:disabled) {
+  background: var(--melika-warning-bg);
+}
+
+.btn-cancelar-lista:disabled {
+  opacity: 0.5;
+  cursor:  not-allowed;
+}
+
+/* Eliminar en vista lista */
+.btn-eliminar-lista {
+  background:    transparent;
+  border:        1.5px solid var(--melika-error);
+  border-radius: var(--radius-sm);
+  color:         var(--melika-error);
+  padding:       var(--space-2) var(--space-4);
+  font-size:     13px;
+  font-weight:   700;
+  font-family:   var(--font-display);
+  cursor:        pointer;
+  transition:    all 0.15s ease;
+  white-space:   nowrap;
+}
+
+.btn-eliminar-lista:hover:not(:disabled) {
+  background: var(--melika-error-bg);
+}
+
+.btn-eliminar-lista:disabled {
+  opacity: 0.5;
+  cursor:  not-allowed;
+}
+
+/* Botón secundario (volver) */
+.btn-secundario {
+  background:    transparent;
+  color:         var(--melika-primary-600);
+  border:        1.5px solid var(--melika-primary-200);
+  border-radius: var(--radius-sm);
+  padding:       var(--space-3) var(--space-6);
+  font-size:     14px;
+  font-weight:   700;
+  font-family:   var(--font-display);
+  cursor:        pointer;
+  transition:    all 0.15s ease;
+}
+
+.btn-secundario:hover:not(:disabled) {
+  background: var(--melika-primary-25);
+}
+
+.btn-secundario:disabled {
+  opacity: 0.5;
+  cursor:  not-allowed;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   10. ERROR Y SPINNER DEL VISOR PDF
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* Error del visor en panel de detalle / lista */
+.miscitas-visor-error {
+  font-size:     13px;
+  color:         var(--melika-error);
+  background:    var(--melika-error-bg);
+  border:        1px solid #fca5a5;
+  border-radius: var(--radius-sm);
+  padding:       var(--space-2) var(--space-3);
+  line-height:   1.5;
+  margin:        0;
+}
+
+/* Variante cuando aparece debajo de la lista completa */
+.miscitas-visor-error--lista {
+  margin-top: var(--space-4);
+}
+
+/* Spinner de carga dentro del botón */
+.miscitas-spinner {
+  display:       inline-block;
+  width:         12px;
+  height:        12px;
+  border:        2px solid rgba(30, 58, 110, 0.3);
+  border-top-color: var(--melika-primary-600);
+  border-radius: 50%;
+  animation:     miscitas-spin 0.7s linear infinite;
+  flex-shrink:   0;
+}
+
+@keyframes miscitas-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   11. ERRORES GENERALES Y ESTADOS DE CARGA
+   ════════════════════════════════════════════════════════════════════════════ */
+
 .miscitas-error {
   background:    var(--melika-error-bg);
   color:         var(--melika-error);
@@ -315,10 +597,19 @@
   text-align:    center;
 }
 
-.miscitas-vacio p { font-size: 16px; color: var(--melika-text-muted); margin-bottom: var(--space-5); }
+.miscitas-vacio p {
+  font-size:     16px;
+  color:         var(--melika-text-muted);
+  margin-bottom: var(--space-5);
+}
 
-.miscitas-lista { display: flex; flex-direction: column; gap: var(--space-4); }
+.miscitas-lista {
+  display:        flex;
+  flex-direction: column;
+  gap:            var(--space-4);
+}
 
+/* Skeleton de carga */
 .cita-skeleton {
   height:          140px;
   background:      linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
@@ -326,6 +617,15 @@
   animation:       miscitas-pulso 1.5s infinite;
   border-radius:   var(--radius-lg);
 }
+
+@keyframes miscitas-pulso {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   12. TARJETA DE CITA (vista lista)
+   ════════════════════════════════════════════════════════════════════════════ */
 
 .cita-card {
   background:      var(--melika-bg);
@@ -337,19 +637,67 @@
   align-items:     flex-start;
   gap:             var(--space-4);
   box-shadow:      var(--shadow-xs);
-  transition:      box-shadow 0.15s;
+  transition:      box-shadow 0.15s ease;
 }
-.cita-card:hover { box-shadow: var(--shadow-sm); }
-.cita-card__cuerpo { flex: 1; }
 
-.cita-card__encabezado { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-2); }
-.cita-card__especialidad { font-size: 16px; font-weight: 700; color: var(--melika-text-primary); }
-.cita-card__medico  { font-size: 14px; color: var(--melika-text-secondary); margin-bottom: var(--space-1); }
-.cita-card__fecha   { font-size: 14px; color: var(--melika-text-secondary); margin-bottom: var(--space-1); }
-.cita-card__tipo    { font-size: 13px; color: var(--melika-text-muted);     margin-bottom: var(--space-1); }
-.cita-card__tarifa  { color: var(--melika-text-muted); }
-.cita-card__motivo  { font-size: 13px; color: var(--melika-text-muted); font-style: italic; margin-top: var(--space-2); }
-.cita-card__razon   { font-size: 12px; color: var(--melika-error); margin-top: var(--space-2); }
+.cita-card:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+.cita-card__cuerpo {
+  flex: 1;
+  min-width: 0;
+}
+
+.cita-card__encabezado {
+  display:     flex;
+  align-items: center;
+  gap:         var(--space-3);
+  margin-bottom: var(--space-2);
+  flex-wrap:   wrap;
+}
+
+.cita-card__especialidad {
+  font-size:   16px;
+  font-weight: 700;
+  color:       var(--melika-text-primary);
+  margin:      0;
+}
+
+.cita-card__medico {
+  font-size:     14px;
+  color:         var(--melika-text-secondary);
+  margin-bottom: var(--space-1);
+}
+
+.cita-card__fecha {
+  font-size:     14px;
+  color:         var(--melika-text-secondary);
+  margin-bottom: var(--space-1);
+}
+
+.cita-card__tipo {
+  font-size:     13px;
+  color:         var(--melika-text-muted);
+  margin-bottom: var(--space-1);
+}
+
+.cita-card__tarifa {
+  color: var(--melika-text-muted);
+}
+
+.cita-card__motivo {
+  font-size:   13px;
+  color:       var(--melika-text-muted);
+  font-style:  italic;
+  margin-top:  var(--space-2);
+}
+
+.cita-card__razon {
+  font-size:   12px;
+  color:       var(--melika-error);
+  margin-top:  var(--space-2);
+}
 
 .cita-card__acciones {
   display:        flex;
@@ -359,43 +707,15 @@
   flex-shrink:    0;
 }
 
-.btn-cancelar-lista {
-  background:    none;
-  border:        1.5px solid var(--melika-warning);
-  border-radius: var(--radius-sm);
-  color:         var(--melika-warning);
-  padding:       var(--space-2) var(--space-4);
-  font-size:     13px;
-  font-weight:   700;
-  font-family:   var(--font-display);
-  cursor:        pointer;
-  transition:    all 0.15s;
-  white-space:   nowrap;
-}
-.btn-cancelar-lista:hover:not(:disabled) { background: var(--melika-warning-bg); }
-.btn-cancelar-lista:disabled { opacity: 0.5; cursor: not-allowed; }
+/* ════════════════════════════════════════════════════════════════════════════
+   13. MODAL DE CONFIRMACIÓN (cancelar / eliminar)
+   ════════════════════════════════════════════════════════════════════════════ */
 
-.btn-eliminar-lista {
-  background:    none;
-  border:        1.5px solid var(--melika-error);
-  border-radius: var(--radius-sm);
-  color:         var(--melika-error);
-  padding:       var(--space-2) var(--space-4);
-  font-size:     13px;
-  font-weight:   700;
-  font-family:   var(--font-display);
-  cursor:        pointer;
-  transition:    all 0.15s;
-  white-space:   nowrap;
-}
-.btn-eliminar-lista:hover:not(:disabled) { background: var(--melika-error-bg); }
-.btn-eliminar-lista:disabled { opacity: 0.5; cursor: not-allowed; }
-
-/* ── Modal ─────────────────────────────────────────────────── */
 .modal-overlay {
   position:        fixed;
   inset:           0;
   background:      rgba(11, 26, 54, 0.45);
+  backdrop-filter: blur(4px);
   display:         flex;
   align-items:     center;
   justify-content: center;
@@ -412,41 +732,81 @@
   box-shadow:    var(--shadow-xl);
 }
 
-.modal-card h3 { font-size: 20px; font-weight: 700; color: var(--melika-text-primary); margin-bottom: var(--space-3); }
-.modal-card p  { font-size: 15px; color: var(--melika-text-secondary); line-height: 1.6; margin-bottom: var(--space-6); }
-
-.modal-acciones { display: flex; justify-content: flex-end; gap: var(--space-3); }
-
-.btn-secundario {
-  background:    transparent;
-  color:         var(--melika-primary-600);
-  border:        1.5px solid var(--melika-primary-200);
-  border-radius: var(--radius-sm);
-  padding:       var(--space-3) var(--space-6);
-  font-size:     14px;
+.modal-card h3 {
+  font-size:     20px;
   font-weight:   700;
-  font-family:   var(--font-display);
-  cursor:        pointer;
-  transition:    all 0.15s;
-}
-.btn-secundario:hover:not(:disabled) { background: var(--melika-primary-25); }
-.btn-secundario:disabled { opacity: 0.5; cursor: not-allowed; }
-
-/* ── Animaciones ───────────────────────────────────────────── */
-@keyframes miscitas-pulso {
-  0%   { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  color:         var(--melika-text-primary);
+  margin-bottom: var(--space-3);
 }
 
-/* ── Responsive ────────────────────────────────────────────── */
+.modal-card p {
+  font-size:     15px;
+  color:         var(--melika-text-secondary);
+  line-height:   1.6;
+  margin-bottom: var(--space-6);
+}
+
+.modal-textarea {
+  width:         100%;
+  resize:        vertical;
+  font-family:   var(--font-body);
+  font-size:     14px;
+  color:         var(--melika-text-primary);
+  border:        1.5px solid var(--melika-primary-100);
+  border-radius: var(--radius-sm);
+  padding:       var(--space-3);
+  margin-bottom: var(--space-6);
+  margin-top:    calc(var(--space-6) * -1 + var(--space-2));
+  box-sizing:    border-box;
+  line-height:   1.6;
+}
+
+.modal-textarea:focus {
+  outline:      none;
+  border-color: var(--melika-primary-300);
+}
+
+.modal-acciones {
+  display:         flex;
+  justify-content: flex-end;
+  gap:             var(--space-3);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   14. RESPONSIVE
+   ════════════════════════════════════════════════════════════════════════════ */
+
 @media (max-width: 1024px) {
-  .miscitas-grid                { grid-template-columns: 1fr; }
-  .miscitas-detalle-panel       { position: static; }
+  .miscitas-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .miscitas-detalle-panel {
+    position: static;
+  }
 }
 
 @media (max-width: 600px) {
-  .miscitas-cabecera            { flex-direction: column; align-items: flex-start; }
-  .cita-card                    { flex-direction: column; }
-  .cita-card__acciones          { flex-direction: row; width: 100%; }
-  .modal-acciones               { flex-direction: column-reverse; }
+  .miscitas-cabecera {
+    flex-direction: column;
+    align-items:    flex-start;
+  }
+
+  .cita-card {
+    flex-direction: column;
+  }
+
+  .cita-card__acciones {
+    flex-direction: row;
+    width:          100%;
+    flex-wrap:      wrap;
+  }
+
+  .modal-acciones {
+    flex-direction: column-reverse;
+  }
+
+  .modal-card h3 {
+    font-size: 18px;
+  }
 }

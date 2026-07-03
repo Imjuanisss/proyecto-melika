@@ -1,31 +1,29 @@
---                    MELIKA — SCHEMAv2 CON ARQUITECTURA DE DATOS ADVANCED
--- Integracion de LOGS and TRIGGERS para auditoría y seguridad, con enfoque en integridad transaccional.
 
--- =============================================================================
+--                   MELIKA — SCHEMAv2 CON ARQUITECTURA DE DATOS ADVANCED
+-- Integracion de LOGS and TRIGGERS para auditoría y seguridad, con enfoque en integridad transaccional y prevención de conflictos de concurrencia.
+
 -- 1. DROP EN ORDEN INVERSO A DEPENDENCIAS (Para recreación limpia)
--- =============================================================================
-DROP TABLE IF EXISTS logs_citas            CASCADE;
-DROP TABLE IF EXISTS historias_clinicas    CASCADE;
-DROP TABLE IF EXISTS citas                 CASCADE;
-DROP TABLE IF EXISTS franjas_horarias      CASCADE;
-DROP TABLE IF EXISTS medicos               CASCADE;
-DROP TABLE IF EXISTS medicamentos          CASCADE;
-DROP TABLE IF EXISTS especialidades        CASCADE;
-DROP TABLE IF EXISTS tokens_invitacion     CASCADE;
-DROP TABLE IF EXISTS codigos_verificacion  CASCADE;
-DROP TABLE IF EXISTS usuarios              CASCADE;
+--DROP TABLE IF EXISTS logs_citas              CASCADE;
+--DROP TABLE IF EXISTS historias_clinicas      CASCADE;
+--DROP TABLE IF EXISTS citas                   CASCADE;
+--DROP TABLE IF EXISTS franjas_horarias        CASCADE;
+--DROP TABLE IF EXISTS medicos                 CASCADE;
+--DROP TABLE IF EXISTS medicamentos            CASCADE;
+--DROP TABLE IF EXISTS especialidades          CASCADE;
+--DROP TABLE IF EXISTS tokens_invitacion       CASCADE;
+--DROP TABLE IF EXISTS codigos_verificacion    CASCADE;
+--DROP TABLE IF EXISTS usuarios                CASCADE;
 
 
--- =============================================================================
 -- 2. DEFINICIÓN DE TABLAS BASE INDEPENDIENTES Y DE AUTENTICACIÓN
--- =============================================================================
+
 CREATE TABLE usuarios (
   id               SERIAL        PRIMARY KEY,
   nombre           VARCHAR(100)  NOT NULL,
   primer_apellido  VARCHAR(100)  NOT NULL,
   segundo_apellido VARCHAR(100),
   email            VARCHAR(255)  NOT NULL UNIQUE,
-  telefono         VARCHAR(50),  -- Integrado desde el inicio
+  telefono         VARCHAR(20),
   password_hash    VARCHAR(255)  NOT NULL,
   rol              VARCHAR(20)   NOT NULL DEFAULT 'paciente' CHECK (rol IN ('paciente','medico','admin')),
   activo           BOOLEAN       NOT NULL DEFAULT FALSE,
@@ -33,7 +31,7 @@ CREATE TABLE usuarios (
   fecha_nacimiento DATE,
   genero           VARCHAR(20),
   direccion        VARCHAR(255),
-  ciudad           VARCHAR(100), -- Integrado desde el inicio
+  ciudad           VARCHAR(100),
   tipo_documento   VARCHAR(20)   NOT NULL  DEFAULT 'CC' CHECK (tipo_documento IN ('CC','CE','PASAPORTE')),
   numero_documento VARCHAR(50)   NOT NULL UNIQUE,
   created_at       TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -59,10 +57,10 @@ CREATE TABLE tokens_invitacion (
   created_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-
 -- =============================================================================
 -- 3. TABLAS DEL CATÁLOGO MÉDICO Y CLÍNICO
 -- =============================================================================
+
 CREATE TABLE especialidades (
   id          SERIAL        PRIMARY KEY,
   nombre      VARCHAR(100)  NOT NULL UNIQUE,
@@ -75,23 +73,23 @@ CREATE TABLE especialidades (
 );
 
 CREATE TABLE medicamentos (
-  id                 SERIAL        PRIMARY KEY,
-  nombre_comercial   VARCHAR(150)  NOT NULL,
-  principio_activa   VARCHAR(150), 
-  principio_activo   VARCHAR(150), 
-  laboratorio        VARCHAR(100),
-  id_especialidad    INTEGER       REFERENCES especialidades(id), -- Integrado como FK
-  tipo               VARCHAR(10)   NOT NULL CHECK (tipo IN ('OTC','Rx')),
-  descripcion        TEXT,
-  indicaciones       TEXT,
-  posologia          TEXT,
+  id                SERIAL       PRIMARY KEY,
+  nombre_comercial  VARCHAR(150) NOT NULL,
+  principio_activa  VARCHAR(150), -- Se preserva el typo original del modelo base para no alterar mapeos
+  principio_activo  VARCHAR(150), 
+  laboratorio       VARCHAR(100),
+  categoria         VARCHAR(100),
+  tipo              VARCHAR(10)  NOT NULL CHECK (tipo IN ('OTC','Rx')),
+  descripcion       TEXT,
+  indicaciones      TEXT,
+  posologia         TEXT,
   contraindicaciones TEXT,
-  presentaciones     TEXT,
-  registro_invima    VARCHAR(50),
-  imagen_url         VARCHAR(255), -- Integrado desde el inicio
-  activo             BOOLEAN       NOT NULL DEFAULT TRUE,
-  created_at         TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at         TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
+  presentaciones    TEXT,
+  registro_invima   VARCHAR(50),
+  imagen_url        VARCHAR(255),
+  activo            BOOLEAN      NOT NULL DEFAULT TRUE,
+  created_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE medicos (
@@ -121,26 +119,30 @@ CREATE TABLE franjas_horarias (
   CONSTRAINT  chk_horas_orden CHECK (hora_inicio < hora_fin)
 );
 
+-- =============================================================================
+-- 4. TABLA CORE DEL SISTEMA: CITAS
+-- =============================================================================
 
 -- =============================================================================
--- 4. TABLA CORE DEL SISTEMA: CITAS Y CLINICA
+-- 4. TABLA CORE DEL SISTEMA: CITAS (ACTUALIZADA)
 -- =============================================================================
+
 CREATE TABLE citas (
-  id                SERIAL        PRIMARY KEY,
-  id_paciente       INT           NOT NULL REFERENCES usuarios(id),
-  id_medico         INT           NOT NULL REFERENCES medicos(id),
-  id_especialidad   INT           NOT NULL REFERENCES especialidades(id),
-  id_franja         INT           NOT NULL REFERENCES franjas_horarias(id),
-  fecha             DATE          NOT NULL,
-  hora_inicio       TIME          NOT NULL,
-  tipo_consulta     VARCHAR(20)   NOT NULL DEFAULT 'presencial' CHECK (tipo_consulta IN ('presencial','teleconsulta')),
-  estado            VARCHAR(20)   NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente','completada','cancelada','no_asistio')),
-  motivo            TEXT,
+  id              SERIAL        PRIMARY KEY,
+  id_paciente     INT           NOT NULL REFERENCES usuarios(id),
+  id_medico       INT           NOT NULL REFERENCES medicos(id),
+  id_especialidad INT           NOT NULL REFERENCES especialidades(id),
+  id_franja       INT           NOT NULL REFERENCES franjas_horarias(id),
+  fecha           DATE          NOT NULL,
+  hora_inicio     TIME          NOT NULL,
+  tipo_consulta   VARCHAR(20)   NOT NULL DEFAULT 'presencial' CHECK (tipo_consulta IN ('presencial','teleconsulta')),
+  estado          VARCHAR(20)   NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente','completada','cancelada','no_asistio')),
+  motivo          TEXT,
   razon_cancelacion TEXT,        
-  tarifa            NUMERIC(10,2) NOT NULL,
-  notas_medicas     TEXT,
-  created_at        TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at        TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
+  tarifa          NUMERIC(10,2) NOT NULL,
+  notas_medicas   TEXT,
+  created_at      TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at      TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE historias_clinicas (
@@ -160,31 +162,31 @@ CREATE TABLE historias_clinicas (
   updated_at              TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- =============================================================================
+-- 5. NUEVA CAPA DE SEGURIDAD Y AUDITORÍA: LOGS DE CITAS (JSONB)
+-- =============================================================================
 
--- =============================================================================
--- 5. CAPA DE SEGURIDAD Y AUDITORÍA: LOGS DE CITAS (JSONB)
--- =============================================================================
 CREATE TABLE logs_citas (
     id               SERIAL        PRIMARY KEY,
     id_cita          INT           NOT NULL,
-    accion           VARCHAR(20)   NOT NULL,
+    accion           VARCHAR(20)   NOT NULL, -- 'INSERT', 'UPDATE', 'DELETE'
     estado_anterior  VARCHAR(50),
     estado_nuevo     VARCHAR(50),
-    datos_anteriores JSONB,                  
-    datos_nuevos     JSONB,                  
+    datos_anteriores JSONB,                  -- Snapshot de la fila antes del cambio
+    datos_nuevos     JSONB,                  -- Snapshot de la fila posterior al cambio
     usuario_db       VARCHAR(100)  DEFAULT CURRENT_USER,
     fecha_registro   TIMESTAMP     DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Índices de optimización arquitectónica para búsquedas analíticas en auditoría
 CREATE INDEX idx_logs_citas_id_cita ON logs_citas(id_cita);
 CREATE INDEX idx_logs_citas_gin_nuevos ON logs_citas USING gin (datos_nuevos);
-
 
 -- =============================================================================
 -- 6. PROGRAMACIÓN DE LÓGICA REACTIVA DE DATOS: TRIGGERS & PROCEDURES (PL/pgSQL)
 -- =============================================================================
 
--- ── TRIGGER 1: AUDITORÍA TRANSPARENTE E INMUTABLE ──
+-- ── TRIGGER 1: AUDITORÍA TRANSPARENTE E INMUTABLE ───────────────────────────
 CREATE OR REPLACE FUNCTION fn_auditar_citas()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -215,12 +217,13 @@ FOR EACH ROW
 EXECUTE FUNCTION fn_auditar_citas();
 
 
--- ── TRIGGER 2: BLINDAJE DE CONCURRENCIA ATÓMICA ──
+-- ── TRIGGER 2: BLINDAJE DE CONCURRENCIA ATÓMICA (PREVENCIÓN DE DOBLE AGENDAMIENTO) ──
 CREATE OR REPLACE FUNCTION fn_verificar_disponibilidad_critica()
 RETURNS TRIGGER AS $$
 DECLARE
     v_disponible BOOLEAN;
 BEGIN
+    -- Bloqueo pesimista mitigado consultando el estado de la franja horaria
     SELECT disponible INTO v_disponible 
     FROM franjas_horarias 
     WHERE id = NEW.id_franja;
@@ -232,6 +235,7 @@ BEGIN
         RAISE EXCEPTION 'ERR_FRANJA_OCUPADA: Conflicto de concurrencia. La franja horaria ya ha sido reservada.'
             USING ERRCODE = '45002';
     END IF;
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -242,20 +246,23 @@ FOR EACH ROW
 EXECUTE FUNCTION fn_verificar_disponibilidad_critica();
 
 
--- ── TRIGGER 3: CONTROL DE ESTADO REACTIVO AUTOMATIZADO ──
+-- ── TRIGGER 3: CONTROL DE ESTADO REACTIVO AUTOMATIZADO ──────────────────────
 CREATE OR REPLACE FUNCTION fn_sincronizar_franja_horaria()
 RETURNS TRIGGER AS $$
 BEGIN
+    -- Inserción exitosa -> Marcar franja como OCUPADA de inmediato
     IF (TG_OP = 'INSERT') THEN
         UPDATE franjas_horarias SET disponible = FALSE WHERE id = NEW.id_franja;
         RETURN NEW;
         
+    -- Cambio transaccional a Cancelado -> LIBERAR franja de inmediato
     ELSIF (TG_OP = 'UPDATE') THEN
         IF (OLD.estado <> 'cancelada' AND NEW.estado = 'cancelada') THEN
             UPDATE franjas_horarias SET disponible = TRUE WHERE id = NEW.id_franja;
         END IF;
         RETURN NEW;
         
+    -- Eliminación física preventiva -> LIBERAR franja de inmediato
     ELSIF (TG_OP = 'DELETE') THEN
         UPDATE franjas_horarias SET disponible = TRUE WHERE id = OLD.id_franja;
         RETURN OLD;
@@ -269,171 +276,420 @@ AFTER INSERT OR UPDATE OR DELETE ON citas
 FOR EACH ROW
 EXECUTE FUNCTION fn_sincronizar_franja_horaria();
 
--- ── ÍNDICES DE OPTIMIZACIÓN ──
-CREATE INDEX IF NOT EXISTS idx_franjas_medico_fecha_disponible ON franjas_horarias (id_medico, fecha, disponible) WHERE disponible = TRUE;
-CREATE INDEX IF NOT EXISTS idx_citas_paciente_fecha ON citas (id_paciente, fecha) WHERE estado != 'cancelada';
-CREATE INDEX IF NOT EXISTS idx_citas_medico_fecha ON citas (id_medico, fecha);
 
 
--- =============================================================================
--- 7. SEED DATA: DATOS SEMILLA (ESPECIALIDADES Y MÉDICOS DEMO)
--- =============================================================================
+-- Ejecutar en PostgreSQL para optimizar las queries de disponibilidad por rango
+-- Archivo: server/scripts/indices_disponibilidad.sql
 
--- Insertar o actualizar las 12 especialidades oficiales
-INSERT INTO especialidades (id, nombre, descripcion, precio_base, imagen_url, activa)
-VALUES 
-  (1, 'Cardiología', 'Evaluación, prevención y tratamiento de enfermedades del corazón y del sistema cardiovascular.', 80000.00, '/imagenes/especialidades/cardiologia.jpg', TRUE),
-  (2, 'Dermatología', 'Diagnóstico y cuidado integral de patologías de la piel, pelo, uñas y tratamientos estéticos médicos.', 70000.00, '/imagenes/especialidades/dermatologia.jpg', TRUE),
-  (3, 'Pediatría', 'Atención médica integral, control de crecimiento y desarrollo para bebés, niños y adolescentes.', 65000.00, '/imagenes/especialidades/pediatria.jpg', TRUE),
-  (4, 'Neurología', 'Especialistas en trastornos complejos del cerebro, la médula espinal, los nervios y el sistema muscular.', 90000.00, '/imagenes/especialidades/neurologia.jpg', TRUE),
-  (5, 'Ginecología', 'Cuidado integral de la salud del sistema reproductor femenino, control prenatal y maternidad.', 75000.00, '/imagenes/especialidades/ginecologia.jpg', TRUE),
-  (6, 'Medicina General', 'Tu primer punto de contacto médico. Diagnóstico primario, remisiones y chequeos preventivos.', 45000.00, '/imagenes/especialidades/medicina-general.jpg', TRUE),
-  (7, 'Ortopedia y Traumatología', 'Tratamiento de lesiones óseas, fracturas, problemas articulares, musculares y correcciones de postura.', 80000.00, '/imagenes/especialidades/ortopedia.jpg', TRUE),
-  (8, 'Oftalmología', 'Cuidado avanzado de la visión, diagnóstico de enfermedades oculares y prescripción médica de lentes.', 70000.00, '/imagenes/especialidades/oftalmologia.jpg', TRUE),
-  (9, 'Psiquiatría', 'Evaluación médica y terapéutica de la salud mental, trastornos del ánimo, ansiedad y bienestar emocional.', 85000.00, '/imagenes/especialidades/psiquiatria.jpg', TRUE),
-  (10, 'Otorrinolaringología', 'Especialistas en el diagnóstico y tratamiento de oído, nariz, garganta y estructuras del cuello.', 75000.00, '/imagenes/especialidades/otorrino.jpg', TRUE),
-  (11, 'Urología', 'Atención del sistema urinario en ambos sexos y patologías del sistema reproductor masculino.', 75000.00, '/imagenes/especialidades/urologia.jpg', TRUE),
-  (12, 'Nutrición y Dietética', 'Planes alimenticios personalizados para control de peso, rendimiento deportivo o manejo de patologías.', 55000.00, '/imagenes/especialidades/nutricion.jpg', TRUE)
-ON CONFLICT (id) DO UPDATE 
-SET nombre = EXCLUDED.nombre, 
-    descripcion = EXCLUDED.descripcion, 
-    precio_base = EXCLUDED.precio_base,
-    imagen_url = EXCLUDED.imagen_url;
+-- Índice compuesto para búsqueda de franjas por médico + fecha + disponibilidad
+CREATE INDEX IF NOT EXISTS idx_franjas_medico_fecha_disponible
+  ON franjas_horarias (id_medico, fecha, disponible)
+  WHERE disponible = TRUE;
 
--- Sincronizar el contador de IDs para que cuando crees nuevas especialidades desde un panel de admin no haya errores
-SELECT setval('especialidades_id_seq', (SELECT MAX(id) FROM especialidades));
+-- Índice para el endpoint de calendario de citas del paciente
+CREATE INDEX IF NOT EXISTS idx_citas_paciente_fecha
+  ON citas (id_paciente, fecha)
+  WHERE estado != 'cancelada';
 
--- BUCLE DE CREACIÓN DE 24 MÉDICOS CON FRANJAS HORARIAS
-DO $$
-DECLARE
-    v_usr_id INT;
-    v_med_id INT;
-    v_nombres TEXT[] := ARRAY['Camila', 'Juan Fernando', 'Liliana', 'Mauricio', 'Carlos', 'Andrea', 'Andrés', 'Diana Marcela', 'Diana', 'Laura', 'Valeria Sofía', 'Jorge Iván', 'Mauricio', 'Felipe', 'Natalia', 'Gabriel', 'Ricardo', 'Amalia', 'Santiago', 'Clara Inés', 'Fernando', 'Juliana', 'Carolina', 'Esteban'];
-    v_apellidos TEXT[] := ARRAY['Restrepo', 'Medina', 'Pérez', 'Tobón', 'Mendoza', 'Zuluaga', 'Jaramillo', 'Ríos', 'Ospina', 'Castillo', 'Plata', 'Cardona', 'Bermúdez', 'Suárez', 'Castellanos', 'Muñoz', 'Tobón', 'Herrera', 'Vásquez', 'Beltrán', 'Echeverry', 'Patiño', 'Sanz', 'Villarreal'];
-    v_especialidades INT[] := ARRAY[1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12];
-    v_tarifas NUMERIC[] := ARRAY[90000, 110000, 85000, 95000, 80000, 75000, 120000, 115000, 95000, 90000, 45000, 45000, 100000, 95000, 85000, 90000, 110000, 100000, 90000, 95000, 105000, 95000, 65000, 60000];
-    v_bios TEXT[] := ARRAY[
-        'Especialista en cardiología preventiva y cuidado cardiovascular.', 'Experto en cardiología intervencionista y falla cardíaca.',
-        'Experta en dermatología clínica y estética funcional.', 'Dermatólogo oncólogo enfocado en prevención y mapeo.',
-        'Pediatra dedicado al desarrollo integral y nutrición.', 'Especialista en neonatología y crecimiento infantil.',
-        'Especialista en trastornos del sueño, migrañas y patologías.', 'Neuróloga clínica con énfasis en el manejo de epilepsia.',
-        'Gineco-obstetra con amplia trayectoria en control prenatal.', 'Especialista en ginecología endocrinológica y salud de la mujer.',
-        'Atención médica primaria orientada a la prevención familiar.', 'Médico general enfocado en el control de hipertensión.',
-        'Ortopedista enfocado en lesiones deportivas y articulares.', 'Especialista en cirugía de mano y ortopedia infantil.',
-        'Especialista en cirugía refractiva y diagnóstico visual.', 'Oftalmólogo clínico enfocado en enfermedades de la retina.',
-        'Psiquiatra clínico enfocado en trastornos del ánimo y ansiedad.', 'Especialista en psiquiatría de enlace y terapia conductual.',
-        'Tratamiento avanzado de patologías de oído, nariz y garganta.', 'Otorrinolaringóloga con subespecialidad en otología o vértigo.',
-        'Urólogo certificado. Tratamiento de cálculos y próstata.', 'Especialista en urología femenina y suelo pélvico.',
-        'Nutricionista clínica experta en planes metabólicos.', 'Asesoría nutricional orientada a control metabólico.'
-    ];
-    i INT;
-BEGIN
-    FOR i IN 1..array_length(v_nombres, 1) LOOP
-        -- Crear Usuario
-        INSERT INTO usuarios (nombre, primer_apellido, email, password_hash, rol, activo, verificado, tipo_documento, numero_documento)
-        VALUES (
-            v_nombres[i], 
-            v_apellidos[i], 
-            'dr.demo' || i || '@melika.com', 
-            'hash_12345', 
-            'medico', 
-            TRUE, 
-            TRUE, 
-            'CC', 
-            (1020304000 + i)::TEXT
-        ) RETURNING id INTO v_usr_id;
-
-        -- Crear Perfil Médico
-        INSERT INTO medicos (id_usuario, id_especialidad, numero_registro, tarifa, calificacion, acepta_teleconsulta, acepta_presencial, biografia, anos_experiencia, activo)
-        VALUES (
-            v_usr_id, 
-            v_especialidades[i], 
-            'RM-' || (778800 + i), 
-            v_tarifas[i], 
-            ROUND((4.5 + random() * 0.5)::numeric, 1),
-            TRUE, 
-            TRUE, 
-            v_bios[i], 
-            (5 + random() * 10)::INT, 
-            TRUE
-        ) RETURNING id INTO v_med_id;
-
-        -- Crear Franjas Horarias Disponibles
-        INSERT INTO franjas_horarias (id_medico, fecha, hora_inicio, hora_fin, disponible)
-        VALUES 
-        (v_med_id, CURRENT_DATE + INTERVAL '1 day', '08:00:00', '08:30:00', TRUE),
-        (v_med_id, CURRENT_DATE + INTERVAL '1 day', '08:30:00', '09:00:00', TRUE),
-        (v_med_id, CURRENT_DATE + INTERVAL '1 day', '09:00:00', '09:30:00', TRUE),
-        (v_med_id, CURRENT_DATE + INTERVAL '2 day', '10:00:00', '10:30:00', TRUE);
-
-    END LOOP;
-END $$;
+-- Índice para joins frecuentes en las queries de citas
+CREATE INDEX IF NOT EXISTS idx_citas_medico_fecha
+  ON citas (id_medico, fecha);
 
 
--- 1. Limpieza total del catálogo de medicamentos para evitar duplicados
-DELETE FROM medicamentos;
+-- PASO 4: Migración de datos históricos de medicamentos_recetados a la nueva estructura JSONB
+UPDATE historias_clinicas
+SET medicamentos_recetados = jsonb_build_object(
+      'texto',
+      medicamentos_recetados #>> '{}'   -- extrae el valor como texto si es un scalar JSON
+    )
+WHERE
+  medicamentos_recetados IS NOT NULL
+  AND jsonb_typeof(medicamentos_recetados) = 'string';
+ 
+-- Caso B: El valor es un objeto pero NO tiene la clave "texto"
+--         (podría ser un objeto arbitrario de versiones anteriores)
+--         → lo convertimos a representación textual dentro del wrapper.
+UPDATE historias_clinicas
+SET medicamentos_recetados = jsonb_build_object(
+      'texto',
+      medicamentos_recetados::text
+    )
+WHERE
+  medicamentos_recetados IS NOT NULL
+  AND jsonb_typeof(medicamentos_recetados) = 'object'
+  AND NOT (medicamentos_recetados ? 'texto');
+ 
+-- Caso C: El valor es un array JSON
+--         → lo convertimos a representación textual.
+UPDATE historias_clinicas
+SET medicamentos_recetados = jsonb_build_object(
+      'texto',
+      medicamentos_recetados::text
+    )
+WHERE
+  medicamentos_recetados IS NOT NULL
+  AND jsonb_typeof(medicamentos_recetados) = 'array';
+ 
+-- ─── Verificación post-migración ─────────────────────────────
+-- Ejecuta esto manualmente para confirmar que todos los registros
+-- tienen la forma { "texto": "..." } o son NULL:
+--
+-- SELECT id, medicamentos_recetados
+-- FROM historias_clinicas
+-- WHERE medicamentos_recetados IS NOT NULL
+-- AND NOT (medicamentos_recetados ? 'texto');
+--
+-- Debe devolver 0 filas.
+SELECT * FROM usuarios;
 
--- 2. Inserción masiva de medicamentos reales para habilitar TODAS las especialidades
-INSERT INTO medicamentos 
-  (nombre_comercial, principio_activo, laboratorio, id_especialidad, tipo, descripcion, presentaciones, imagen_url, activo)
-VALUES 
-  -- 1. Cardiología
-  ('Losartán Potásico', 'Losartán 50mg', 'Genfar', 1, 'Rx', 'Tratamiento de primera línea para el manejo de la hipertensión arterial.', 'Caja x 30 tabletas', '/imagenes/medicamentos/losartan.jpg', TRUE),
-  ('Aspirina 100', 'Ácido Acetilsalicílico', 'Bayer', 1, 'OTC', 'Prevención de eventos cardiovasculares y antitrombótico.', 'Caja x 28 tabletas', '/imagenes/medicamentos/aspirina.jpg', TRUE),
+--MIGRACIÓN v2: MÓDULO INTEGRAL DE HISTORIAS CLÍNICAS
+-- PASO 1: Ampliar la tabla historias_clinicas con todos los bloques normativos
+-- Se usa ALTER TABLE para no romper datos ni relaciones existentes
+-- -----------------------------------------------------------------------------
+ 
+-- Bloque 1 — Identificación administrativa del paciente (datos complementarios)
+ALTER TABLE historias_clinicas
+  ADD COLUMN IF NOT EXISTS tipo_consulta       VARCHAR(20)  DEFAULT 'presencial',
+  ADD COLUMN IF NOT EXISTS eps_aseguradora     VARCHAR(150),
+  ADD COLUMN IF NOT EXISTS contacto_responsable_nombre   VARCHAR(150),
+  ADD COLUMN IF NOT EXISTS contacto_responsable_telefono VARCHAR(30);
+ 
+-- Bloque 2 — Anamnesis expandida (campos separados por tipo de antecedente)
+ALTER TABLE historias_clinicas
+  ADD COLUMN IF NOT EXISTS antecedentes_patologicos      TEXT,
+  ADD COLUMN IF NOT EXISTS antecedentes_quirurgicos      TEXT,
+  ADD COLUMN IF NOT EXISTS antecedentes_alergicos        TEXT,
+  ADD COLUMN IF NOT EXISTS antecedentes_familiares       TEXT,
+  ADD COLUMN IF NOT EXISTS antecedentes_ginecoobstetricos TEXT,
+  ADD COLUMN IF NOT EXISTS habitos                       TEXT;
+ 
+-- Bloque 3 — Examen físico con signos vitales numéricos (Res. 1995/1999)
+ALTER TABLE historias_clinicas
+  ADD COLUMN IF NOT EXISTS tension_arterial_sistolica    FLOAT,
+  ADD COLUMN IF NOT EXISTS tension_arterial_diastolica   FLOAT,
+  ADD COLUMN IF NOT EXISTS frecuencia_cardiaca           INT,
+  ADD COLUMN IF NOT EXISTS frecuencia_respiratoria       INT,
+  ADD COLUMN IF NOT EXISTS temperatura_corporal          FLOAT,
+  ADD COLUMN IF NOT EXISTS peso_kg                       FLOAT,
+  ADD COLUMN IF NOT EXISTS talla_cm                      FLOAT,
+  ADD COLUMN IF NOT EXISTS imc                           FLOAT,
+  ADD COLUMN IF NOT EXISTS exploracion_por_sistemas      TEXT;
+ 
+-- Bloque 4 — Diagnóstico CIE-10 ya estaba como diagnostico_cie10 + descripcion_diagnostico
+ 
+-- Bloque 5 — Plan de manejo separado por tipo
+ALTER TABLE historias_clinicas
+  ADD COLUMN IF NOT EXISTS ordenes_medicas  TEXT,
+  ADD COLUMN IF NOT EXISTS recomendaciones  TEXT,
+  ADD COLUMN IF NOT EXISTS incapacidad_dias INT;
+ 
+-- Bloque 6 — Cierre legal con datos del médico firmante
+ALTER TABLE historias_clinicas
+  ADD COLUMN IF NOT EXISTS medico_nombre_firma    VARCHAR(200),
+  ADD COLUMN IF NOT EXISTS medico_cedula_firma    VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS medico_rethus_firma    VARCHAR(50);
+ 
+-- Estado del documento (activo | anulado_por_aclaracion)
+ALTER TABLE historias_clinicas
+  ADD COLUMN IF NOT EXISTS estado VARCHAR(30) NOT NULL DEFAULT 'activo'
+    CHECK (estado IN ('activo', 'anulado_por_aclaracion'));
+ 
+-- ID de la historia original (para notas de aclaración/evolución)
+ALTER TABLE historias_clinicas
+  ADD COLUMN IF NOT EXISTS id_historia_original INT REFERENCES historias_clinicas(id);
+ 
+-- Tipo de documento: historia principal o aclaración/nota de evolución
+ALTER TABLE historias_clinicas
+  ADD COLUMN IF NOT EXISTS tipo_registro VARCHAR(30) NOT NULL DEFAULT 'historia_principal'
+    CHECK (tipo_registro IN ('historia_principal', 'nota_aclaracion', 'nota_evolucion'));
+ 
 
-  -- 2. Dermatología
-  ('Roaccutan', 'Isotretinoína 20mg', 'Roche', 2, 'Rx', 'Tratamiento para acné nodular severo o quístico recalcitrante.', 'Caja x 30 cápsulas', '/imagenes/medicamentos/roaccutan.jpg', TRUE),
-  ('Betametasona', 'Betametasona 0.1%', 'Mk', 2, 'Rx', 'Crema tópica con potente acción antiinflamatoria y antipruriginosa.', 'Tubo x 40g', '/imagenes/medicamentos/betametasona.jpg', TRUE),
+-- PASO 2: Tabla de documentos adjuntos (fórmulas, exámenes, documentos externos)
+-- Lógica append-only: nunca se borra un documento médico generado
 
-  -- 3. Pediatría
-  ('Dolex Niños Jarabe', 'Acetaminofén 160mg/5ml', 'Haleon', 3, 'OTC', 'Alivio rápido del dolor y la fiebre en niños, con agradable sabor a fresa.', 'Frasco x 90ml', '/imagenes/medicamentos/dolex-ninos.jpg', TRUE),
-  ('Pedialyte 60', 'Electrólitos + Zinc', 'Abbott', 3, 'OTC', 'Solución de hidratación oral ideal para la reposición de líquidos y sales minerales.', 'Frasco x 500ml', '/imagenes/medicamentos/pedialyte.jpg', TRUE),
+ 
+CREATE TABLE IF NOT EXISTS documentos_clinicos (
+  id              SERIAL        PRIMARY KEY,
+  id_historia     INT           REFERENCES historias_clinicas(id),
+  id_paciente     INT           NOT NULL REFERENCES usuarios(id),
+  id_medico       INT           REFERENCES medicos(id),
+  tipo_documento  VARCHAR(30)   NOT NULL CHECK (tipo_documento IN (
+                    'historia_clinica',
+                    'formula_medica',
+                    'orden_examen',
+                    'documento_externo'
+                  )),
+  origen          VARCHAR(20)   NOT NULL CHECK (origen IN ('medico', 'paciente')),
+  nombre_archivo  VARCHAR(255),
+  url_pdf         TEXT,
+  descripcion     VARCHAR(500),
+  -- Solo el paciente puede "ocultar" un documento externo que él mismo subió
+  -- Un documento médico NUNCA se elimina (inmutabilidad legal)
+  oculto_paciente BOOLEAN       NOT NULL DEFAULT FALSE,
+  created_at      TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at      TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+ 
+-- Índices para búsquedas frecuentes
+CREATE INDEX IF NOT EXISTS idx_docs_clinicos_paciente ON documentos_clinicos(id_paciente);
+CREATE INDEX IF NOT EXISTS idx_docs_clinicos_historia ON documentos_clinicos(id_historia);
+CREATE INDEX IF NOT EXISTS idx_docs_clinicos_medico   ON documentos_clinicos(id_medico);
+ 
 
-  -- 4. Neurología
-  ('Adorlan', 'Tramadol + Acetaminofén', 'Grunenthal', 4, 'Rx', 'Analgésico central indicado para el tratamiento del dolor moderado a severo.', 'Caja x 30 tabletas', '/imagenes/medicamentos/adorlan.jpg', TRUE),
-  ('Sertralina', 'Sertralina 50mg', 'Mk', 4, 'Rx', 'Inhibidor selectivo de la recaptación de serotonina para trastornos neurológicos y del ánimo.', 'Caja x 30 tabletas', '/imagenes/medicamentos/sertralina.jpg', TRUE),
+-- PASO 3: Índices de optimización sobre historias_clinicas existentes
 
-  -- 5. Ginecología
-  ('Yaz', 'Drospirenona / Etinilestradiol', 'Bayer', 5, 'Rx', 'Anticonceptivo oral combinado con beneficios para el SPM y control de acné.', 'Caja x 28 comprimidos', '/imagenes/medicamentos/yaz.jpg', TRUE),
-  ('Gynocanesten', 'Clotrimazol Crema 2%', 'Bayer', 5, 'OTC', 'Tratamiento eficaz de uso óvulo-vaginal para infecciones micóticas.', 'Tubo x 20g con aplicadores', '/imagenes/medicamentos/gynocanesten.jpg', TRUE),
+ 
+CREATE INDEX IF NOT EXISTS idx_historias_paciente   ON historias_clinicas(id_paciente);
+CREATE INDEX IF NOT EXISTS idx_historias_medico      ON historias_clinicas(id_medico);
+CREATE INDEX IF NOT EXISTS idx_historias_original    ON historias_clinicas(id_historia_original);
+CREATE INDEX IF NOT EXISTS idx_historias_tipo        ON historias_clinicas(tipo_registro);
+ 
 
-  -- 6. Medicina General
-  ('Dolex Forte', 'Acetaminofén + Cafeína', 'Haleon', 6, 'OTC', 'Alivio potente del dolor de cabeza, migraña, dolores musculares y fiebre.', 'Caja x 14 tabletas', '/imagenes/medicamentos/dolex.jpg', TRUE),
-  ('Apronax', 'Naproxeno Sódico 550mg', 'Bayer', 6, 'OTC', 'Analgésico y antiinflamatorio prolongado para dolores intensos musculares y articulares.', 'Caja x 20 tabletas', '/imagenes/medicamentos/apronax.jpg', TRUE),
+-- VERIFICACIÓN: Consultas de control post-migración
+-- Ejecutar manualmente para confirmar que la migración fue exitosa:
+--
+ SELECT column_name, data_type FROM information_schema.columns
+ WHERE table_name = 'historias_clinicas' ORDER BY ordinal_position;
 
-  -- 7. Ortopedia y Traumatología
-  ('Voltaren Emulgel', 'Diclofenaco Dietilamonio', 'Novartis', 7, 'OTC', 'Gel antiinflamatorio tópico para aliviar el dolor de golpes, esguinces y torceduras.', 'Tubo x 50g', '/imagenes/medicamentos/voltaren.jpg', TRUE),
-  ('Colágeno Hidrolizado', 'Colágeno + Magnesio', 'Healthy America', 7, 'OTC', 'Suplemento nutricional enfocado en la salud articular y regeneración de cartílagos.', 'Frasco x 60 cápsulas', '/imagenes/medicamentos/colageno.jpg', TRUE),
+SELECT COUNT(*) FROM documentos_clinicos;
+SELECT COUNT(*) FROM historias_clinicas WHERE tipo_registro IS NOT NULL;
 
-  -- 8. Oftalmología
-  ('Nafazolina Gotas', 'Nafazolina Clorhidrato', 'Tecnoquímicas', 8, 'OTC', 'Solución oftálmica vasoconstrictora para aliviar el enrojecimiento y la irritación ocular.', 'Frasco x 15ml', '/imagenes/medicamentos/nafazolina.jpg', TRUE),
-  ('Fresh Tears', 'Carboximetilcelulosa 0.5%', 'Allergan', 8, 'OTC', 'Lágrimas artificiales indicadas para el alivio temporal del ojo seco e irritación.', 'Frasco x 15ml', '/imagenes/medicamentos/freshtears.jpg', TRUE),
 
-  -- 9. Psiquiatría
-  ('Prozac', 'Fluoxetina 20mg', 'Eli Lilly', 9, 'Rx', 'Antidepresivo indicado para el tratamiento de la depresión y trastornos de ansiedad.', 'Caja x 14 cápsulas', '/imagenes/medicamentos/prozac.jpg', TRUE),
-  ('Clonazepam', 'Clonazepam 2mg', 'Tecnoquímicas', 9, 'Rx', 'Ansiolítico de acción prolongada utilizado bajo estricto control médico.', 'Caja x 30 tabletas', '/imagenes/medicamentos/clonazepam.jpg', TRUE),
+-- MELIKA — Migración v3: columna notas_medicas en citas
+-- Ejecutar en Railway/PostgreSQL antes de desplegar el backend actualizado.
+-- Es seguro ejecutarlo múltiples veces (usa IF NOT EXISTS / ADD COLUMN IF NOT EXISTS).
+-- ─────────────────────────────────────────────────────────────────────────────
 
-  -- 10. Otorrinolaringología
-  ('Afrin Adultos', 'Oximetazolina 0.05%', 'Bayer', 10, 'OTC', 'Descongestionante nasal de acción rápida para procesos gripales y sinusitis.', 'Frasco Spray x 15ml', '/imagenes/medicamentos/afrin.jpg', TRUE),
-  ('Amoxicilina', 'Amoxicilina 500mg', 'Genfar', 10, 'Rx', 'Antibiótico de amplio espectro para infecciones bacterianas en oído y garganta.', 'Caja x 30 cápsulas', '/imagenes/medicamentos/amoxicilina.jpg', TRUE),
+-- El campo notas_medicas permite al médico registrar observaciones de cierre
+-- visibles en la agenda sin necesidad de abrir la historia clínica completa.
+ALTER TABLE citas
+  ADD COLUMN IF NOT EXISTS notas_medicas TEXT;
 
-  -- 11. Urología
-  ('Secotex', 'Tamsulosina Clorhidrato 0.4mg', 'Boehringer', 11, 'Rx', 'Tratamiento para los síntomas urinarios asociados a la hiperplasia prostática benigna.', 'Caja x 30 tamsulosinas', '/imagenes/medicamentos/secotex.jpg', TRUE),
-  ('Ciprofloxacino', 'Ciprofloxacino 500mg', 'Mk', 11, 'Rx', 'Antibiótico fluoroquinolona altamente eficaz para infecciones del tracto urinario.', 'Caja x 10 tabletas', '/imagenes/medicamentos/ciprofloxacino.jpg', TRUE),
+-- Verificación post-migración
+SELECT column_name, data_type
+FROM information_schema.columns
+WHERE table_name = 'citas'
+  AND column_name = 'notas_medicas';
+-- Debe retornar una fila: notas_medicas | text
 
-  -- 12. Nutrición y Dietética
-  ('Centrum Adultos', 'Vitaminas y Minerales', 'Haleon', 12, 'OTC', 'Multivitamínico completo balanceado para complementar las necesidades nutricionales.', 'Frasco x 30 tabletas', '/imagenes/medicamentos/centrum.jpg', TRUE),
-  ('Ensure Clinical', 'Nutrición Especializada', 'Abbott', 12, 'OTC', 'Suplemento hipercalórico e hiperproteico para fuerza, masa muscular y vitalidad.', 'Lata x 400g', '/imagenes/medicamentos/ensure.jpg', TRUE),
+-- Bloque 1 — Datos administrativos complementarios
+ALTER TABLE historias_clinicas
+  ADD COLUMN IF NOT EXISTS tipo_consulta                  VARCHAR(20)  DEFAULT 'presencial',
+  ADD COLUMN IF NOT EXISTS eps_aseguradora                VARCHAR(150),
+  ADD COLUMN IF NOT EXISTS contacto_responsable_nombre    VARCHAR(150),
+  ADD COLUMN IF NOT EXISTS contacto_responsable_telefono  VARCHAR(30);
 
-  -- 13. Veterinaria (¡La especialidad que creaste tú!)
-  ('Apoquel', 'Oclacitinib 5.4mg', 'Zoetis', 13, 'Rx', 'Tratamiento de vanguardia para el control del prurito y la dermatitis alérgica en perros.', 'Caja x 20 tabletas', '/imagenes/medicamentos/apoquel.jpg', TRUE),
-  ('NexGard', 'Afoxolaner Masticable', 'Boehringer', 13, 'OTC', 'Pastilla masticable antiparasitaria externa altamente efectiva contra pulgas y garrapatas.', 'Caja x 3 tabletas', '/imagenes/medicamentos/nexgard.jpg', TRUE);
+-- Bloque 2 — Anamnesis expandida
+ALTER TABLE historias_clinicas
+  ADD COLUMN IF NOT EXISTS antecedentes_patologicos        TEXT,
+  ADD COLUMN IF NOT EXISTS antecedentes_quirurgicos        TEXT,
+  ADD COLUMN IF NOT EXISTS antecedentes_alergicos          TEXT,
+  ADD COLUMN IF NOT EXISTS antecedentes_familiares         TEXT,
+  ADD COLUMN IF NOT EXISTS antecedentes_ginecoobstetricos  TEXT,
+  ADD COLUMN IF NOT EXISTS habitos                         TEXT;
 
-  INSERT INTO especialidades (id, nombre, descripcion, precio_base, imagen_url, activa)
-VALUES (13, 'Veterinaria', 'Cuidado y bienestar integral para mascotas y animales de compañía.', 50000.00, '/imagenes/especialidades/veterinaria.jpg', TRUE)
-ON CONFLICT (id) DO NOTHING;
+-- Bloque 3 — Signos vitales numéricos
+ALTER TABLE historias_clinicas
+  ADD COLUMN IF NOT EXISTS tension_arterial_sistolica   FLOAT,
+  ADD COLUMN IF NOT EXISTS tension_arterial_diastolica  FLOAT,
+  ADD COLUMN IF NOT EXISTS frecuencia_cardiaca          INT,
+  ADD COLUMN IF NOT EXISTS frecuencia_respiratoria      INT,
+  ADD COLUMN IF NOT EXISTS temperatura_corporal         FLOAT,
+  ADD COLUMN IF NOT EXISTS peso_kg                      FLOAT,
+  ADD COLUMN IF NOT EXISTS talla_cm                     FLOAT,
+  ADD COLUMN IF NOT EXISTS imc                          FLOAT,
+  ADD COLUMN IF NOT EXISTS exploracion_por_sistemas     TEXT;
 
--- Sincronizamos el contador interno por si agregas más desde el panel después
-SELECT setval('especialidades_id_seq', (SELECT MAX(id) FROM especialidades));
+-- Bloque 5 — Plan de manejo detallado
+ALTER TABLE historias_clinicas
+  ADD COLUMN IF NOT EXISTS ordenes_medicas   TEXT,
+  ADD COLUMN IF NOT EXISTS recomendaciones   TEXT,
+  ADD COLUMN IF NOT EXISTS incapacidad_dias  INT;
 
-ALTER TABLE medicos ADD COLUMN foto_url VARCHAR(255);
+-- Bloque 6 — Cierre legal
+ALTER TABLE historias_clinicas
+  ADD COLUMN IF NOT EXISTS medico_nombre_firma VARCHAR(200),
+  ADD COLUMN IF NOT EXISTS medico_cedula_firma VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS medico_rethus_firma VARCHAR(50);
+
+-- Control de versiones (inmutabilidad legal)
+ALTER TABLE historias_clinicas
+  ADD COLUMN IF NOT EXISTS estado VARCHAR(30) NOT NULL DEFAULT 'activo'
+    CHECK (estado IN ('activo', 'anulado_por_aclaracion')),
+  ADD COLUMN IF NOT EXISTS id_historia_original INT REFERENCES historias_clinicas(id),
+  ADD COLUMN IF NOT EXISTS tipo_registro VARCHAR(30) NOT NULL DEFAULT 'historia_principal'
+    CHECK (tipo_registro IN ('historia_principal', 'nota_aclaracion', 'nota_evolucion'));
+
+-- Tabla de documentos clínicos adjuntos
+CREATE TABLE IF NOT EXISTS documentos_clinicos (
+  id              SERIAL        PRIMARY KEY,
+  id_historia     INT           REFERENCES historias_clinicas(id),
+  id_paciente     INT           NOT NULL REFERENCES usuarios(id),
+  id_medico       INT           REFERENCES medicos(id),
+  tipo_documento  VARCHAR(30)   NOT NULL CHECK (tipo_documento IN (
+                    'historia_clinica','formula_medica','orden_examen','documento_externo')),
+  origen          VARCHAR(20)   NOT NULL CHECK (origen IN ('medico','paciente')),
+  nombre_archivo  VARCHAR(255),
+  url_pdf         TEXT,
+  descripcion     VARCHAR(500),
+  oculto_paciente BOOLEAN       NOT NULL DEFAULT FALSE,
+  created_at      TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at      TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Índices de optimización
+CREATE INDEX IF NOT EXISTS idx_historias_paciente  ON historias_clinicas(id_paciente);
+CREATE INDEX IF NOT EXISTS idx_historias_medico    ON historias_clinicas(id_medico);
+CREATE INDEX IF NOT EXISTS idx_historias_original  ON historias_clinicas(id_historia_original);
+CREATE INDEX IF NOT EXISTS idx_historias_tipo      ON historias_clinicas(tipo_registro);
+CREATE INDEX IF NOT EXISTS idx_docs_clinicos_pac   ON documentos_clinicos(id_paciente);
+CREATE INDEX IF NOT EXISTS idx_docs_clinicos_his   ON documentos_clinicos(id_historia);
+
+
+-- MELIKA — Migración v4: Fix constraint UNIQUE en historias_clinicas
+-- Permite múltiples filas por id_cita (historia principal + aclaraciones/evoluciones)
+-- Se reemplaza el UNIQUE simple por un índice parcial que solo aplica a historia_principal
+
+-- 1. Identificar y eliminar el constraint UNIQUE existente en id_cita
+-- (el nombre puede variar; Railway lo genera como historias_clinicas_id_cita_key)
+ALTER TABLE historias_clinicas
+  DROP CONSTRAINT IF EXISTS historias_clinicas_id_cita_key;
+
+-- 2. Crear índice parcial ÚNICO solo para historia_principal
+--    Esto garantiza: una sola historia principal por cita
+--    pero permite N aclaraciones/notas vinculadas al mismo id_cita
+CREATE UNIQUE INDEX IF NOT EXISTS uq_historia_principal_por_cita
+  ON historias_clinicas (id_cita)
+  WHERE tipo_registro = 'historia_principal';
+
+-- 3. Verificación: debe retornar el índice parcial creado
+SELECT indexname, indexdef
+FROM pg_indexes
+WHERE tablename = 'historias_clinicas'
+  AND indexname = 'uq_historia_principal_por_cita';
+
+--nuevos datos para meter 
+
+  ALTER TABLE franjas_horarias 
+ADD COLUMN estado VARCHAR(20) DEFAULT 'disponible';
+
+-- 1. Tabla para las Fórmulas Médicas (Recetas)
+CREATE TABLE recetas_medicas (
+    id SERIAL PRIMARY KEY,
+    id_historia INTEGER REFERENCES historias_clinicas(id) ON DELETE CASCADE,
+    medicamento VARCHAR(150) NOT NULL,
+    dosis VARCHAR(100) NOT NULL,       -- ej: '500 mg'
+    frecuencia VARCHAR(100) NOT NULL,  -- ej: 'Cada 8 horas'
+    duracion VARCHAR(100) NOT NULL,    -- ej: 'Por 5 días'
+    via_administracion VARCHAR(50),    -- ej: 'Oral', 'Intravenosa'
+    indicaciones TEXT,                 -- ej: 'Tomar después de las comidas'
+    fecha_emision TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 2. Tabla para las Órdenes de Exámenes Médicos
+CREATE TABLE ordenes_examenes (
+    id SERIAL PRIMARY KEY,
+    id_historia INTEGER REFERENCES historias_clinicas(id) ON DELETE CASCADE,
+    tipo_examen VARCHAR(100) NOT NULL,   -- ej: 'Laboratorio', 'Imagenología'
+    nombre_examen VARCHAR(150) NOT NULL, -- ej: 'Cuadro Hemático', 'Radiografía de Tórax'
+    justificacion_clinica TEXT,          -- Razón por la que se pide el examen
+    fecha_emision TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+--- 3. migración de datos: agregar columna id_especialidad a medicamentos para vincular con especialidades
+ALTER TABLE medicamentos
+  ADD COLUMN IF NOT EXISTS id_especialidad INT REFERENCES especialidades(id);
+  
+
+  -- server/src/database/migracion_v5_validaciones.sql
+-- MELIKA — Migración v5: Constraints de integridad clínica
+-- NOT VALID evita romper el despliegue con datos legados; los constraints
+-- se aplican a TODO INSERT/UPDATE nuevo desde este momento. Si se quiere
+-- validar también el histórico, ejecutar VALIDATE CONSTRAINT por separado
+-- tras sanear los datos antiguos.
+
+-- 1. Rangos clínicos válidos para signos vitales
+ALTER TABLE historias_clinicas
+  ADD CONSTRAINT chk_ta_sistolica_rango
+    CHECK (tension_arterial_sistolica IS NULL OR tension_arterial_sistolica BETWEEN 50 AND 250) NOT VALID,
+  ADD CONSTRAINT chk_ta_diastolica_rango
+    CHECK (tension_arterial_diastolica IS NULL OR tension_arterial_diastolica BETWEEN 30 AND 150) NOT VALID,
+  ADD CONSTRAINT chk_fc_rango
+    CHECK (frecuencia_cardiaca IS NULL OR frecuencia_cardiaca BETWEEN 20 AND 250) NOT VALID,
+  ADD CONSTRAINT chk_fr_rango
+    CHECK (frecuencia_respiratoria IS NULL OR frecuencia_respiratoria BETWEEN 5 AND 60) NOT VALID,
+  ADD CONSTRAINT chk_temp_rango
+    CHECK (temperatura_corporal IS NULL OR temperatura_corporal BETWEEN 30 AND 43) NOT VALID,
+  ADD CONSTRAINT chk_peso_rango
+    CHECK (peso_kg IS NULL OR peso_kg BETWEEN 1 AND 300) NOT VALID,
+  ADD CONSTRAINT chk_talla_rango
+    CHECK (talla_cm IS NULL OR talla_cm BETWEEN 30 AND 250) NOT VALID,
+  ADD CONSTRAINT chk_incapacidad_rango
+    CHECK (incapacidad_dias IS NULL OR incapacidad_dias BETWEEN 0 AND 180) NOT VALID;
+
+-- 2. La TA debe registrarse completa (sistólica y diastólica) o ninguna
+ALTER TABLE historias_clinicas
+  ADD CONSTRAINT chk_ta_pareja
+    CHECK ((tension_arterial_sistolica IS NULL) = (tension_arterial_diastolica IS NULL)) NOT VALID;
+
+-- 3. Si hay diagnóstico CIE-10, debe existir su descripción (y viceversa)
+ALTER TABLE historias_clinicas
+  ADD CONSTRAINT chk_diagnostico_pareja
+    CHECK (
+      (diagnostico_cie10 IS NULL AND descripcion_diagnostico IS NULL)
+      OR (diagnostico_cie10 IS NOT NULL AND descripcion_diagnostico IS NOT NULL)
+    ) NOT VALID;
+
+-- 4. Formato del código CIE-10 (letra + 2 dígitos + opcional .dígito)
+ALTER TABLE historias_clinicas
+  ADD CONSTRAINT chk_cie10_formato
+    CHECK (diagnostico_cie10 IS NULL OR diagnostico_cie10 ~ '^[A-Z][0-9]{2}(\.[0-9X]{1,2})?$') NOT VALID;
+
+-- 5. Bloques obligatorios SOLO para la historia_principal (no aplica a
+--    notas de aclaración/evolución, que son intencionalmente parciales)
+ALTER TABLE historias_clinicas
+  ADD CONSTRAINT chk_historia_principal_completa
+    CHECK (
+      tipo_registro <> 'historia_principal'
+      OR (
+        anamnesis IS NOT NULL
+        AND antecedentes_patologicos IS NOT NULL
+        AND antecedentes_alergicos IS NOT NULL
+        AND examen_fisico IS NOT NULL
+        AND diagnostico_cie10 IS NOT NULL
+        AND descripcion_diagnostico IS NOT NULL
+        AND plan_tratamiento IS NOT NULL
+        AND medico_nombre_firma IS NOT NULL
+        AND medico_rethus_firma IS NOT NULL
+      )
+    ) NOT VALID;
+
+-- 6. Cierre legal obligatorio SIEMPRE (historia principal y notas)
+ALTER TABLE historias_clinicas
+  ADD CONSTRAINT chk_cierre_legal_obligatorio
+    CHECK (medico_nombre_firma IS NOT NULL AND medico_rethus_firma IS NOT NULL) NOT VALID;
+
+-- 7. Recetas: ningún campo clínico clave puede quedar vacío
+ALTER TABLE recetas_medicas
+  ADD CONSTRAINT chk_receta_no_vacia
+    CHECK (
+      length(trim(medicamento)) > 0
+      AND length(trim(dosis)) > 0
+      AND length(trim(frecuencia)) > 0
+      AND length(trim(duracion)) > 0
+    ) NOT VALID;
+
+-- 8. Órdenes de examen: mismo refuerzo
+ALTER TABLE ordenes_examenes
+  ADD CONSTRAINT chk_examen_no_vacio
+    CHECK (
+      length(trim(tipo_examen)) > 0
+      AND length(trim(nombre_examen)) > 0
+    ) NOT VALID;
+
+-- ── Verificación ────────────────────────────────────────────────────────────
+SELECT conname, convalidated
+FROM pg_constraint
+WHERE conrelid IN ('historias_clinicas'::regclass, 'recetas_medicas'::regclass, 'ordenes_examenes'::regclass)
+  AND contype = 'c'
+ORDER BY conname;

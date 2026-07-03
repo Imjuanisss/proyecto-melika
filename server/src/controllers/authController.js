@@ -1,37 +1,9 @@
+// server/src/controllers/authController.js
 const pool   = require('../config/db');
 const bcrypt = require('bcrypt');
 const jwt    = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
-
-// ─── CONFIGURACIÓN DE CORREO (ARQUITECTURA DE CONEXIÓN PERSISTENTE) ──────────
-// Optimizada para entornos Cloud (Railway) evitando problemas de IPv6 y bloqueos de puertos.
-// Instanciamos el transporter una sola vez para que 'pool: true' reutilice eficazmente los sockets.
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,             // Puerto 587 (STARTTLS) es el más estable y compatible con firewalls cloud
-  secure: false,         // false para puerto 587; sube a TLS automáticamente vía comando STARTTLS
-  family: 4,             // Fuerza resolución IPv4. Railway bloquea IPv6 saliente, previniendo ENETUNREACH
-  pool: true,            // Mantiene sockets TCP abiertos para reutilizarlos en múltiples envíos de correos
-  maxConnections: 3,     // Límite seguro para no saturar las políticas de concurrencia de Gmail
-  socketTimeout: 30000,  // 30 segundos de margen para tolerar la latencia de red inicial de la nube
-  greetingTimeout: 30000,// Tiempo de espera para la respuesta de cortesía del servidor de Google
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  tls: {
-    rejectUnauthorized: true // Garantiza la validación estricta de certificados SSL/TLS en producción
-  }
-});
-
-// Verificación asíncrona del canal SMTP al arrancar el backend (Diagnóstico limpio)
-transporter.verify((error) => {
-  if (error) {
-    console.error('❌ [SMTP] Error de comunicación con Gmail:', error.message);
-  } else {
-    console.log('✅ [SMTP] Canal de comunicación optimizado listo con smtp.gmail.com.');
-  }
-});
+const { enviarCorreo } = require('../services/emailService');
+const { validarRegistroUsuario } = require('../utils/validacionesRegistro');
 
 function generarCodigo() {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -48,27 +20,27 @@ function templateVerificacion(nombre, codigo) {
         </h1>
         <p style="color: #4A5978; margin: 8px 0 0;">Tu salud, sin esperas ni papeleo</p>
       </div>
-      
+
       <div style="background: #fff; border-radius: 12px; padding: 32px; border: 1px solid #D9E4F7;">
         <h2 style="color: #0B1A36; margin: 0 0 16px;">¡Hola, ${nombre}! 👋</h2>
         <p style="color: #4A5978; line-height: 1.6;">
-          Gracias por registrarte en MELIKA. Para activar tu cuenta, 
+          Gracias por registrarte en MELIKA. Para activar tu cuenta,
           ingresa el siguiente código en la aplicación:
         </p>
-        
+
         <div style="background: #F6F9FF; border: 2px solid #3B6EE8; border-radius: 12px; padding: 24px; text-align: center; margin: 24px 0;">
           <p style="margin: 0 0 8px; color: #4A5978; font-size: 14px;">Tu código de verificación</p>
           <div style="font-size: 42px; font-weight: 800; color: #0B1A36; letter-spacing: 12px;">
             ${codigo}
           </div>
         </div>
-        
+
         <p style="color: #8A9BBE; font-size: 14px; margin: 16px 0 0;">
           ⏱ Este código expira en <strong>15 minutos</strong>.<br>
           Si no creaste esta cuenta, puedes ignorar este correo.
         </p>
       </div>
-      
+
       <p style="text-align: center; color: #8A9BBE; font-size: 12px; margin-top: 24px;">
         © 2026 MELIKA — Plataforma de Salud Digital Colombia
       </p>
@@ -84,21 +56,21 @@ function templateRecuperacion(nombre, codigo) {
           <span style="color: #E8856A;">M</span>ELIKA
         </h1>
       </div>
-      
+
       <div style="background: #fff; border-radius: 12px; padding: 32px; border: 1px solid #D9E4F7;">
         <h2 style="color: #0B1A36; margin: 0 0 16px;">Recuperación de contraseña</h2>
         <p style="color: #4A5978; line-height: 1.6;">
-          Hola <strong>${nombre}</strong>, recibimos una solicitud para restablecer 
+          Hola <strong>${nombre}</strong>, recibimos una solicitud para restablecer
           la contraseña de tu cuenta en MELIKA.
         </p>
-        
+
         <div style="background: #FEF3C7; border: 2px solid #B45309; border-radius: 12px; padding: 24px; text-align: center; margin: 24px 0;">
           <p style="margin: 0 0 8px; color: #B45309; font-size: 14px;">Código de recuperación</p>
           <div style="font-size: 42px; font-weight: 800; color: #0B1A36; letter-spacing: 12px;">
             ${codigo}
           </div>
         </div>
-        
+
         <p style="color: #8A9BBE; font-size: 14px;">
           ⏱ Este código expira en <strong>15 minutos</strong>.<br>
           Si no solicitaste este cambio, ignora este correo. Tu contraseña no cambiará.
@@ -108,28 +80,32 @@ function templateRecuperacion(nombre, codigo) {
   `;
 }
 
-// ─── REGISTRO ────────────────────────────────────────────────────────────────
+// ─── REGISTRO ─────────────────────────────────────────────────────────────
+// FIX PROFESIONAL: antes solo se validaba presencia de campos (truthy/falsy),
+// lo que permitía: numero_documento con letras, fecha_nacimiento incoherente
+// (ej. edad de 300 años o sin validar), genero fuera de M/F/O, y nombres con
+// solo números o caracteres repetidos. Ahora se aplica validarRegistroUsuario,
+// que centraliza estas reglas y reporta TODOS los errores encontrados de una
+// sola vez (mismo patrón usado en historias clínicas), no solo el primero.
 
 async function register(req, res) {
-  const { nombre, primer_apellido, email, password, tipo_documento, numero_documento } = req.body;
+  const {
+    nombre, primer_apellido, email, password,
+    tipo_documento, numero_documento, fecha_nacimiento, genero,
+  } = req.body;
 
-  if (!nombre || !primer_apellido || !email || !password || !tipo_documento || !numero_documento) {
-    return res.status(400).json({ mensaje: 'Todos los campos son obligatorios, incluyendo identificación.' });
-  }
-
-  if (password.length < 6) {
-    return res.status(400).json({ mensaje: 'La contraseña debe tener mínimo 6 caracteres.' });
-  }
-
-  const tiposValidos = ['CC', 'CE', 'PASAPORTE'];
-  if (!tiposValidos.includes(tipo_documento)) {
-    return res.status(400).json({ mensaje: 'Tipo de documento inválido. Use CC, CE o PASAPORTE.' });
+  const errores = validarRegistroUsuario(req.body);
+  if (errores.length > 0) {
+    return res.status(422).json({
+      mensaje: 'El formulario de registro contiene campos inválidos o incompletos.',
+      errores,
+    });
   }
 
   try {
     const [emailExiste, docExiste] = await Promise.all([
-      pool.query('SELECT id FROM usuarios WHERE email = $1', [email]),
-      pool.query('SELECT id FROM usuarios WHERE numero_documento = $1', [numero_documento]),
+      pool.query('SELECT id FROM usuarios WHERE email = $1', [email.trim().toLowerCase()]),
+      pool.query('SELECT id FROM usuarios WHERE numero_documento = $1', [numero_documento.trim()]),
     ]);
 
     if (emailExiste.rows.length > 0) {
@@ -143,10 +119,13 @@ async function register(req, res) {
     const hash = await bcrypt.hash(password, 10);
 
     await pool.query(
-      `INSERT INTO usuarios 
-         (nombre, primer_apellido, email, password_hash, rol, activo, verificado, tipo_documento, numero_documento)
-       VALUES ($1, $2, $3, $4, 'paciente', FALSE, FALSE, $5, $6)`,
-      [nombre, primer_apellido, email, hash, tipo_documento, numero_documento]
+      `INSERT INTO usuarios
+         (nombre, primer_apellido, email, password_hash, rol, activo, verificado, tipo_documento, numero_documento, fecha_nacimiento, genero)
+       VALUES ($1, $2, $3, $4, 'paciente', FALSE, FALSE, $5, $6, $7, $8)`,
+      [
+        nombre.trim(), primer_apellido.trim(), email.trim().toLowerCase(), hash,
+        tipo_documento, numero_documento.trim(), fecha_nacimiento, genero,
+      ]
     );
 
     const codigo = generarCodigo();
@@ -154,35 +133,39 @@ async function register(req, res) {
 
     await pool.query(
       'DELETE FROM codigos_verificacion WHERE email = $1 AND tipo = $2',
-      [email, 'registro']
+      [email.trim().toLowerCase(), 'registro']
     );
 
     await pool.query(
       `INSERT INTO codigos_verificacion (email, codigo, tipo, expira_en)
        VALUES ($1, $2, 'registro', $3)`,
-      [email, codigo, expira]
+      [email.trim().toLowerCase(), codigo, expira]
     );
 
-    // Enviar correo (Utilizando la instancia compartida y optimizada)
+    let correoEnviado = true;
     try {
-      await transporter.sendMail({
-        from: process.env.EMAIL_FROM || `MELIKA Salud <${process.env.EMAIL_USER}>`,
+      await enviarCorreo({
         to: email,
         subject: `${codigo} — Tu código de verificación MELIKA`,
         html: templateVerificacion(nombre, codigo),
       });
+      console.log(`✅ [Gmail API] Código de registro enviado a ${email}`);
     } catch (emailError) {
-      // Observabilidad Correcta: Muestra la razón real devuelta por el protocolo SMTP
-      console.error(`❌ [Email Error - Register] No se pudo despachar el correo a ${email}:`, emailError.message);
+      correoEnviado = false;
+      console.error(`❌ [Gmail API] Error enviando a ${email}:`, emailError.message);
     }
 
-    res.status(201).json({
-      mensaje: 'Cuenta creada. Revisa tu correo para obtener el código de verificación.',
+    return res.status(201).json({
+      mensaje: correoEnviado
+        ? 'Cuenta creada. Revisa tu correo para obtener el código de verificación.'
+        : 'Cuenta creada, pero no pudimos enviar el correo. Usa "Reenviar código" en unos segundos.',
       email,
+      correoEnviado,
     });
+
   } catch (error) {
     console.error('Error en register:', error.message);
-    res.status(500).json({ mensaje: 'Error al crear la cuenta.' });
+    return res.status(500).json({ mensaje: 'Error al crear la cuenta.' });
   }
 }
 
@@ -223,26 +206,33 @@ async function reenviarCodigo(req, res) {
       [email, codigo, tipo, expira]
     );
 
-    // Enviar correo (Utilizando la instancia compartida y optimizada)
-    try {
-      const html = tipo === 'registro'
-        ? templateVerificacion(usuario.rows[0].nombre, codigo)
-        : templateRecuperacion(usuario.rows[0].nombre, codigo);
+    const html = tipo === 'registro'
+      ? templateVerificacion(usuario.rows[0].nombre, codigo)
+      : templateRecuperacion(usuario.rows[0].nombre, codigo);
 
-      await transporter.sendMail({
-        from: process.env.EMAIL_FROM || `MELIKA Salud <${process.env.EMAIL_USER}>`,
+    let correoEnviado = true;
+    try {
+      await enviarCorreo({
         to: email,
         subject: `${codigo} — Tu código MELIKA`,
         html,
       });
+      console.log(`✅ [Gmail API] Código reenviado a ${email}`);
     } catch (emailError) {
-      console.error(`❌ [Email Error - Reenviar] Error en infraestructura de transporte para ${email}:`, emailError.message);
+      correoEnviado = false;
+      console.error(`❌ [Gmail API] Error reenviando a ${email}:`, emailError.message);
     }
 
-    res.json({ mensaje: 'Código reenviado. Revisa tu correo.' });
+    return res.json({
+      mensaje: correoEnviado
+        ? 'Código reenviado. Revisa tu correo.'
+        : 'No pudimos enviar el correo en este momento. Intenta de nuevo en unos segundos.',
+      correoEnviado,
+    });
+
   } catch (error) {
     console.error('Error en reenviarCodigo:', error.message);
-    res.status(500).json({ mensaje: 'Error al reenviar el código.' });
+    return res.status(500).json({ mensaje: 'Error al reenviar el código.' });
   }
 }
 
@@ -284,10 +274,10 @@ async function verifyCode(req, res) {
 
     await pool.query('DELETE FROM codigos_verificacion WHERE id = $1', [registro.id]);
 
-    res.json({ mensaje: 'Cuenta verificada correctamente. Ya puedes iniciar sesión.' });
+    return res.json({ mensaje: 'Cuenta verificada correctamente. Ya puedes iniciar sesión.' });
   } catch (error) {
     console.error('Error en verifyCode:', error.message);
-    res.status(500).json({ mensaje: 'Error al verificar el código.' });
+    return res.status(500).json({ mensaje: 'Error al verificar el código.' });
   }
 }
 
@@ -336,7 +326,7 @@ async function login(req, res) {
       { expiresIn: '8h' }
     );
 
-    res.json({
+    return res.json({
       token,
       usuario: {
         id:              usuario.id,
@@ -348,11 +338,11 @@ async function login(req, res) {
     });
   } catch (error) {
     console.error('Error en login:', error.message);
-    res.status(500).json({ mensaje: 'Error al iniciar sesión.' });
+    return res.status(500).json({ mensaje: 'Error al iniciar sesión.' });
   }
 }
 
-// ─── SOLICITAR RECUPERACIÓN DE CONTRASEÑA ────────────────────────────────────
+// ─── SOLICITAR RECUPERACIÓN DE CONTRASEÑA ─────────────────────────────────────
 
 async function solicitarRecuperacion(req, res) {
   const { email } = req.body;
@@ -387,22 +377,21 @@ async function solicitarRecuperacion(req, res) {
       [email, codigo, expira]
     );
 
-    // Enviar correo (Utilizando la instancia compartida y optimizada)
     try {
-      await transporter.sendMail({
-        from: process.env.EMAIL_FROM || `MELIKA Salud <${process.env.EMAIL_USER}>`,
+      await enviarCorreo({
         to: email,
         subject: `${codigo} — Recupera tu contraseña MELIKA`,
         html: templateRecuperacion(usuario.rows[0].nombre, codigo),
       });
+      console.log(`✅ [Gmail API] Recuperación enviada a ${email}`);
     } catch (emailError) {
-      console.error(`❌ [Email Error - Recuperacion] Falló el transporte SMTP hacia ${email}:`, emailError.message);
+      console.error(`❌ [Gmail API] Error enviando recuperación a ${email}:`, emailError.message);
     }
 
-    res.json({ mensaje: 'Si el correo está registrado, recibirás un código en breve.' });
+    return res.json({ mensaje: 'Si el correo está registrado, recibirás un código en breve.' });
   } catch (error) {
     console.error('Error en solicitarRecuperacion:', error.message);
-    res.status(500).json({ mensaje: 'Error al procesar la solicitud.' });
+    return res.status(500).json({ mensaje: 'Error al procesar la solicitud.' });
   }
 }
 
@@ -450,10 +439,10 @@ async function cambiarPassword(req, res) {
 
     await pool.query('DELETE FROM codigos_verificacion WHERE id = $1', [registro.id]);
 
-    res.json({ mensaje: 'Contraseña actualizada correctamente. Ya puedes iniciar sesión.' });
+    return res.json({ mensaje: 'Contraseña actualizada correctamente. Ya puedes iniciar sesión.' });
   } catch (error) {
     console.error('Error en cambiarPassword:', error.message);
-    res.status(500).json({ mensaje: 'Error al cambiar la contraseña.' });
+    return res.status(500).json({ mensaje: 'Error al cambiar la contraseña.' });
   }
 }
 

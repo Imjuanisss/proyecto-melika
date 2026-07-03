@@ -6,7 +6,7 @@ const {
   getStats,
   listarUsuarios, toggleEstadoUsuario,
   listarCitas, cambiarEstadoCita,
-  getHorariosAdmin, crearFranjaAdmin, eliminarFranjaAdmin,
+  getHorariosAdmin, crearFranjaAdmin, crearHorarioMasivo, editarFranjaAdmin, eliminarFranjaAdmin,
   crearEspecialidad, actualizarEspecialidad, toggleEspecialidad,
   crearMedicamento, actualizarMedicamento, toggleMedicamento,
 } = require('../controllers/adminController');
@@ -26,9 +26,12 @@ router.get('/citas',              listarCitas);
 router.patch('/citas/:id/estado', cambiarEstadoCita);
 
 // Horarios / Franjas
-router.get('/horarios',     getHorariosAdmin);
-router.post('/horarios',    crearFranjaAdmin);
-router.delete('/horarios/:id', eliminarFranjaAdmin);
+// ⚠️ CRÍTICO: /horarios/masivo ANTES de /horarios/:id
+router.get('/horarios',              getHorariosAdmin);
+router.post('/horarios/masivo',      crearHorarioMasivo);  // Creación en bloque (semana)
+router.post('/horarios',             crearFranjaAdmin);    // Franja individual (compatibilidad)
+router.put('/horarios/:id',          editarFranjaAdmin);   // Edición de franja libre
+router.delete('/horarios/:id',       eliminarFranjaAdmin);
 
 // Especialidades
 router.post('/especialidades',              crearEspecialidad);

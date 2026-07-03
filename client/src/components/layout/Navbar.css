@@ -1,5 +1,7 @@
 /* ═══════════════════════════════════════════════════════════════════
    MELIKA — Navbar.css
+   //client/src/components/layout/Navbar.css
+   //Diseñado para ser un navbar fijo, con 3 zonas flexibles:
    Regla de oro: nunca alterar la altura del navbar ni romper el
    flexbox principal. Todos los bloques condicionales viven dentro
    de .navbar__acciones y no afectan la estructura exterior.

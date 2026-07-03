@@ -1,14 +1,21 @@
+// client/src/components/layout/Navbar.jsx
+// ─── ÚNICA REGLA DE ROLES ──────────────────────────────────────────────────────
+// MÉDICO:   Solo ve Inicio, Especialidades, Medicamentos + "Mi Panel" → /dashboard-medico
+//           NUNCA ve Agendar ni Mis Citas (esas son acciones exclusivas de paciente).
+// PACIENTE: Ve Inicio, Especialidades, Medicamentos, Agendar, Mis Citas + "Mi Panel"
+// ADMIN:    Ve Inicio, Especialidades, Medicamentos + "Panel Admin" → /admin
+// SIN ROL:  Ve Inicio, Especialidades, Medicamentos + Login / Registrarse
+
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import Boton from '../ui/Boton';
 import './Navbar.css';
 
-// ─── Links por rol — declarados fuera del componente ─────────────────────────
-//
-// REGLA: Especialidades (/especialidades) y Medicamentos (/catalogo) son
-// secciones de plataforma disponibles para TODOS los usuarios sin excepción.
-// Aparecen en todos los árboles de navegación.
+// 1. Aquí importamos el logo
+import miLogo from "/src/assets/logo.png";
+
+// ─── Árboles de links por rol ─────────────────────────────────────────────────
 
 const LINKS_PUBLICOS = [
   { label: 'Inicio',         to: '/' },
@@ -24,14 +31,13 @@ const LINKS_PACIENTE = [
   { label: 'Mis Citas',      to: '/mis-citas' },
 ];
 
+// El médico NO tiene "Agendar" ni "Mis Citas" — no son flujos de su rol
 const LINKS_MEDICO = [
   { label: 'Inicio',         to: '/' },
   { label: 'Especialidades', to: '/especialidades' },
   { label: 'Medicamentos',   to: '/catalogo' },
 ];
 
-// Admin tiene su propio sidebar con navegación completa — solo conservamos
-// las secciones públicas de plataforma para contexto y coherencia de marca.
 const LINKS_ADMIN = [
   { label: 'Inicio',         to: '/' },
   { label: 'Especialidades', to: '/especialidades' },
@@ -46,7 +52,7 @@ function getLinksParaRol(usuario) {
   return LINKS_PUBLICOS;
 }
 
-// ─── Helpers de JSX por rol — funciones puras FUERA del componente ────────────
+// ─── Zona de acciones desktop — pura según rol ───────────────────────────────
 function renderAccionesDesktop(usuario, handleLogout) {
   if (!usuario) {
     return (
@@ -112,6 +118,7 @@ function renderAccionesDesktop(usuario, handleLogout) {
   return null;
 }
 
+// ─── Zona de acciones drawer mobile ─────────────────────────────────────────
 function renderAccionesDrawer(usuario, handleLogout, cerrar) {
   if (!usuario) {
     return (
@@ -174,12 +181,14 @@ export default function Navbar() {
   const location                = useLocation();
   const navigate                = useNavigate();
 
+  // Efecto scroll para clase navbar--scrolled
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  // Cerrar drawer al cambiar de ruta
   useEffect(() => {
     setMenuOpen(false);
   }, [location.pathname]);
@@ -198,12 +207,15 @@ export default function Navbar() {
         <div className="navbar__inner">
 
           {/* Logo */}
-          <Link to="/" className="navbar__logo" onClick={cerrar}>
-            <div className="navbar__logo-mark">M</div>
-            <span>ELIKA</span>
+          <Link to="/" className="navbar__logo" onClick={cerrar} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {/* 2. Aquí renderizamos la imagen de tu logo */}
+            <img src={miLogo} alt="Logo MELIKA" style={{ height: '70px', objectFit: 'contain' }} />
+            
+            {/* Opcional: Puedes descomentar esto si quieres que también salga el texto MELIKA al lado de la imagen */}
+            {/* <span>MELIKA</span> */}
           </Link>
 
-          {/* Links de navegación — árbol segregado por rol */}
+          {/* Links de navegación desktop — árbol según rol */}
           {links.length > 0 && (
             <nav className="navbar__links" aria-label="Navegación principal">
               {links.map(l => (
@@ -236,9 +248,13 @@ export default function Navbar() {
         </div>
       </header>
 
-      {/* Overlay */}
+      {/* Overlay mobile */}
       {menuOpen && (
-        <div className="navbar__overlay" onClick={cerrar} aria-hidden="true" />
+        <div
+          className="navbar__overlay"
+          onClick={cerrar}
+          aria-hidden="true"
+        />
       )}
 
       {/* Drawer mobile */}

@@ -1,24 +1,82 @@
-
-
 // server/src/controllers/medicosController.js
-// ─── REESCRITURA COMPLETA — todos los bugs de schema corregidos ────────────────
-// Bugs corregidos:
-// 1. tokens_invitacion usa columna "email" (no "id_usuario" como estaba antes)
-// 2. usuarios requiere numero_documento NOT NULL UNIQUE → ahora se recibe del form
-// 3. tarifa NOT NULL en medicos → se guarda como 0 (el admin no la gestiona públicamente)
-// 4. listarMedicos incluye todos los campos nuevos del JOIN y el campo foto_url
-// 5. CORRECCIÓN SQL: Sintaxis válida para la inserción de ciudad en PostgreSQL
+// ─── REESCRITURA COMPLETA ────────────────────────────────────────────────────
+// FIX 1: agendaRango devuelve también las franjas disponibles (antes solo
+//      devolvía citas), usando TO_CHAR para evitar desfases de fecha por
+//      zona horaria al construir los eventos de FullCalendar.
+// FIX 2: crearFranja ahora retorna `insertadas` en la respuesta — antes solo
+//      retornaba `franjas_intentadas`, por lo que el front (HorariosSemana.jsx)
+//      siempre sumaba 0 franjas reales creadas, mostrando "0 franjas
+//      generadas" aunque la inserción en BD sí ocurriera correctamente.
+// NUEVO: editarFranja — permite corregir fecha/hora de una franja SIN cita
+//      reservada, con validación de duración (40 min) y de solapamiento.
+// NUEVO: agendaRango etiqueta cada evento con un estado legible
+//      (Pendiente / Completada / No asistió / Disponible) para que el
+//      calendario sea más entendible de un vistazo.
 
 const pool       = require('../config/db');
 const bcrypt     = require('bcrypt');
 const crypto     = require('crypto');
 const nodemailer = require('nodemailer');
 
+const DURACION_FRANJA_MIN = 40;
+
+const ESTADO_LABEL = {
+  pendiente:  'Pendiente',
+  completada: 'Completada',
+  no_asistio: 'No asistió',
+};
+
+const COLOR_ESTADO = {
+  pendiente:  { bg: '#B45309', border: '#92400E' },
+  completada: { bg: '#1A7A52', border: '#145C3E' },
+  no_asistio: { bg: '#6B7280', border: '#4B5563' },
+};
+
 function crearTransporter() {
   return nodemailer.createTransport({
     service: 'gmail',
     auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
   });
+}
+
+// ─── HELPER: Generador de Franjas Horarias con Descanso ────────────────────
+function generarFranjasConDescanso(horaInicio, horaFin, duracionMinutos, inicioDescanso, finDescanso) {
+  const franjas = [];
+  let actual = new Date(`2000-01-01T${horaInicio}:00`);
+  const finJornada = new Date(`2000-01-01T${horaFin}:00`);
+
+  let inicioBreak = null;
+  let finBreak = null;
+
+  if (inicioDescanso && finDescanso) {
+      inicioBreak = new Date(`2000-01-01T${inicioDescanso}:00`);
+      finBreak = new Date(`2000-01-01T${finDescanso}:00`);
+  }
+
+  while (actual < finJornada) {
+    let finFranja = new Date(actual.getTime() + duracionMinutos * 60000);
+
+    if (inicioBreak && finBreak && actual < finBreak && finFranja > inicioBreak) {
+      actual = new Date(finBreak);
+      continue;
+    }
+
+    if (finFranja <= finJornada) {
+      franjas.push({
+        hora_inicio: actual.toTimeString().substring(0, 5),
+        hora_fin: finFranja.toTimeString().substring(0, 5)
+      });
+    }
+    actual = finFranja;
+  }
+  return franjas;
+}
+
+// ── HELPER: Validación de duración exacta de 40 min para una franja editada ──
+function duracionEnMinutos(horaInicio, horaFin) {
+  const [ih, im] = horaInicio.split(':').map(Number);
+  const [fh, fm] = horaFin.split(':').map(Number);
+  return (fh * 60 + fm) - (ih * 60 + im);
 }
 
 // ─── POST /medicos — Crear médico (solo Admin) ─────────────────────────────────
@@ -36,10 +94,9 @@ async function crearMedico(req, res) {
     acepta_presencial,
     biografia,
     anos_experiencia,
-    foto_url, // <-- ¡NUEVO CAMPO RECIBIDO DEL FRONTEND!
+    foto_url,
   } = req.body;
 
-  // Validación de campos obligatorios
   if (
     !nombre ||
     !primer_apellido ||
@@ -54,14 +111,12 @@ async function crearMedico(req, res) {
     });
   }
 
-  // Validar tipo de documento
   const tiposValidos = ['CC', 'CE', 'PASAPORTE'];
   if (!tiposValidos.includes(tipo_documento)) {
     return res.status(400).json({ mensaje: 'Tipo de documento inválido. Use CC, CE o PASAPORTE.' });
   }
 
   try {
-    // ── Verificar duplicados en paralelo ──────────────────────────────────────
     const [regExiste, emailExiste, docExiste] = await Promise.all([
       pool.query('SELECT id FROM medicos WHERE numero_registro = $1', [numero_registro]),
       pool.query('SELECT id FROM usuarios WHERE email = $1', [email]),
@@ -75,247 +130,152 @@ async function crearMedico(req, res) {
     if (docExiste.rows.length > 0)
       return res.status(409).json({ mensaje: 'Este número de documento ya está registrado.' });
 
-    // ── Crear usuario con contraseña temporal aleatoria ───────────────────────
-    const hashTemp = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
+    const tempPassword = crypto.randomBytes(6).toString('hex');
+    const hash         = await bcrypt.hash(tempPassword, 10);
 
-    const nuevoUsuario = await pool.query(
+    const usuarioRes = await pool.query(
       `INSERT INTO usuarios
-         (nombre, primer_apellido, email, password_hash,
-          rol, activo, verificado,
-          tipo_documento, numero_documento, ciudad) 
-       VALUES ($1, $2, $3, $4, 'medico', FALSE, TRUE, $5, $6, $7) 
+         (nombre, primer_apellido, email, password_hash, rol, activo, verificado, tipo_documento, numero_documento, ciudad)
+       VALUES ($1,$2,$3,$4,'medico',FALSE,FALSE,$5,$6,$7)
        RETURNING id`,
-      [
-        nombre,
-        primer_apellido,
-        email,
-        hashTemp,
-        tipo_documento,
-        numero_documento,
-        ciudad || null,
-      ]
-    );
-    const id_usuario = nuevoUsuario.rows[0].id;
-
-    // ── Crear perfil médico con la columna foto_url incluida ───────────────────
-    const nuevoMedico = await pool.query(
-      `INSERT INTO medicos
-         (id_usuario, id_especialidad, numero_registro, tarifa,
-          acepta_teleconsulta, acepta_presencial, biografia, anos_experiencia, foto_url, activo)
-       VALUES ($1, $2, $3, 0, $4, $5, $6, $7, $8, TRUE)
-       RETURNING *`,
-      [
-        id_usuario,
-        id_especialidad,
-        numero_registro,
-        acepta_teleconsulta !== false,
-        acepta_presencial !== false,
-        biografia || '',
-        parseInt(anos_experiencia) || 0,
-        foto_url || null, // <-- Asignado al parámetro $8
-      ]
+      [nombre, primer_apellido, email, hash, tipo_documento, numero_documento, ciudad || null]
     );
 
-    // ── Generar token de invitación (72 horas) ───────────────────────────────
-    const token    = crypto.randomBytes(48).toString('hex');
-    const expiraEn = new Date(Date.now() + 72 * 60 * 60 * 1000);
+    const id_usuario = usuarioRes.rows[0].id;
 
-    await pool.query('DELETE FROM tokens_invitacion WHERE email = $1', [email]);
+    const token = crypto.randomBytes(32).toString('hex');
+    const expira = new Date(Date.now() + 72 * 60 * 60 * 1000);
 
     await pool.query(
       `INSERT INTO tokens_invitacion (email, token, rol, expira_en)
-       VALUES ($1, $2, 'medico', $3)`,
-      [email, token, expiraEn]
+       VALUES ($1,$2,'medico',$3)`,
+      [email, token, expira]
     );
 
-    // ── Enviar email de activación ────────────────────────────────────────────
-    const urlActivacion = `${process.env.FRONTEND_URL}/activar-cuenta?token=${token}`;
+    await pool.query(
+      `INSERT INTO medicos
+         (id_usuario, id_especialidad, numero_registro, tarifa,
+          acepta_teleconsulta, acepta_presencial, biografia, anos_experiencia, foto_url)
+       VALUES ($1,$2,$3,0,$4,$5,$6,$7,$8)`,
+      [
+        id_usuario, id_especialidad, numero_registro,
+        acepta_teleconsulta !== false,
+        acepta_presencial   !== false,
+        biografia           || null,
+        anos_experiencia    || 0,
+        foto_url            || null,
+      ]
+    );
+
     try {
-      const transporter = crearTransporter();
+      const activationUrl = `${process.env.FRONTEND_URL}/activar-cuenta?token=${token}`;
+      const transporter   = crearTransporter();
       await transporter.sendMail({
-        from: process.env.EMAIL_FROM || `MELIKA Salud <${process.env.EMAIL_USER}>`,
-        to: email,
+        from:    process.env.EMAIL_FROM || `MELIKA Salud <${process.env.EMAIL_USER}>`,
+        to:      email,
         subject: 'Bienvenido a MELIKA — Activa tu cuenta médica',
         html: `
-          <div style="font-family:'Sora',Arial,sans-serif;max-width:600px;margin:0 auto;
-                      padding:32px;background:#F6F9FF;border-radius:16px;">
-            <div style="text-align:center;margin-bottom:28px;">
-              <h1 style="color:#0B1A36;font-size:28px;margin:0;">
-                <span style="color:#E8856A;">M</span>ELIKA
-              </h1>
-              <p style="color:#4A5978;margin:6px 0 0;font-size:14px;">
-                Plataforma de Salud Digital · Colombia
-              </p>
-            </div>
-            <div style="background:#fff;border-radius:12px;padding:32px;
-                        border:1px solid #D9E4F7;">
-              <h2 style="color:#0B1A36;margin:0 0 16px;">
-                ¡Bienvenido/a, Dr(a). ${nombre} ${primer_apellido}!
-              </h2>
-              <p style="color:#4A5978;line-height:1.7;">
-                Has sido registrado/a como especialista en la plataforma MELIKA.
-                Para activar tu cuenta y establecer tu contraseña, haz clic en el botón:
-              </p>
-              <div style="text-align:center;margin:28px 0;">
-                <a href="${urlActivacion}"
-                   style="display:inline-block;background:#E8856A;color:#fff;
-                          padding:14px 32px;border-radius:8px;
-                          text-decoration:none;font-weight:700;font-size:16px;">
-                  Activar mi cuenta médica →
-                </a>
-              </div>
-              <p style="color:#8A9BBE;font-size:13px;margin-top:16px;">
-                ⏱ Este enlace expira en <strong>72 horas</strong>.<br>
-                Si no esperabas este correo, puedes ignorarlo.
-              </p>
-            </div>
-            <p style="text-align:center;color:#8A9BBE;font-size:12px;margin-top:24px;">
-              © 2025 MELIKA — Plataforma de Salud Digital Colombia
-            </p>
-          </div>
-        `,
+          <div style="font-family:sans-serif;max-width:560px;margin:auto">
+            <h2>Bienvenido/a, Dr(a). ${nombre} ${primer_apellido}</h2>
+            <p>Tu cuenta médica en <strong>MELIKA Salud</strong> ha sido creada.</p>
+            <p>Haz clic en el botón para activarla y establecer tu contraseña:</p>
+            <a href="${activationUrl}"
+               style="display:inline-block;background:#E8856A;color:#fff;
+                      padding:12px 24px;border-radius:6px;text-decoration:none;
+                      font-weight:700;margin:16px 0">
+              Activar mi cuenta
+            </a>
+            <p style="font-size:13px;color:#666">Este enlace expira en 72 horas.</p>
+          </div>`,
       });
     } catch (emailErr) {
-      console.error('⚠️  Error enviando email de invitación:', emailErr.message);
+      console.error('Error enviando correo de activación:', emailErr.message);
     }
 
-    return res.status(201).json({
-      mensaje: `Médico creado exitosamente. Se envió un email de activación a ${email}.`,
-      medico: {
-        ...nuevoMedico.rows[0],
-        nombre,
-        primer_apellido,
-        email,
-        tipo_documento,
-        numero_documento,
-        ciudad: ciudad || null,
-      },
-    });
+    res.status(201).json({ mensaje: `Médico creado. Se envió un correo de activación a ${email}.` });
   } catch (err) {
     console.error('Error en crearMedico:', err.message);
-    if (err.code === '23505') {
-      if (err.constraint?.includes('numero_registro'))
-        return res.status(409).json({ mensaje: 'El número de registro ya existe.' });
-      if (err.constraint?.includes('email'))
-        return res.status(409).json({ mensaje: 'El correo electrónico ya está registrado.' });
-      if (err.constraint?.includes('numero_documento'))
-        return res.status(409).json({ mensaje: 'El número de documento ya está registrado.' });
-      return res.status(409).json({ mensaje: 'Dato duplicado. Verifique los campos únicos.' });
-    }
-    return res.status(500).json({ mensaje: 'Error interno al crear el médico.' });
+    res.status(500).json({ mensaje: 'Error al crear el médico.' });
   }
 }
 
-// ─── POST /medicos/activar — El médico activa su cuenta con token ──────────────
+// ─── POST /medicos/activar — Activar cuenta de médico ─────────────────────────
 async function activarCuenta(req, res) {
-  const { token, password } = req.body;
+  const { token, nueva_password } = req.body;
 
-  if (!token || !password)
-    return res.status(400).json({ mensaje: 'Token y contraseña son obligatorios.' });
-  if (password.length < 6)
+  if (!token || !nueva_password)
+    return res.status(400).json({ mensaje: 'Token y nueva contraseña son obligatorios.' });
+  if (nueva_password.length < 6)
     return res.status(400).json({ mensaje: 'La contraseña debe tener mínimo 6 caracteres.' });
 
   try {
-    const resultado = await pool.query(
-      `SELECT ti.id AS token_id, ti.email, ti.expira_en, u.id AS id_usuario
-       FROM tokens_invitacion ti
-       JOIN usuarios u ON u.email = ti.email
-       WHERE ti.token = $1 AND ti.usado = FALSE`,
+    const tokenRes = await pool.query(
+      `SELECT * FROM tokens_invitacion
+       WHERE token = $1 AND rol = 'medico' AND usado = FALSE`,
       [token]
     );
 
-    if (resultado.rows.length === 0)
+    if (tokenRes.rows.length === 0)
       return res.status(400).json({ mensaje: 'Token inválido o ya utilizado.' });
 
-    const registro = resultado.rows[0];
+    const inv = tokenRes.rows[0];
 
-    if (new Date() > new Date(registro.expira_en))
-      return res.status(400).json({
-        mensaje: 'El enlace de activación expiró. Contacta al administrador para recibir uno nuevo.',
-      });
+    if (new Date() > new Date(inv.expira_en))
+      return res.status(400).json({ mensaje: 'El enlace de activación expiró. Contacta al administrador.' });
 
-    const hash = await bcrypt.hash(password, 10);
+    const hash = await bcrypt.hash(nueva_password, 10);
 
-    await Promise.all([
-      pool.query(
-        'UPDATE usuarios SET password_hash = $1, activo = TRUE, updated_at = NOW() WHERE id = $2',
-        [hash, registro.id_usuario]
-      ),
-      pool.query(
-        'UPDATE tokens_invitacion SET usado = TRUE WHERE id = $1',
-        [registro.token_id]
-      ),
-    ]);
+    await pool.query(
+      'UPDATE usuarios SET password_hash=$1, activo=TRUE, verificado=TRUE WHERE email=$2',
+      [hash, inv.email]
+    );
 
-    return res.json({
-      mensaje: 'Cuenta activada exitosamente. Ya puedes iniciar sesión en MELIKA.',
-    });
+    await pool.query(
+      'UPDATE tokens_invitacion SET usado=TRUE WHERE id=$1',
+      [inv.id]
+    );
+
+    res.json({ mensaje: 'Cuenta activada correctamente. Ya puedes iniciar sesión.' });
   } catch (err) {
     console.error('Error en activarCuenta:', err.message);
-    return res.status(500).json({ mensaje: 'Error al activar la cuenta.' });
+    res.status(500).json({ mensaje: 'Error al activar la cuenta.' });
   }
 }
 
-// ─── GET /medicos — Listar todos los médicos con datos completos (Admin) ────────
+// ─── GET /medicos — Listar médicos (Admin) ─────────────────────────────────────
 async function listarMedicos(req, res) {
   try {
-    // Agregamos m.foto_url a las columnas devueltas por el SELECT
     const resultado = await pool.query(
-      `SELECT
-          m.id,
-          m.numero_registro,
-          m.tarifa,
-          m.calificacion,
-          m.acepta_teleconsulta,
-          m.acepta_presencial,
-          m.biografia,
-          m.anos_experiencia,
-          m.foto_url, -- <-- ¡FOTO_URL AHORA DISPONIBLE PARA EL FRONTEND!
-          m.activo,
-          m.id_especialidad,
-          m.created_at,
-          u.id              AS id_usuario,
-          u.nombre,
-          u.primer_apellido,
-          u.email,
-          u.tipo_documento,
-          u.numero_documento,
-          u.ciudad,
-          u.activo          AS usuario_activo,
-          e.nombre          AS especialidad
+      `SELECT m.id, m.numero_registro, m.tarifa, m.calificacion, m.activo,
+              m.acepta_teleconsulta, m.acepta_presencial, m.biografia,
+              m.anos_experiencia, m.foto_url,
+              u.id AS id_usuario, u.nombre, u.primer_apellido, u.email,
+              u.telefono, u.ciudad, u.tipo_documento, u.numero_documento,
+              e.id AS id_especialidad, e.nombre AS especialidad
        FROM medicos m
-       JOIN usuarios      u ON m.id_usuario      = u.id
+       JOIN usuarios u ON m.id_usuario = u.id
        JOIN especialidades e ON m.id_especialidad = e.id
-       ORDER BY u.nombre, u.primer_apellido`
+       ORDER BY u.nombre`
     );
-    return res.json(resultado.rows);
+    res.json(resultado.rows);
   } catch (err) {
     console.error('Error en listarMedicos:', err.message);
-    return res.status(500).json({ mensaje: 'Error al obtener el listado de médicos.' });
+    res.status(500).json({ mensaje: 'Error al obtener médicos.' });
   }
 }
 
-// ─── PUT /medicos/:id — Actualizar datos del médico (Admin) ───────────────────
+// ─── PUT /medicos/:id — Actualizar médico (Admin) ──────────────────────────────
 async function actualizarMedico(req, res) {
   const { id } = req.params;
   const {
-    nombre,
-    primer_apellido,
-    tipo_documento,
-    numero_documento,
-    ciudad,
-    id_especialidad,
-    numero_registro,
-    acepta_teleconsulta,
-    acepta_presencial,
-    biografia,
-    anos_experiencia,
-    foto_url, // <-- ¡NUEVO CAMPO RECIBIDO PARA ACTUALIZACIONES!
+    nombre, primer_apellido, ciudad, id_especialidad,
+    tarifa, acepta_teleconsulta, acepta_presencial,
+    biografia, anos_experiencia, foto_url,
   } = req.body;
 
   try {
     const medicoRes = await pool.query(
-      'SELECT id, id_usuario FROM medicos WHERE id = $1',
+      'SELECT id_usuario FROM medicos WHERE id = $1',
       [id]
     );
     if (medicoRes.rows.length === 0)
@@ -323,119 +283,100 @@ async function actualizarMedico(req, res) {
 
     const id_usuario = medicoRes.rows[0].id_usuario;
 
-    const [docConflicto, regConflicto] = await Promise.all([
-      pool.query(
-        'SELECT id FROM usuarios WHERE numero_documento = $1 AND id != $2',
-        [numero_documento, id_usuario]
-      ),
-      pool.query(
-        'SELECT id FROM medicos WHERE numero_registro = $1 AND id != $2',
-        [numero_registro, id]
-      ),
-    ]);
+    await pool.query(
+      `UPDATE usuarios
+       SET nombre=$1, primer_apellido=$2, ciudad=$3, updated_at=NOW()
+       WHERE id=$4`,
+      [nombre, primer_apellido, ciudad || null, id_usuario]
+    );
 
-    if (docConflicto.rows.length > 0)
-      return res.status(409).json({ mensaje: 'El número de documento ya pertenece a otro usuario.' });
-    if (regConflicto.rows.length > 0)
-      return res.status(409).json({ mensaje: 'El número de registro ya está en uso.' });
+    await pool.query(
+      `UPDATE medicos
+       SET id_especialidad=$1, tarifa=$2,
+           acepta_teleconsulta=$3, acepta_presencial=$4,
+           biografia=$5, anos_experiencia=$6, foto_url=$7,
+           updated_at=NOW()
+       WHERE id=$8`,
+      [
+        id_especialidad, tarifa || 0,
+        acepta_teleconsulta !== false,
+        acepta_presencial   !== false,
+        biografia           || null,
+        anos_experiencia    || 0,
+        foto_url            || null,
+        id,
+      ]
+    );
 
-    await Promise.all([
-      pool.query(
-        `UPDATE usuarios
-         SET nombre=$1, primer_apellido=$2,
-             tipo_documento=$3, numero_documento=$4,
-             ciudad=$5, updated_at=NOW()
-         WHERE id=$6`,
-        [nombre, primer_apellido, tipo_documento, numero_documento, ciudad || null, id_usuario]
-      ),
-      // Añadimos foto_url = $7 y corremos el ID del médico al parámetro $8
-      pool.query(
-        `UPDATE medicos
-         SET id_especialidad=$1, numero_registro=$2,
-             acepta_teleconsulta=$3, acepta_presencial=$4,
-             biografia=$5, anos_experiencia=$6, foto_url=$7,
-             updated_at=NOW()
-         WHERE id=$8`,
-        [
-          id_especialidad,
-          numero_registro,
-          acepta_teleconsulta !== false,
-          acepta_presencial !== false,
-          biografia || '',
-          parseInt(anos_experiencia) || 0,
-          foto_url || null, // <-- Parámetro $7
-          id,               // <-- Parámetro $8
-        ]
-      ),
-    ]);
-
-    return res.json({ mensaje: 'Médico actualizado correctamente.' });
+    res.json({ mensaje: 'Médico actualizado correctamente.' });
   } catch (err) {
     console.error('Error en actualizarMedico:', err.message);
-    if (err.code === '23505')
-      return res.status(409).json({ mensaje: 'Dato duplicado. Verifique los campos únicos.' });
-    return res.status(500).json({ mensaje: 'Error al actualizar el médico.' });
+    res.status(500).json({ mensaje: 'Error al actualizar el médico.' });
   }
 }
 
-// ─── PATCH /medicos/:id/estado — Activar o Desactivar médico (Admin) ──────────
+// ─── PATCH /medicos/:id/estado — Activar / Desactivar médico (Admin) ──────────
 async function toggleEstadoMedico(req, res) {
   const { id } = req.params;
 
   try {
-    const medicoRes = await pool.query(
-      'SELECT m.activo, m.id_usuario FROM medicos m WHERE m.id = $1',
+    const medico = await pool.query(
+      'SELECT id, activo, id_usuario FROM medicos WHERE id = $1',
       [id]
     );
-    if (medicoRes.rows.length === 0)
+    if (medico.rows.length === 0)
       return res.status(404).json({ mensaje: 'Médico no encontrado.' });
 
-    const nuevoEstado  = !medicoRes.rows[0].activo;
-    const id_usuario   = medicoRes.rows[0].id_usuario;
+    const nuevoEstado = !medico.rows[0].activo;
 
-    await Promise.all([
-      pool.query('UPDATE medicos  SET activo=$1, updated_at=NOW() WHERE id=$2',         [nuevoEstado, id]),
-      pool.query('UPDATE usuarios SET activo=$1, updated_at=NOW() WHERE id=$2',         [nuevoEstado, id_usuario]),
-    ]);
+    await pool.query(
+      'UPDATE medicos SET activo=$1, updated_at=NOW() WHERE id=$2',
+      [nuevoEstado, id]
+    );
+    await pool.query(
+      'UPDATE usuarios SET activo=$1, updated_at=NOW() WHERE id=$2',
+      [nuevoEstado, medico.rows[0].id_usuario]
+    );
 
-    return res.json({
-      mensaje: nuevoEstado ? 'Médico activado correctamente.' : 'Médico desactivado correctamente.',
-      activo: nuevoEstado,
-    });
+    res.json({ mensaje: nuevoEstado ? 'Médico activado.' : 'Médico desactivado.' });
   } catch (err) {
     console.error('Error en toggleEstadoMedico:', err.message);
-    return res.status(500).json({ mensaje: 'Error al cambiar el estado del médico.' });
+    res.status(500).json({ mensaje: 'Error al cambiar el estado del médico.' });
   }
 }
 
 // ─── GET /medico/perfil — Perfil del médico autenticado ───────────────────────
 async function perfilMedico(req, res) {
   const id_usuario = req.usuario.id;
+
   try {
     const resultado = await pool.query(
-      `SELECT m.*, u.nombre, u.primer_apellido, u.email, u.telefono,
-              u.tipo_documento, u.numero_documento, u.ciudad,
+      `SELECT m.id, m.numero_registro, m.tarifa, m.calificacion,
+              m.acepta_teleconsulta, m.acepta_presencial,
+              m.biografia, m.anos_experiencia, m.foto_url,
+              u.nombre, u.primer_apellido, u.email, u.telefono, u.ciudad,
               e.nombre AS especialidad
        FROM medicos m
-       JOIN usuarios      u ON m.id_usuario      = u.id
+       JOIN usuarios u ON m.id_usuario = u.id
        JOIN especialidades e ON m.id_especialidad = e.id
        WHERE m.id_usuario = $1`,
       [id_usuario]
     );
+
     if (resultado.rows.length === 0)
       return res.status(404).json({ mensaje: 'Perfil de médico no encontrado.' });
-    return res.json(resultado.rows[0]);
+
+    res.json(resultado.rows[0]);
   } catch (err) {
     console.error('Error en perfilMedico:', err.message);
-    return res.status(500).json({ mensaje: 'Error al obtener el perfil.' });
+    res.status(500).json({ mensaje: 'Error al obtener el perfil.' });
   }
 }
 
-// ─── GET /medico/agenda?fecha= — Agenda del médico autenticado ────────────────
+// ─── GET /medico/agenda?fecha= — Agenda del día ───────────────────────────────
 async function agendaMedico(req, res) {
-  const id_usuario = req.usuario.id;
-  const { fecha }  = req.query;
-  const fechaConsulta = fecha || new Date().toISOString().split('T')[0];
+  const id_usuario    = req.usuario.id;
+  const fechaConsulta = req.query.fecha || new Date().toISOString().split('T')[0];
 
   try {
     const medicoRes = await pool.query(
@@ -449,12 +390,18 @@ async function agendaMedico(req, res) {
 
     const resultado = await pool.query(
       `SELECT
-          c.id, c.fecha, c.hora_inicio, c.tipo_consulta,
-          c.motivo, c.estado,
-          u.nombre AS paciente_nombre, u.primer_apellido AS paciente_apellido,
+          c.id,
+          TO_CHAR(c.fecha, 'YYYY-MM-DD') AS fecha,
+          c.hora_inicio,
+          c.tipo_consulta,
+          c.motivo,
+          c.estado,
+          c.notas_medicas,
+          u.nombre  AS paciente_nombre,
+          u.primer_apellido AS paciente_apellido,
           u.telefono AS paciente_telefono,
-          e.nombre AS especialidad,
-          hc.id AS historia_id
+          e.nombre  AS especialidad,
+          hc.id     AS historia_id
        FROM citas c
        JOIN usuarios      u  ON c.id_paciente    = u.id
        JOIN especialidades e ON c.id_especialidad = e.id
@@ -471,7 +418,9 @@ async function agendaMedico(req, res) {
   }
 }
 
-// ─── GET /medico/agenda/rango?inicio=&fin= — Para FullCalendar ────────────────
+// =============================================================================
+// GET /medico/agenda/rango?inicio=&fin= — Para FullCalendar
+// =============================================================================
 async function agendaRango(req, res) {
   const id_usuario = req.usuario.id;
   const { inicio, fin } = req.query;
@@ -489,8 +438,11 @@ async function agendaRango(req, res) {
 
     const id_medico = medicoRes.rows[0].id;
 
-    const resultado = await pool.query(
-      `SELECT c.id, c.fecha, c.hora_inicio, c.tipo_consulta, c.estado,
+    // 1. Citas del médico en el rango solicitado
+    const citasRes = await pool.query(
+      `SELECT c.id,
+              TO_CHAR(c.fecha, 'YYYY-MM-DD') AS fecha_str,
+              c.hora_inicio, c.tipo_consulta, c.estado,
               u.nombre AS paciente_nombre, u.primer_apellido AS paciente_apellido
        FROM citas c
        JOIN usuarios u ON c.id_paciente = u.id
@@ -501,57 +453,132 @@ async function agendaRango(req, res) {
       [id_medico, inicio, fin]
     );
 
-    const eventos = resultado.rows.map(c => ({
-      id:    c.id,
-      title: `${c.paciente_nombre} ${c.paciente_apellido}`,
-      start: `${c.fecha.toISOString().split('T')[0]}T${c.hora_inicio}`,
-      extendedProps: { tipo: c.tipo_consulta, estado: c.estado },
+    // 2. Franjas de disponibilidad libres del médico en el rango solicitado
+    const franjasRes = await pool.query(
+      `SELECT id,
+              TO_CHAR(fecha, 'YYYY-MM-DD') AS fecha_str,
+              hora_inicio, hora_fin
+       FROM franjas_horarias
+       WHERE id_medico = $1
+         AND fecha BETWEEN $2 AND $3
+         AND disponible = TRUE
+       ORDER BY fecha, hora_inicio`,
+      [id_medico, inicio, fin]
+    );
+
+    // Citas reservadas/gestionadas — título con estado legible para que el
+    // médico entienda de un vistazo qué es cada bloque del calendario.
+    const eventosCitas = citasRes.rows.map(c => {
+      const colores  = COLOR_ESTADO[c.estado] || { bg: '#E8856A', border: '#C96848' };
+      const etiqueta = ESTADO_LABEL[c.estado] || c.estado;
+      return {
+        id:              `cita-${c.id}`,
+        title:           `${etiqueta} · ${c.paciente_nombre} ${c.paciente_apellido}`,
+        start:           `${c.fecha_str}T${c.hora_inicio}`,
+        backgroundColor: colores.bg,
+        borderColor:     colores.border,
+        textColor:       '#fff',
+        extendedProps: {
+          tipo:               c.tipo_consulta,
+          estado:             c.estado,
+          esFranjaDisponible: false,
+        },
+      };
+    });
+
+    // Espacios libres ya configurados por el médico — claramente diferenciados
+    // como "Disponible" para que el médico identifique de inmediato qué
+    // bloques aún no tienen pacientes y pueda editarlos o eliminarlos.
+    const eventosFranjas = franjasRes.rows.map(f => ({
+      id:              `franja-${f.id}`,
+      title:           '🟢 Disponible (sin reservar)',
+      start:           `${f.fecha_str}T${f.hora_inicio}`,
+      end:             `${f.fecha_str}T${f.hora_fin}`,
+      backgroundColor: '#D1FAE5',
+      borderColor:     '#1A7A52',
+      textColor:       '#065F46',
+      display:         'block',
+      extendedProps: {
+        esFranjaDisponible: true,
+      },
     }));
 
-    return res.json(eventos);
+    return res.json([...eventosFranjas, ...eventosCitas]);
   } catch (err) {
     console.error('Error en agendaRango:', err.message);
     return res.status(500).json({ mensaje: 'Error al obtener el rango de agenda.' });
   }
 }
 
-// ─── POST /medico/franjas — Crear franja horaria (Médico autenticado) ─────────
+// ─── POST /medico/franjas — Crear franja horaria ───────────────────────────────
 async function crearFranja(req, res) {
   const id_usuario = req.usuario.id;
-  const { fecha, hora_inicio, hora_fin } = req.body;
+  const { fecha, hora_inicio, hora_fin, inicio_descanso, fin_descanso } = req.body;
 
-  if (!fecha || !hora_inicio || !hora_fin)
-    return res.status(400).json({ mensaje: 'Fecha, hora de inicio y hora de fin son obligatorios.' });
+  if (!fecha || !hora_inicio || !hora_fin) {
+    return res.status(400).json({ mensaje: "Faltan parámetros obligatorios." });
+  }
 
-  if (hora_inicio >= hora_fin)
-    return res.status(400).json({ mensaje: 'La hora de inicio debe ser anterior a la hora de fin.' });
+  if (hora_inicio >= hora_fin) {
+    return res.status(400).json({ mensaje: 'La hora de inicio debe ser anterior a la de fin.' });
+  }
 
   try {
-    const medicoRes = await pool.query(
-      'SELECT id FROM medicos WHERE id_usuario = $1 AND activo = TRUE',
-      [id_usuario]
-    );
-    if (medicoRes.rows.length === 0)
-      return res.status(403).json({ mensaje: 'No tienes un perfil médico activo.' });
+    const medicoRes = await pool.query('SELECT id FROM medicos WHERE id_usuario=$1', [id_usuario]);
+    if (medicoRes.rows.length === 0) return res.status(403).json({ mensaje: 'No tienes perfil de médico.' });
 
     const id_medico = medicoRes.rows[0].id;
 
-    const nueva = await pool.query(
-      `INSERT INTO franjas_horarias (id_medico, fecha, hora_inicio, hora_fin)
-       VALUES ($1, $2, $3, $4) RETURNING *`,
-      [id_medico, fecha, hora_inicio, hora_fin]
+    const franjasGeneradas = generarFranjasConDescanso(
+        hora_inicio,
+        hora_fin,
+        DURACION_FRANJA_MIN,
+        inicio_descanso,
+        fin_descanso
     );
 
-    return res.status(201).json({ mensaje: 'Franja horaria creada.', franja: nueva.rows[0] });
-  } catch (err) {
-    if (err.code === '23505')
-      return res.status(409).json({ mensaje: 'Ya existe una franja para esa fecha y hora.' });
-    console.error('Error en crearFranja:', err.message);
-    return res.status(500).json({ mensaje: 'Error al crear la franja horaria.' });
+    if (franjasGeneradas.length === 0) {
+        return res.status(400).json({ mensaje: "El rango de horas no permite crear franjas completas de 40 min." });
+    }
+
+    // Guardamos en la base de datos verificando que no existan duplicados
+    let insertadas = 0;
+    let duplicadas = 0;
+    for (const franja of franjasGeneradas) {
+        const existe = await pool.query(
+            `SELECT id FROM franjas_horarias WHERE id_medico=$1 AND fecha=$2 AND hora_inicio=$3`,
+            [id_medico, fecha, franja.hora_inicio]
+        );
+        if (existe.rows.length === 0) {
+           await pool.query(
+              `INSERT INTO franjas_horarias (id_medico, fecha, hora_inicio, hora_fin, estado)
+               VALUES ($1, $2, $3, $4, 'disponible')`,
+              [id_medico, fecha, franja.hora_inicio, franja.hora_fin]
+            );
+            insertadas++;
+        } else {
+            duplicadas++;
+        }
+    }
+
+    // FIX: se incluye `insertadas` en la respuesta — el front
+    // (HorariosSemana.jsx) suma `res.insertadas` para mostrar el total
+    // real de franjas creadas; sin esta clave el contador siempre quedaba
+    // en 0 aunque la BD sí guardara los registros correctamente.
+    res.status(201).json({
+        mensaje: `Se crearon ${insertadas} franja(s) de ${DURACION_FRANJA_MIN} minutos exitosamente${duplicadas ? ` (${duplicadas} ya existían)` : ''}.`,
+        insertadas,
+        duplicadas,
+        franjas_intentadas: franjasGeneradas.length,
+    });
+
+  } catch (error) {
+    console.error('Error en crearFranja masiva:', error.message);
+    res.status(500).json({ mensaje: 'Error al generar la disponibilidad.' });
   }
 }
 
-// ─── GET /medico/franjas?fecha= — Listar franjas del médico ───────────────────
+// ─── GET /medico/franjas?fecha= — Listar franjas ──────────────────────────────
 async function listarFranjas(req, res) {
   const id_usuario = req.usuario.id;
   const { fecha }  = req.query;
@@ -564,9 +591,9 @@ async function listarFranjas(req, res) {
     if (medicoRes.rows.length === 0)
       return res.status(404).json({ mensaje: 'Perfil de médico no encontrado.' });
 
-    const id_medico  = medicoRes.rows[0].id;
-    const condFecha  = fecha ? 'AND f.fecha = $2' : '';
-    const params     = fecha ? [id_medico, fecha] : [id_medico];
+    const id_medico = medicoRes.rows[0].id;
+    const condFecha = fecha ? 'AND f.fecha = $2' : '';
+    const params    = fecha ? [id_medico, fecha] : [id_medico];
 
     const resultado = await pool.query(
       `SELECT f.*, c.id AS cita_id
@@ -584,7 +611,74 @@ async function listarFranjas(req, res) {
   }
 }
 
-// ─── DELETE /medico/franjas/:id — Eliminar franja libre (Médico) ──────────────
+// ─── PATCH /medico/franjas/:id — Editar franja horaria (solo si está libre) ───
+// Validaciones profesionales end to end:
+//   1. La franja debe pertenecer al médico autenticado.
+//   2. No se puede editar una franja con cita reservada (integridad de la
+//      reserva del paciente).
+//   3. La duración debe ser exactamente de 40 min para mantener consistencia
+//      con el motor de reservas.
+//   4. No puede solaparse con otra franja existente del mismo médico/día.
+async function editarFranja(req, res) {
+  const { id } = req.params;
+  const id_usuario = req.usuario.id;
+  const { fecha, hora_inicio, hora_fin } = req.body;
+
+  if (!fecha || !hora_inicio || !hora_fin) {
+    return res.status(400).json({ mensaje: 'Fecha, hora de inicio y hora de fin son obligatorias.' });
+  }
+  if (hora_inicio >= hora_fin) {
+    return res.status(400).json({ mensaje: 'La hora de inicio debe ser anterior a la hora de fin.' });
+  }
+  if (duracionEnMinutos(hora_inicio, hora_fin) !== DURACION_FRANJA_MIN) {
+    return res.status(400).json({
+      mensaje: `La franja debe tener una duración exacta de ${DURACION_FRANJA_MIN} minutos.`,
+    });
+  }
+
+  try {
+    const medicoRes = await pool.query('SELECT id FROM medicos WHERE id_usuario = $1', [id_usuario]);
+    if (medicoRes.rows.length === 0)
+      return res.status(404).json({ mensaje: 'Perfil de médico no encontrado.' });
+
+    const id_medico = medicoRes.rows[0].id;
+
+    const franjaRes = await pool.query(
+      'SELECT * FROM franjas_horarias WHERE id = $1 AND id_medico = $2',
+      [id, id_medico]
+    );
+    if (franjaRes.rows.length === 0)
+      return res.status(404).json({ mensaje: 'Franja no encontrada o no te pertenece.' });
+
+    if (!franjaRes.rows[0].disponible)
+      return res.status(400).json({ mensaje: 'No puedes editar una franja que ya tiene una cita reservada.' });
+
+    const conflicto = await pool.query(
+      `SELECT id FROM franjas_horarias
+       WHERE id_medico = $1 AND fecha = $2 AND id != $3
+         AND hora_inicio < $4 AND hora_fin > $5`,
+      [id_medico, fecha, id, hora_fin, hora_inicio]
+    );
+    if (conflicto.rows.length > 0) {
+      return res.status(409).json({ mensaje: 'Ya existe otra franja que se solapa con ese horario.' });
+    }
+
+    const actualizada = await pool.query(
+      `UPDATE franjas_horarias
+       SET fecha = $1, hora_inicio = $2, hora_fin = $3
+       WHERE id = $4
+       RETURNING *`,
+      [fecha, hora_inicio, hora_fin, id]
+    );
+
+    return res.json({ mensaje: 'Franja actualizada correctamente.', franja: actualizada.rows[0] });
+  } catch (err) {
+    console.error('Error en editarFranja:', err.message);
+    return res.status(500).json({ mensaje: 'Error al editar la franja horaria.' });
+  }
+}
+
+// ─── DELETE /medico/franjas/:id — Eliminar franja libre ───────────────────────
 async function eliminarFranja(req, res) {
   const { id }     = req.params;
   const id_usuario = req.usuario.id;
@@ -599,23 +693,83 @@ async function eliminarFranja(req, res) {
 
     const id_medico = medicoRes.rows[0].id;
     const franja    = await pool.query(
-      'SELECT * FROM franjas_horarias WHERE id = $1 AND id_medico = $2',
+      'SELECT * FROM franjas_horarias WHERE id=$1 AND id_medico=$2',
       [id, id_medico]
     );
 
     if (franja.rows.length === 0)
       return res.status(404).json({ mensaje: 'Franja no encontrada.' });
-
     if (!franja.rows[0].disponible)
-      return res.status(400).json({
-        mensaje: 'No puedes eliminar una franja que ya tiene una cita reservada.',
-      });
+      return res.status(400).json({ mensaje: 'No puedes eliminar una franja con cita reservada.' });
 
-    await pool.query('DELETE FROM franjas_horarias WHERE id = $1', [id]);
+    await pool.query('DELETE FROM franjas_horarias WHERE id=$1', [id]);
     return res.json({ mensaje: 'Franja horaria eliminada correctamente.' });
   } catch (err) {
     console.error('Error en eliminarFranja:', err.message);
     return res.status(500).json({ mensaje: 'Error al eliminar la franja horaria.' });
+  }
+}
+
+// =============================================================================
+// ─── PATCH /medico/citas/:id/gestionar — Gestión profesional de cita ──────────
+// =============================================================================
+async function gestionarCita(req, res) {
+  const { id }                    = req.params;
+  const { estado, notas_medicas } = req.body;
+  const id_usuario                = req.usuario.id;
+
+  const estadosPermitidos = ['completada', 'no_asistio'];
+  if (!estadosPermitidos.includes(estado)) {
+    return res.status(400).json({
+      mensaje: 'Estado no válido. El médico solo puede marcar una cita como "completada" o "no_asistio".',
+    });
+  }
+
+  try {
+    const medicoRes = await pool.query(
+      'SELECT id FROM medicos WHERE id_usuario = $1',
+      [id_usuario]
+    );
+    if (medicoRes.rows.length === 0)
+      return res.status(403).json({ mensaje: 'No tienes perfil de médico.' });
+
+    const id_medico = medicoRes.rows[0].id;
+
+    const citaRes = await pool.query(
+      'SELECT id, estado, fecha FROM citas WHERE id=$1 AND id_medico=$2',
+      [id, id_medico]
+    );
+    if (citaRes.rows.length === 0)
+      return res.status(404).json({ mensaje: 'Cita no encontrada o no te pertenece.' });
+
+    const cita = citaRes.rows[0];
+
+    if (cita.estado === 'cancelada') {
+      return res.status(400).json({ mensaje: 'No puedes gestionar una cita cancelada.' });
+    }
+
+    const resultado = await pool.query(
+      `UPDATE citas
+       SET estado        = $1,
+           notas_medicas = COALESCE($2, notas_medicas),
+           updated_at    = NOW()
+       WHERE id = $3
+       RETURNING id, estado, notas_medicas`,
+      [estado, notas_medicas?.trim() || null, id]
+    );
+
+    const mensajes = {
+      completada: '✅ Cita marcada como completada.',
+      no_asistio: '📋 Paciente registrado como no asistente.',
+    };
+
+    return res.json({
+      mensaje: mensajes[estado],
+      cita:    resultado.rows[0],
+    });
+  } catch (err) {
+    console.error('Error en gestionarCita:', err.message);
+    return res.status(500).json({ mensaje: 'Error al gestionar la cita.' });
   }
 }
 
@@ -630,5 +784,7 @@ module.exports = {
   agendaRango,
   crearFranja,
   listarFranjas,
+  editarFranja,
   eliminarFranja,
+  gestionarCita,
 };

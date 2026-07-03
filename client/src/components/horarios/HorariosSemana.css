@@ -1,0 +1,592 @@
+/* client/src/components/horarios/HorariosSemana.css
+   MELIKA — Configurador semanal de horarios
+   Layout por cards verticales: sin scroll horizontal, ClockPicker para horas
+   ─────────────────────────────────────────────────────────────────────────── */
+
+.sh-root {
+  display:        flex;
+  flex-direction: column;
+  gap:            var(--space-5);
+}
+
+/* ── Campo genérico ───────────────────────────────────────────────────── */
+
+.sh-seccion {
+  display:        flex;
+  flex-direction: column;
+  gap:            var(--space-2);
+}
+
+.sh-campo {
+  display:        flex;
+  flex-direction: column;
+  gap:            var(--space-1);
+}
+
+.sh-label {
+  font-size:      0.75rem;
+  font-weight:    700;
+  color:          var(--melika-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.sh-select {
+  border:        1px solid var(--melika-primary-100, #c8e8d8);
+  border-radius: var(--radius-sm);
+  padding:       var(--space-2) var(--space-3);
+  font-size:     0.9rem;
+  font-family:   var(--font-body);
+  background:    var(--melika-bg, #fff);
+  color:         var(--melika-text-primary);
+  outline:       none;
+  transition:    border-color 0.15s;
+  width:         100%;
+}
+
+.sh-select:focus { border-color: var(--melika-primary-300, #6bc8a0); }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   NAVEGADOR DE SEMANA — Diseño interactivo tipo tarjeta
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.sh-nav-semana {
+  display:        flex;
+  flex-direction: column;
+  gap:            var(--space-3);
+}
+
+/* Controles prev / next / info */
+.sh-nav-semana__ctrl {
+  display:       flex;
+  align-items:   center;
+  gap:           var(--space-3);
+  background:    var(--melika-bg, #fff);
+  border:        1.5px solid var(--melika-primary-100, #c8e8d8);
+  border-radius: var(--radius-md);
+  padding:       var(--space-3) var(--space-4);
+}
+
+.sh-nav-semana__btn {
+  flex-shrink:     0;
+  width:           32px;
+  height:          32px;
+  border:          1px solid var(--melika-primary-100, #c8e8d8);
+  border-radius:   var(--radius-sm);
+  background:      var(--melika-bg, #fff);
+  color:           var(--melika-text-secondary);
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  cursor:          pointer;
+  transition:      all 0.15s;
+}
+
+.sh-nav-semana__btn:hover:not(:disabled) {
+  background:   var(--melika-primary-50, #f0faf6);
+  border-color: var(--melika-primary-300);
+  color:        var(--melika-primary);
+}
+
+.sh-nav-semana__btn:disabled {
+  opacity:    0.35;
+  cursor:     not-allowed;
+}
+
+.sh-nav-semana__info {
+  flex:           1;
+  display:        flex;
+  flex-direction: column;
+  gap:            var(--space-1);
+  text-align:     center;
+}
+
+.sh-nav-semana__rango {
+  font-size:   0.92rem;
+  font-weight: 700;
+  color:       var(--melika-text-primary);
+  font-family: var(--font-display);
+  line-height: 1.2;
+}
+
+.sh-nav-semana__placeholder {
+  font-size: 0.88rem;
+  color:     var(--melika-text-muted);
+}
+
+.sh-nav-semana__hint {
+  display:         flex;
+  justify-content: center;
+  gap:             var(--space-2);
+}
+
+.sh-nav-semana__dia-dot {
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  gap:            1px;
+  font-size:      0.65rem;
+  font-weight:    700;
+  color:          var(--melika-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sh-nav-semana__dia-fecha {
+  font-size:   0.72rem;
+  font-weight: 600;
+  color:       var(--melika-primary);
+}
+
+/* Scroll de semanas (tipo chip selector) */
+.sh-nav-semana__scroll {
+  display:         flex;
+  gap:             var(--space-2);
+  overflow-x:      auto;
+  padding-bottom:  var(--space-1);
+  scrollbar-width: thin;
+  scrollbar-color: var(--melika-primary-100) transparent;
+}
+
+.sh-nav-semana__scroll::-webkit-scrollbar       { height: 3px; }
+.sh-nav-semana__scroll::-webkit-scrollbar-track  { background: transparent; }
+.sh-nav-semana__scroll::-webkit-scrollbar-thumb  {
+  background:    var(--melika-primary-100);
+  border-radius: 3px;
+}
+
+.sh-nav-semana__pill {
+  flex-shrink:   0;
+  display:       flex;
+  flex-direction: column;
+  align-items:   center;
+  gap:           1px;
+  padding:       6px 12px;
+  border:        1.5px solid var(--melika-primary-100, #c8e8d8);
+  border-radius: var(--radius-md);
+  background:    var(--melika-bg, #fff);
+  cursor:        pointer;
+  transition:    all 0.15s;
+  min-width:     72px;
+}
+
+.sh-nav-semana__pill:hover {
+  background:   var(--melika-primary-25, #f8fdfb);
+  border-color: var(--melika-primary-200);
+}
+
+.sh-nav-semana__pill--sel {
+  background:   var(--melika-primary, #1a7a52) !important;
+  border-color: var(--melika-primary, #1a7a52) !important;
+}
+
+.sh-nav-semana__pill--sel .sh-nav-semana__pill-sem,
+.sh-nav-semana__pill--sel .sh-nav-semana__pill-fecha,
+.sh-nav-semana__pill--sel .sh-nav-semana__pill-tag { color: #fff !important; }
+
+.sh-nav-semana__pill-sem {
+  font-size:   0.68rem;
+  font-weight: 700;
+  color:       var(--melika-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+.sh-nav-semana__pill-fecha {
+  font-size:   0.82rem;
+  font-weight: 700;
+  color:       var(--melika-text-primary);
+  font-family: var(--font-display);
+  line-height: 1;
+}
+
+.sh-nav-semana__pill-tag {
+  font-size:   0.6rem;
+  font-weight: 600;
+  color:       var(--melika-accent, #e8856a);
+  line-height: 1;
+  margin-top:  1px;
+}
+
+.sh-nav-semana__pill--hoy { border-color: var(--melika-accent, #e8856a) !important; }
+.sh-nav-semana__pill--hoy:not(.sh-nav-semana__pill--sel) {
+  background: #fff9f7;
+}
+
+/* ── Plantillas ───────────────────────────────────────────────────────── */
+
+.sh-plantillas {
+  display:     flex;
+  align-items: center;
+  gap:         var(--space-2);
+  flex-wrap:   wrap;
+}
+
+.sh-plantillas__label {
+  font-size:   0.75rem;
+  font-weight: 700;
+  color:       var(--melika-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.sh-plantilla-btn {
+  font-family:   var(--font-display);
+  font-size:     0.78rem;
+  font-weight:   600;
+  color:         var(--melika-primary);
+  background:    #fff;
+  border:        1.5px solid var(--melika-primary-100, #c8e8d8);
+  border-radius: var(--radius-sm);
+  padding:       4px 12px;
+  cursor:        pointer;
+  transition:    all 0.12s;
+}
+
+.sh-plantilla-btn:hover {
+  background:   var(--melika-primary-50, #f0faf6);
+  border-color: var(--melika-primary-300);
+}
+
+/* ── Error ────────────────────────────────────────────────────────────── */
+
+.sh-error {
+  background:    var(--melika-error-bg, #fef2f2);
+  color:         var(--melika-error, #dc2626);
+  border:        1px solid var(--melika-error, #dc2626);
+  border-radius: var(--radius-sm);
+  padding:       var(--space-3) var(--space-4);
+  font-size:     0.85rem;
+  font-weight:   500;
+}
+
+/* ── Estado vacío ─────────────────────────────────────────────────────── */
+
+.sh-vacio {
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  gap:            var(--space-3);
+  padding:        var(--space-10) var(--space-4);
+  color:          var(--melika-text-muted);
+  font-size:      0.88rem;
+  text-align:     center;
+}
+
+.sh-vacio svg { opacity: 0.35; }
+.sh-vacio p   { margin: 0; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   CARDS DE DÍAS — layout vertical, SIN overflow horizontal
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.sh-dias {
+  display:        flex;
+  flex-direction: column;
+  gap:            var(--space-2);
+}
+
+.sh-fila {
+  border:        1.5px solid var(--melika-primary-100, #c8e8d8);
+  border-radius: var(--radius-md);
+  transition:    border-color 0.15s, background 0.15s;
+}
+
+.sh-fila--activa  {
+  border-color: var(--melika-primary-300, #6bc8a0);
+  background:   var(--melika-bg, #fff);
+}
+
+.sh-fila--inactiva {
+  background:   var(--melika-bg-secondary, #f8fafb);
+  border-color: var(--melika-primary-50, #e8f5f0);
+}
+
+/* ── Cabecera del día ── */
+.sh-fila__cabecera {
+  display:         flex;
+  justify-content: space-between;
+  align-items:     center;
+  padding:         var(--space-3) var(--space-4);
+  cursor:          pointer;
+  user-select:     none;
+}
+
+.sh-fila__toggle {
+  display:     flex;
+  align-items: center;
+  gap:         var(--space-3);
+  cursor:      pointer;
+  flex:        1;
+}
+
+.sh-fila__toggle input[type="checkbox"] {
+  accent-color: var(--melika-primary);
+  width:        16px;
+  height:       16px;
+  cursor:       pointer;
+  flex-shrink:  0;
+}
+
+.sh-fila__dia-nombre {
+  font-size:   0.92rem;
+  font-weight: 700;
+  color:       var(--melika-text-primary);
+  font-family: var(--font-display);
+}
+
+.sh-fila--inactiva .sh-fila__dia-nombre {
+  color: var(--melika-text-muted);
+}
+
+.sh-fila__dia-fecha {
+  font-size:  0.76rem;
+  color:      var(--melika-text-muted);
+  font-weight: 500;
+}
+
+.sh-fila__cabecera-right {
+  display:     flex;
+  align-items: center;
+  gap:         var(--space-2);
+}
+
+.sh-fila__badge {
+  display:       inline-block;
+  background:    var(--melika-primary-50, #f0faf6);
+  color:         var(--melika-primary);
+  border:        1px solid var(--melika-primary-100, #c8e8d8);
+  border-radius: 20px;
+  font-size:     0.72rem;
+  font-weight:   700;
+  padding:       2px 8px;
+  white-space:   nowrap;
+}
+
+.sh-fila__btn-copiar {
+  background:    transparent;
+  border:        1px solid var(--melika-primary-100, #c8e8d8);
+  border-radius: var(--radius-sm);
+  color:         var(--melika-text-muted);
+  width:         28px;
+  height:        28px;
+  display:       flex;
+  align-items:   center;
+  justify-content: center;
+  cursor:        pointer;
+  transition:    all 0.12s;
+}
+
+.sh-fila__btn-copiar:hover {
+  background:   var(--melika-primary-50, #f0faf6);
+  border-color: var(--melika-primary-300);
+  color:        var(--melika-primary);
+}
+
+/* ── Cuerpo del día (controles de hora) ── */
+.sh-fila__cuerpo {
+  display:        flex;
+  flex-direction: column;
+  gap:            var(--space-3);
+  padding:        0 var(--space-4) var(--space-4);
+  border-top:     1px solid var(--melika-primary-50, #e8f5f0);
+}
+
+/* Fila de horas de jornada */
+.sh-fila__horas {
+  display:     flex;
+  align-items: flex-end;
+  gap:         var(--space-3);
+  flex-wrap:   wrap;
+}
+
+.sh-fila__clock-grupo {
+  display:        flex;
+  flex-direction: column;
+  gap:            var(--space-1);
+  min-width:      140px;
+  flex:           1;
+}
+
+.sh-fila__clock-label {
+  font-size:   0.72rem;
+  font-weight: 600;
+  color:       var(--melika-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sh-fila__separador {
+  font-size:    1rem;
+  color:        var(--melika-text-muted);
+  padding-bottom: 10px;
+  flex-shrink:  0;
+}
+
+/* Sección de descanso */
+.sh-fila__descanso-wrap {
+  display:        flex;
+  flex-direction: column;
+  gap:            var(--space-2);
+}
+
+.sh-fila__descanso-toggle {
+  display:     flex;
+  align-items: center;
+  gap:         var(--space-2);
+  font-size:   0.82rem;
+  font-weight: 600;
+  color:       var(--melika-text-secondary);
+  cursor:      pointer;
+  user-select: none;
+}
+
+.sh-fila__descanso-toggle input[type="checkbox"] {
+  accent-color: var(--melika-accent, #e8856a);
+  width:        14px;
+  height:       14px;
+}
+
+.sh-fila__descanso-toggle svg {
+  color: var(--melika-text-muted);
+  flex-shrink: 0;
+}
+
+.sh-fila__descanso-toggle--disabled {
+  opacity: 0.4;
+  cursor:  not-allowed;
+  pointer-events: none;
+}
+
+.sh-fila__descanso-horas {
+  display:     flex;
+  align-items: flex-end;
+  gap:         var(--space-3);
+  flex-wrap:   wrap;
+  padding:     var(--space-3);
+  background:  rgba(180, 83, 9, 0.04);
+  border:      1px dashed rgba(180, 83, 9, 0.22);
+  border-radius: var(--radius-sm);
+}
+
+/* ── Acciones finales ─────────────────────────────────────────────────── */
+
+.sh-acciones {
+  display:         flex;
+  justify-content: space-between;
+  align-items:     center;
+  gap:             var(--space-3);
+  padding-top:     var(--space-4);
+  border-top:      1px solid var(--melika-primary-50, #e8f5f0);
+  flex-wrap:       wrap;
+}
+
+.sh-acciones__resumen {
+  font-size:  0.82rem;
+  color:      var(--melika-text-muted);
+  font-style: italic;
+}
+
+.sh-acciones__btns {
+  display: flex;
+  gap:     var(--space-3);
+}
+
+.sh-btn {
+  font-family:   var(--font-display);
+  font-size:     0.9rem;
+  font-weight:   600;
+  border-radius: var(--radius-sm);
+  padding:       var(--space-2) var(--space-5);
+  cursor:        pointer;
+  transition:    all 0.15s;
+  border:        none;
+}
+
+.sh-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.sh-btn--primario {
+  background: var(--melika-primary-600, #1a7a52);
+  color:      #fff;
+}
+
+.sh-btn--primario:hover:not(:disabled) {
+  background: var(--melika-primary-700, #145c3e);
+}
+
+.sh-btn--secundario {
+  background:   transparent;
+  color:        var(--melika-text-secondary);
+  border:       1.5px solid var(--melika-primary-100, #c8e8d8);
+}
+
+.sh-btn--secundario:hover:not(:disabled) {
+  border-color: var(--melika-primary-300);
+  color:        var(--melika-text-primary);
+}
+
+/* ── Resultado ────────────────────────────────────────────────────────── */
+
+.sh-resultado {
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  gap:            var(--space-3);
+  padding:        var(--space-10) var(--space-4);
+  text-align:     center;
+}
+
+.sh-resultado__icono {
+  color: var(--melika-primary);
+  opacity: 0.9;
+}
+
+.sh-resultado__titulo {
+  font-size:  1.1rem;
+  font-weight: 700;
+  color:       var(--melika-text-primary);
+  margin:      0;
+}
+
+.sh-resultado__detalle {
+  font-size: 0.9rem;
+  color:     var(--melika-text-secondary);
+  margin:    0;
+}
+
+.sh-resultado__acciones {
+  display:    flex;
+  gap:        var(--space-3);
+  margin-top: var(--space-2);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 640px) {
+  .sh-fila__horas,
+  .sh-fila__descanso-horas {
+    flex-direction: column;
+    gap:            var(--space-3);
+  }
+
+  .sh-fila__separador { display: none; }
+
+  .sh-fila__clock-grupo { min-width: unset; width: 100%; }
+
+  .sh-acciones {
+    flex-direction: column;
+    align-items:    stretch;
+  }
+
+  .sh-acciones__btns {
+    flex-direction: column;
+  }
+
+  .sh-btn { width: 100%; text-align: center; }
+
+  .sh-nav-semana__ctrl { gap: var(--space-2); }
+}
