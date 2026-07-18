@@ -1,65 +1,8 @@
-const express = require('express');
-const cors    = require('cors');
-require('dotenv').config();
+// server/src/server.js
+// Ahora solo arranca el servidor. La app en sí vive en app.js
+// y así Supertest puede importarla sin abrir un puerto real.
 
-const authRoutes           = require('./routes/authRoutes');
-const especialidadesRoutes = require('./routes/especialidadesRoutes');
-const citasRoutes          = require('./routes/citasRoutes');
-const medicosRoutes        = require('./routes/medicosRoutes');
-const historiasRoutes      = require('./routes/historiasRoutes');
-const medicamentosRoutes   = require('./routes/medicamentosRoutes');
-const adminRoutes          = require('./routes/adminRoutes');
-
-const app = express();
-
-
-const allowedOrigins = [
-  'http://localhost:5173', 
-  'http://127.0.0.1:5173',
-  process.env.FRONTEND_URL 
-];
-
-app.use(cors({ 
-  origin: (origin, callback) => {
-    
-    // Permitir peticiones sin origen (como Postman o el mismo servidor)
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('No permitido por CORS'));
-    }
-  },
-  credentials: true 
-}));
-
-app.use(express.json());
-
-// ── Estado del Servidor (Verificación Raíz) ────────────────────────────────
-app.get('/', (req, res) => {
-  res.status(200).json({
-    status: "ok",
-    message: "Servidor MELIKA funcionando correctamente"
-  });
-});
-
-// ── Autenticación ──────────────────────────────────────────────────────────
-app.use('/auth', authRoutes);
-
-// ── Rutas admin (requieren token + rol admin) ──────────────────────────────
-app.use('/admin', adminRoutes);
-
-// ── Recursos principales ───────────────────────────────────────────────────
-app.use('/especialidades',  especialidadesRoutes);
-app.use('/citas',           citasRoutes);
-app.use('/historias',       historiasRoutes);
-app.use('/medicamentos',    medicamentosRoutes);
-
-// ── Médicos ────────────────────────────────────────────────────────────────
-// /medicos  → admin (CRUD de médicos)
-// /medico   → médico autenticado (perfil, agenda, franjas)
-// Se usa el mismo router — las rutas internas distinguen con middleware
-app.use('/medicos', medicosRoutes);
-app.use('/medico',  medicosRoutes);
+const app = require('./app');
 
 const PORT = process.env.PORT || 3000;
 

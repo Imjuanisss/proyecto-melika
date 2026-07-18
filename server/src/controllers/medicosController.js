@@ -710,69 +710,6 @@ async function eliminarFranja(req, res) {
   }
 }
 
-// =============================================================================
-// ─── PATCH /medico/citas/:id/gestionar — Gestión profesional de cita ──────────
-// =============================================================================
-async function gestionarCita(req, res) {
-  const { id }                    = req.params;
-  const { estado, notas_medicas } = req.body;
-  const id_usuario                = req.usuario.id;
-
-  const estadosPermitidos = ['completada', 'no_asistio'];
-  if (!estadosPermitidos.includes(estado)) {
-    return res.status(400).json({
-      mensaje: 'Estado no válido. El médico solo puede marcar una cita como "completada" o "no_asistio".',
-    });
-  }
-
-  try {
-    const medicoRes = await pool.query(
-      'SELECT id FROM medicos WHERE id_usuario = $1',
-      [id_usuario]
-    );
-    if (medicoRes.rows.length === 0)
-      return res.status(403).json({ mensaje: 'No tienes perfil de médico.' });
-
-    const id_medico = medicoRes.rows[0].id;
-
-    const citaRes = await pool.query(
-      'SELECT id, estado, fecha FROM citas WHERE id=$1 AND id_medico=$2',
-      [id, id_medico]
-    );
-    if (citaRes.rows.length === 0)
-      return res.status(404).json({ mensaje: 'Cita no encontrada o no te pertenece.' });
-
-    const cita = citaRes.rows[0];
-
-    if (cita.estado === 'cancelada') {
-      return res.status(400).json({ mensaje: 'No puedes gestionar una cita cancelada.' });
-    }
-
-    const resultado = await pool.query(
-      `UPDATE citas
-       SET estado        = $1,
-           notas_medicas = COALESCE($2, notas_medicas),
-           updated_at    = NOW()
-       WHERE id = $3
-       RETURNING id, estado, notas_medicas`,
-      [estado, notas_medicas?.trim() || null, id]
-    );
-
-    const mensajes = {
-      completada: '✅ Cita marcada como completada.',
-      no_asistio: '📋 Paciente registrado como no asistente.',
-    };
-
-    return res.json({
-      mensaje: mensajes[estado],
-      cita:    resultado.rows[0],
-    });
-  } catch (err) {
-    console.error('Error en gestionarCita:', err.message);
-    return res.status(500).json({ mensaje: 'Error al gestionar la cita.' });
-  }
-}
-
 module.exports = {
   crearMedico,
   activarCuenta,
@@ -786,5 +723,4 @@ module.exports = {
   listarFranjas,
   editarFranja,
   eliminarFranja,
-  gestionarCita,
 };

@@ -10,7 +10,7 @@ client/.env
 
 
 # Coberturas de pruebas
-sever/coverage/
+server/coverage/
 
 # Archivos que no van al repo
 *.docx
@@ -22,3 +22,9 @@ server/uploads/
 # Logs
 *.log
 npm-debug.log*
+
+
+# Tests
+tests/
+
+jest.config.js
